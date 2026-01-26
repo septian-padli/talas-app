@@ -1,0 +1,686 @@
+{
+	"openapi": "3.0.3",
+	"info": {
+		"title": "Talas API",
+		"description": "API Contract untuk Project Talas - Platform showcase project untuk developer & desainer dengan fitur sosial microblogging.",
+		"version": "1.0.0",
+		"contact": {
+			"name": "Talas Team"
+		}
+	},
+	"servers": [
+		{
+			"url": "http://localhost:80/v1",
+			"description": "Local Development (via Nginx Gateway)"
+		},
+		{
+			"url": "http://localhost:3001/v1",
+			"description": "User Service Direct"
+		},
+		{
+			"url": "http://localhost:8080/v1",
+			"description": "Content Service Direct"
+		}
+	],
+	"tags": [
+		{
+			"name": "Auth",
+			"description": "Authentication endpoints (User Service)"
+		},
+		{
+			"name": "Users",
+			"description": "User profile & social endpoints (User Service)"
+		},
+		{
+			"name": "Showcases",
+			"description": "Project showcase endpoints (Content Service)"
+		},
+		{
+			"name": "Feed",
+			"description": "Timeline & discovery endpoints (Content Service)"
+		},
+		{
+			"name": "Notifications",
+			"description": "Notification endpoints (User Service)"
+		}
+	],
+	"paths": {
+		"/auth/register": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Register user baru",
+				"description": "Mendaftarkan user baru ke sistem. Setelah register berhasil, user harus login untuk mendapatkan token.",
+				"operationId": "registerUser",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RegisterRequest"
+							},
+							"example": {
+								"email": "newuser@example.com",
+								"password": "securePassword123",
+								"username": "newuser",
+								"full_name": "New User"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Registrasi berhasil. User dapat login untuk mendapatkan token.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 201,
+									"success": true,
+									"data": {
+										"user": {
+											"id": "550e8400-e29b-41d4-a716-446655440000",
+											"username": "newuser",
+											"email": "newuser@example.com",
+											"full_name": "New User",
+											"avatar_url": null,
+											"bio": null,
+											"created_at": "2026-01-26T12:00:00Z"
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal (field kosong, format salah, atau constraint tidak terpenuhi)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"examples": {
+									"validation_error": {
+										"summary": "Validasi field gagal",
+										"value": {
+											"code": 400,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "email",
+													"message": "Email tidak valid"
+												},
+												{
+													"field": "password",
+													"message": "Password minimal 8 karakter"
+												}
+											]
+										}
+									},
+									"missing_fields": {
+										"summary": "Field wajib tidak diisi",
+										"value": {
+											"code": 400,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "username",
+													"message": "Username wajib diisi"
+												}
+											]
+										}
+									}
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Konflik data (email atau username sudah terdaftar)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"examples": {
+									"email_exists": {
+										"summary": "Email sudah terdaftar",
+										"value": {
+											"code": 409,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "email",
+													"message": "Email sudah terdaftar"
+												}
+											]
+										}
+									},
+									"username_exists": {
+										"summary": "Username sudah digunakan",
+										"value": {
+											"code": 409,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "username",
+													"message": "Username sudah digunakan"
+												}
+											]
+										}
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/login": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Login user",
+				"description": "Authenticate user dengan email & password. Token JWT dikembalikan via **Set-Cookie header** (HttpOnly), BUKAN di response body.",
+				"operationId": "loginUser",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginRequest"
+							},
+							"example": {
+								"email": "user@example.com",
+								"password": "securePassword123"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Login berhasil. Token disimpan di HttpOnly Cookie.",
+						"headers": {
+							"Set-Cookie": {
+								"description": "JWT access token & refresh token dalam HttpOnly cookie",
+								"schema": {
+									"type": "string",
+									"example": "access_token=eyJhbGciOiJIUzI1NiIs...; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=900, refresh_token=eyJhbGciOiJIUzI1NiIs...; Path=/v1/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=604800"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"user": {
+											"id": "550e8400-e29b-41d4-a716-446655440000",
+											"username": "johndoe",
+											"email": "user@example.com",
+											"full_name": "John Doe",
+											"avatar_url": "https://res.cloudinary.com/talas/avatar.jpg",
+											"bio": "Full-stack developer",
+											"created_at": "2026-01-26T12:00:00Z"
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal (email/password kosong atau format salah)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 400,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "email",
+											"message": "Email tidak valid"
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Kredensial salah (email tidak ditemukan atau password tidak cocok)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "credentials",
+											"message": "Email atau password salah"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/logout": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Logout user",
+				"description": "Logout user dengan menghapus cookie dan merevoke refresh token di database. Endpoint ini membutuhkan autentikasi (cookie valid).",
+				"operationId": "logoutUser",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Logout berhasil. Cookie dihapus dan refresh token direvoke.",
+						"headers": {
+							"Set-Cookie": {
+								"description": "Cookie dihapus dengan Max-Age=0",
+								"schema": {
+									"type": "string",
+									"example": "access_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0, refresh_token=; Path=/v1/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": null,
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi (cookie tidak ada atau expired)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/refresh": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Refresh access token",
+				"description": "Mendapatkan access token baru menggunakan refresh token yang valid. Refresh token dikirim via cookie. Response mengembalikan access token baru via Set-Cookie header.",
+				"operationId": "refreshToken",
+				"responses": {
+					"200": {
+						"description": "Token berhasil di-refresh. Access token baru disimpan di cookie.",
+						"headers": {
+							"Set-Cookie": {
+								"description": "Access token baru dalam HttpOnly cookie",
+								"schema": {
+									"type": "string",
+									"example": "access_token=eyJhbGciOiJIUzI1NiIs...; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=900"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"user": {
+											"id": "550e8400-e29b-41d4-a716-446655440000",
+											"username": "johndoe",
+											"email": "user@example.com",
+											"full_name": "John Doe",
+											"avatar_url": "https://res.cloudinary.com/talas/avatar.jpg",
+											"bio": "Full-stack developer",
+											"created_at": "2026-01-26T12:00:00Z"
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Refresh token tidak valid, expired, atau sudah direvoke",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"examples": {
+									"token_expired": {
+										"summary": "Refresh token expired",
+										"value": {
+											"code": 401,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "refresh_token",
+													"message": "Refresh token sudah expired, silakan login ulang"
+												}
+											]
+										}
+									},
+									"token_revoked": {
+										"summary": "Token sudah direvoke",
+										"value": {
+											"code": 401,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "refresh_token",
+													"message": "Token sudah tidak valid, silakan login ulang"
+												}
+											]
+										}
+									},
+									"token_missing": {
+										"summary": "Refresh token tidak ditemukan",
+										"value": {
+											"code": 401,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "refresh_token",
+													"message": "Refresh token tidak ditemukan"
+												}
+											]
+										}
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"ApiResponse": {
+				"type": "object",
+				"description": "Standard API response wrapper",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"description": "HTTP status code",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"description": "Indikator keberhasilan request",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"nullable": true,
+						"description": "Data response (null jika error)"
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"description": "Array of error objects (null jika success)",
+						"items": {
+							"$ref": "#/components/schemas/FieldError"
+						}
+					}
+				},
+				"required": ["code", "success"]
+			},
+			"FieldError": {
+				"type": "object",
+				"description": "Error detail per field",
+				"properties": {
+					"field": {
+						"type": "string",
+						"description": "Nama field yang error",
+						"example": "email"
+					},
+					"message": {
+						"type": "string",
+						"description": "Pesan error",
+						"example": "Email tidak valid"
+					}
+				},
+				"required": ["field", "message"]
+			},
+			"RegisterRequest": {
+				"type": "object",
+				"required": ["email", "password", "username"],
+				"properties": {
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "Email user (harus unik)",
+						"example": "newuser@example.com"
+					},
+					"password": {
+						"type": "string",
+						"format": "password",
+						"minLength": 8,
+						"description": "Password user (minimal 8 karakter)",
+						"example": "securePassword123"
+					},
+					"username": {
+						"type": "string",
+						"minLength": 3,
+						"maxLength": 30,
+						"pattern": "^[a-zA-Z0-9_]+$",
+						"description": "Username unik (hanya huruf, angka, dan underscore)",
+						"example": "newuser"
+					},
+					"full_name": {
+						"type": "string",
+						"maxLength": 100,
+						"description": "Nama lengkap user (opsional)",
+						"example": "New User"
+					}
+				}
+			},
+			"LoginRequest": {
+				"type": "object",
+				"required": ["email", "password"],
+				"properties": {
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "Email terdaftar user",
+						"example": "user@example.com"
+					},
+					"password": {
+						"type": "string",
+						"format": "password",
+						"minLength": 8,
+						"description": "Password user (min 8 karakter)",
+						"example": "securePassword123"
+					}
+				}
+			},
+			"UserProfile": {
+				"type": "object",
+				"description": "Data profil user",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "UUID user"
+					},
+					"username": {
+						"type": "string",
+						"description": "Username unik"
+					},
+					"email": {
+						"type": "string",
+						"format": "email"
+					},
+					"full_name": {
+						"type": "string",
+						"nullable": true,
+						"description": "Nama lengkap user"
+					},
+					"avatar_url": {
+						"type": "string",
+						"format": "uri",
+						"nullable": true,
+						"description": "URL avatar dari Cloudinary"
+					},
+					"bio": {
+						"type": "string",
+						"nullable": true,
+						"description": "Bio singkat user"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					}
+				}
+			}
+		},
+		"securitySchemes": {
+			"cookieAuth": {
+				"type": "apiKey",
+				"in": "cookie",
+				"name": "access_token",
+				"description": "JWT access token disimpan dalam HttpOnly cookie. Dikirim otomatis oleh browser."
+			},
+			"refreshTokenAuth": {
+				"type": "apiKey",
+				"in": "cookie",
+				"name": "refresh_token",
+				"description": "JWT refresh token disimpan dalam HttpOnly cookie. Digunakan untuk mendapatkan access token baru."
+			}
+		}
+	}
+}
