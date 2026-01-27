@@ -1296,9 +1296,13 @@
 						}
 					},
 					{
-						"name": "page",
+						"name": "cursor",
 						"in": "query",
-						"schema": { "type": "integer", "default": 1 }
+						"required": false,
+						"description": "Cursor untuk pagination",
+						"schema": {
+							"type": "string"
+						}
 					},
 					{
 						"name": "limit",
@@ -2069,14 +2073,12 @@
 						}
 					},
 					{
-						"name": "page",
+						"name": "cursor",
 						"in": "query",
 						"required": false,
-						"description": "Nomor halaman (default: 1)",
+						"description": "Cursor untuk pagination",
 						"schema": {
-							"type": "integer",
-							"default": 1,
-							"example": 1
+							"type": "string"
 						}
 					},
 					{
@@ -2137,10 +2139,8 @@
 											}
 										],
 										"pagination": {
-											"page": 1,
-											"limit": 20,
-											"total_items": 8,
-											"total_pages": 1
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
 										}
 									},
 									"errors": null
@@ -2718,15 +2718,12 @@
 				],
 				"parameters": [
 					{
-						"name": "page",
+						"name": "cursor",
 						"in": "query",
 						"required": false,
-						"description": "Halaman yang diminta (default: 1)",
+						"description": "Cursor untuk pagination",
 						"schema": {
-							"type": "integer",
-							"minimum": 1,
-							"default": 1,
-							"example": 1
+							"type": "string"
 						}
 					},
 					{
@@ -2793,10 +2790,8 @@
 											}
 										],
 										"pagination": {
-											"page": 1,
-											"limit": 15,
-											"total_items": 48,
-											"total_pages": 4
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
 										}
 									},
 									"errors": null
@@ -3013,10 +3008,8 @@
 											}
 										],
 										"pagination": {
-											"page": 1,
-											"limit": 10,
-											"total_items": 45,
-											"total_pages": 5
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
 										}
 									},
 									"errors": null
@@ -3147,10 +3140,8 @@
 											}
 										],
 										"pagination": {
-											"page": 1,
-											"limit": 10,
-											"total_items": 30,
-											"total_pages": 3
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
 										}
 									},
 									"errors": null
@@ -3286,10 +3277,9 @@
 													}
 												],
 												"pagination": {
-													"page": 1,
-													"limit": 10,
-													"total_items": 15,
-													"total_pages": 2
+												"pagination": {
+													"next_cursor": "eyJpZCI...",
+													"has_next": true
 												}
 											},
 											"errors": null
@@ -3319,10 +3309,8 @@
 													}
 												],
 												"pagination": {
-													"page": 1,
-													"limit": 10,
-													"total_items": 8,
-													"total_pages": 1
+													"next_cursor": "eyJpZCI...",
+													"has_next": true
 												}
 											},
 											"errors": null
@@ -3336,10 +3324,8 @@
 											"data": {
 												"showcases": [],
 												"pagination": {
-													"page": 1,
-													"limit": 10,
-													"total_items": 0,
-													"total_pages": 0
+													"next_cursor": null,
+													"has_next": false
 												}
 											},
 											"errors": null
@@ -3538,13 +3524,12 @@
 						}
 					},
 					{
-						"name": "page",
+						"name": "cursor",
 						"in": "query",
 						"required": false,
-						"description": "Halaman (default: 1)",
+						"description": "Cursor pagination",
 						"schema": {
-							"type": "integer",
-							"default": 1
+							"type": "string"
 						}
 					},
 					{
@@ -3577,10 +3562,8 @@
 											"550e8400-e29b-41d4-a716-446655440012"
 										],
 										"pagination": {
-											"page": 1,
-											"limit": 1000,
-											"total_items": 5000,
-											"total_pages": 5
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
 										}
 									},
 									"errors": null
@@ -3629,15 +3612,12 @@
 						}
 					},
 					{
-						"name": "page",
+						"name": "cursor",
 						"in": "query",
 						"required": false,
-						"description": "Halaman yang diminta (default: 1)",
+						"description": "Cursor pagination",
 						"schema": {
-							"type": "integer",
-							"minimum": 1,
-							"default": 1,
-							"example": 1
+							"type": "string"
 						}
 					},
 					{
@@ -3684,10 +3664,8 @@
 											}
 										],
 										"pagination": {
-											"page": 1,
-											"limit": 10,
-											"total_items": 12,
-											"total_pages": 2
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
 										}
 									},
 									"errors": null
@@ -3820,12 +3798,12 @@
 				],
 				"parameters": [
 					{
-						"name": "page",
+						"name": "cursor",
 						"in": "query",
 						"required": false,
+						"description": "Cursor pagination",
 						"schema": {
-							"type": "integer",
-							"default": 1
+							"type": "string"
 						}
 					},
 					{
@@ -3869,10 +3847,8 @@
 											}
 										],
 										"pagination": {
-											"page": 1,
-											"limit": 10,
-											"total_items": 1,
-											"total_pages": 1
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
 										}
 									},
 									"errors": null
@@ -4962,21 +4938,7 @@
 								}
 							},
 							"pagination": {
-								"type": "object",
-								"properties": {
-									"page": {
-										"type": "integer"
-									},
-									"limit": {
-										"type": "integer"
-									},
-									"total_items": {
-										"type": "integer"
-									},
-									"total_pages": {
-										"type": "integer"
-									}
-								}
+								"$ref": "#/components/schemas/CursorPaginationMeta"
 							}
 						}
 					},
@@ -5383,7 +5345,7 @@
 								}
 							},
 							"pagination": {
-								"$ref": "#/components/schemas/PaginationMeta"
+								"$ref": "#/components/schemas/CursorPaginationMeta"
 							}
 						}
 					},
@@ -5437,6 +5399,9 @@
 										"example": 1
 									}
 								}
+							},
+							"pagination": {
+								"$ref": "#/components/schemas/CursorPaginationMeta"
 							}
 						}
 					},
@@ -5633,7 +5598,7 @@
 								}
 							},
 							"pagination": {
-								"$ref": "#/components/schemas/PaginationMeta"
+								"$ref": "#/components/schemas/CursorPaginationMeta"
 							}
 						}
 					},
@@ -5727,7 +5692,7 @@
 								"description": "List UUID followers"
 							},
 							"pagination": {
-								"$ref": "#/components/schemas/PaginationMeta"
+								"$ref": "#/components/schemas/CursorPaginationMeta"
 							}
 						}
 					},

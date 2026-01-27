@@ -159,6 +159,35 @@ const toggleFollow = async (req, res) => {
     });
   }
 
+  // DEBUG: Check IDs
+  // console.log(`[ToggleFollow] Debugging...`);
+  // console.log(`[ToggleFollow] Follower ID (Me): ${followerId}`);
+  // console.log(`[ToggleFollow] Following ID (Target): ${followingId}`);
+
+  // Check if both users actually exist before transaction to isolate the error
+  const checkFollower = await prisma.user.findUnique({ where: { id: followerId } });
+  const checkFollowing = await prisma.user.findUnique({ where: { id: followingId } });
+
+  if (!checkFollower) {
+    console.error(`[ToggleFollow] Error: Follower (Me) with ID ${followerId} does NOT exist in DB.`);
+    return res.status(404).json({
+      code: 404,
+      success: false,
+      message: 'User pengikut (Anda) tidak ditemukan di database. Token mungkin invalid/user terhapus.',
+      errors: null
+    });
+  }
+
+  if (!checkFollowing) {
+    console.error(`[ToggleFollow] Error: Following (Target) with ID ${followingId} does NOT exist in DB.`);
+    return res.status(404).json({
+      code: 404,
+      success: false,
+      message: 'User target tidak ditemukan',
+      errors: null
+    });
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       // Langkah 1 (READ): Cek status follow saat ini

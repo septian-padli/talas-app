@@ -18,7 +18,21 @@ async function main() {
 
   // 2. Create Users
   const users = [];
-  const passwordHash = await bcrypt.hash('password123', 10); // Default password
+  const passwordHash = await bcrypt.hash('password123', 10); // Default user password
+  const adminPasswordHash = await bcrypt.hash('password', 10); // Admin password
+
+  // Specific Admin User
+  users.push({
+    email: 'useradmin@example.com',
+    username: 'useradmin',
+    password: adminPasswordHash,
+    name: 'user admin',
+    bio: 'Platform Administrator',
+    jobTitle: 'Admin',
+    avatarUrl: faker.image.avatar(),
+    isVerified: true,
+    createdAt: new Date()
+  });
 
   for (let i = 0; i < 20; i++) {
     const firstName = faker.person.firstName();

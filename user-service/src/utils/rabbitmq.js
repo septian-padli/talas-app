@@ -29,7 +29,7 @@ const publishEvent = async (routingKey, data) => {
     const buffer = Buffer.from(JSON.stringify(data));
     
     channel.publish(exchange, routingKey, buffer);
-    console.log(`📡 Event Published: ${routingKey}`);
+    // console.log(`📡 Event Published: ${routingKey}`);
   } catch (error) {
     console.error('❌ Publish Event Error:', error);
   }

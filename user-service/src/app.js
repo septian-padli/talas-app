@@ -22,6 +22,10 @@ app.use('/api/auth', authRoutes);
 const userRoutes = require('./routes/userRoutes');
 app.use('/api/users', userRoutes);
 
+
+const internalRoutes = require('./routes/internalRoutes');
+app.use('/api/internal', internalRoutes); // Protected by Service Secret
+
 // Routing Test (Langsung tembak dulu untuk tes Nginx)
 // Nginx mengirim request ke /api/auth/test, jadi kita tangkap path yang sama
 app.get('/api/auth/init-testing', (req, res) => {
