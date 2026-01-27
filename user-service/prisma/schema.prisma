@@ -28,14 +28,15 @@ datasource db {
 // MODEL: USER
 // --------------------------------------
 model User {
-  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email     String  @unique
-  username  String  @unique
-  password  String // Akan di-hash dengan Bcrypt
-  name      String
-  bio       String? @db.Text
-  avatarUrl String? @map("avatar_url")
-  jobTitle  String? @map("job_title") // e.g. "Software Engineer"
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String  @unique
+  username   String  @unique
+  password   String // Akan di-hash dengan Bcrypt
+  name       String
+  bio        String? @db.Text
+  avatarUrl  String? @map("avatar_url")
+  jobTitle   String? @map("job_title") // e.g. "Software Engineer"
+  isVerified Boolean @default(false) @map("is_verified")
 
   // Social Stats (Denormalization agar query cepat)
   followersCount Int @default(0) @map("followers_count")
@@ -45,6 +46,11 @@ model User {
   followedBy    Follow[]       @relation("followedBy")
   following     Follow[]       @relation("following")
   refreshTokens RefreshToken[]
+
+  // Relasi Notifications
+  receivedNotifications Notification[] @relation("ReceivedNotifications")
+  sentNotifications     Notification[] @relation("SentNotifications")
+  socialLinks           SocialLink[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -85,4 +91,65 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// --------------------------------------
+// MODEL: NOTIFICATION
+// --------------------------------------
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  COLLABORATOR_INVITED
+  COLLABORATOR_ACCEPTED
+}
+
+model Notification {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid // Penerima Notif
+  senderId   String?          @map("sender_id") @db.Uuid // Pengirim Notif
+  type       NotificationType
+  title      String
+  content    String           @db.Text
+  isRead     Boolean          @default(false) @map("is_read")
+  entityId   String?          @map("entity_id") @db.Uuid // ID dari Showcase/Comment/dll
+  entityType String?          @map("entity_type") // string identifier e.g. "SHOWCASE"
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relasi
+  recipient User  @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  sender    User? @relation("SentNotifications", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+// --------------------------------------
+// MODEL: SOCIAL LINK
+// --------------------------------------
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  GITHUB
+  X
+  LINKEDIN
+  DRIBBBLE
+}
+
+model SocialLink {
+  id       String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId   String         @map("user_id") @db.Uuid
+  social   SocialPlatform
+  link     String
+  username String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("social_links")
 }

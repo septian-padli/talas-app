@@ -19,6 +19,9 @@ app.use(cors({
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
+
 // Routing Test (Langsung tembak dulu untuk tes Nginx)
 // Nginx mengirim request ke /api/auth/test, jadi kita tangkap path yang sama
 app.get('/api/auth/init-testing', (req, res) => {

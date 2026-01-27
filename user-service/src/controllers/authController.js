@@ -11,7 +11,7 @@ const register = async (req, res) => {
     // 1. Validasi Input (Zod)
     const validation = registerSchema.safeParse(req.body);
     if (!validation.success) {
-      const errorDetails = validation.error.errors.map(err => ({
+      const errorDetails = validation.error.issues.map(err => ({
         field: err.path[0],
         message: err.message
       }));
@@ -107,12 +107,16 @@ const login = async (req, res) => {
     // 1. Validasi Input
     const validation = loginSchema.safeParse(req.body);
     if (!validation.success) {
-      console.log('Validation Errors:', JSON.stringify(validation.error.errors, null, 2));
+      const errorDetails = validation.error.issues.map(err => ({
+        field: err.path[0],
+        message: err.message
+      }));
+
       return res.status(400).json({
         code: 400,
         success: false,
         message: 'Validasi gagal',
-        errors: validation.error.errors
+        errors: errorDetails
       });
     }
 
@@ -284,30 +288,55 @@ const refresh = async (req, res) => {
 // ----------------------------------------------------
 // LOGOUT
 // ----------------------------------------------------
+const getMe = async (req, res) => {
+  try {
+    // Data user sudah di-attach oleh middleware protect
+    const user = req.user;
+    
+    res.json({
+      code: 200,
+      success: true,
+      message: 'Berhasil mengambil data user',
+      data: {
+        user: user
+      }
+    });
+  } catch (error) {
+    console.error('GetMe Error:', error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: 'Terjadi kesalahan internal server',
+      errors: null
+    });
+  }
+};
+
+// ----------------------------------------------------
+// LOGOUT
+// ----------------------------------------------------
 const logout = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     
-    // 1. Cek apakah user terautentikasi (Punya token)
-    if (!refreshToken) {
-      return res.status(401).json({
-        code: 401,
-        success: false,
-        message: 'Unauthorized: User belum login',
-        errors: null
-      });
+    // Note: Request ini sudah diprotek middleware, jadi req.user ada.
+    // Tapi kita tetap fokus menghapus token yang dikirim client.
+    
+    if (refreshToken) {
+      await prisma.refreshToken.delete({
+        where: { token: refreshToken }
+      }).catch(() => {});
     }
 
-    // 2. Hapus dari DB
-    await prisma.refreshToken.delete({
-      where: { token: refreshToken }
-    }).catch(() => {}); // Ignore error jika token tidak ketemu
+    // Clear Cookies dengan opsi yang SAMA saat login (Penting!)
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production'
+    };
 
-    // 3. Clear Cookies
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
 
-    // 4. Response Sukses
     res.json({
       code: 200,
       success: true,
@@ -330,5 +359,6 @@ module.exports = {
   register,
   login,
   refresh,
-  logout
+  logout,
+  getMe
 };

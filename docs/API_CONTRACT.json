@@ -206,6 +206,54 @@
 				}
 			}
 		},
+		"/auth/me": {
+			"get": {
+				"tags": ["Auth"],
+				"summary": "Get current logged-in user",
+				"description": "Mengambil data user yang sedang login berdasarkan token cookie.",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Data user ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AuthResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"user": {
+											"id": "550e8400-e29b-41d4-a716-446655440000",
+											"username": "johndoe",
+											"email": "john@example.com",
+											"name": "John Doe",
+											"avatar_url": "https://example.com/avatar.jpg",
+											"created_at": "2026-01-26T12:00:00Z"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized (Token invalid atau expired)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/auth/login": {
 			"post": {
 				"tags": ["Auth"],
@@ -530,6 +578,109 @@
 				}
 			}
 		},
+
+		"/users/{id}/followers": {
+			"get": {
+				"tags": ["Users"],
+				"summary": "Get user followers",
+				"description": "Mendapatkan daftar user yang mengikuti user ID tersebut. Mendukung infinite scrolling dengan cursor.",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						},
+						"description": "UUID user target"
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Cursor untuk pagination (kosongkan untuk halaman pertama)"
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 10
+						},
+						"description": "Jumlah item per halaman"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List followers ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserListResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User target tidak ditemukan"
+					}
+				}
+			}
+		},
+		"/users/{id}/following": {
+			"get": {
+				"tags": ["Users"],
+				"summary": "Get user following",
+				"description": "Mendapatkan daftar user yang diikuti oleh user ID tersebut. Mendukung infinite scrolling dengan cursor.",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						},
+						"description": "UUID user target"
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Cursor untuk pagination"
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 10
+						},
+						"description": "Jumlah item per halaman"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List following ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserListResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User target tidak ditemukan"
+					}
+				}
+			}
+		},
 		"/users/me": {
 			"get": {
 				"tags": ["Users"],
@@ -548,26 +699,6 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/UserMeResponse"
-								},
-								"example": {
-									"code": 200,
-									"success": true,
-									"data": {
-										"user": {
-											"id": "550e8400-e29b-41d4-a716-446655440000",
-											"username": "johndoe",
-											"email": "johndoe@example.com",
-											"name": "John Doe",
-											"bio": "Full-stack developer passionate about clean code",
-											"avatar_url": "https://res.cloudinary.com/talas/image/upload/v1234567890/avatars/johndoe.jpg",
-											"is_verified": false,
-											"followers_count": 120,
-											"following_count": 85,
-											"created_at": "2026-01-15T08:30:00Z",
-											"updated_at": "2026-01-26T10:15:00Z"
-										}
-									},
-									"errors": null
 								}
 							}
 						}
@@ -578,17 +709,6 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 401,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "auth",
-											"message": "Token tidak valid atau sudah expired"
-										}
-									]
 								}
 							}
 						}
@@ -599,17 +719,6 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 500,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "server",
-											"message": "Terjadi kesalahan pada server"
-										}
-									]
 								}
 							}
 						}
@@ -4364,6 +4473,89 @@
 										"format": "date-time"
 									}
 								}
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"items": {
+							"$ref": "#/components/schemas/FieldError"
+						}
+					}
+				}
+			},
+			"CursorPaginationMeta": {
+				"type": "object",
+				"description": "Metadata untuk cursor-based pagination",
+				"properties": {
+					"curr_cursor": {
+						"type": "string",
+						"nullable": true,
+						"description": "Cursor halaman saat ini",
+						"example": "eyJjcmVhdGVkX2F0IjoiMjAyNi0wMS0yNlQxMjowMDowMVoifQ=="
+					},
+					"next_cursor": {
+						"type": "string",
+						"nullable": true,
+						"description": "Cursor untuk halaman berikutnya (gunakan di query param `cursor`). Null jika halaman terakhir.",
+						"example": "eyJjcmVhdGVkX2F0IjoiMjAyNi0wMS0yNVQxMjowMDowMVoifQ=="
+					},
+					"has_next": {
+						"type": "boolean",
+						"description": "Apakah masih ada data berikutnya",
+						"example": true
+					},
+					"limit": {
+						"type": "integer",
+						"description": "Jumlah limit data per page",
+						"example": 10
+					}
+				}
+			},
+			"UserListResponse": {
+				"type": "object",
+				"description": "Response standard untuk list user dengan pagination (followers/following)",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"users": {
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"id": { "type": "string", "format": "uuid" },
+										"username": { "type": "string" },
+										"name": { "type": "string", "nullable": true },
+										"avatar_url": {
+											"type": "string",
+											"format": "uri",
+											"nullable": true
+										},
+										"bio": { "type": "string", "nullable": true },
+										"is_following": {
+											"type": "boolean",
+											"description": "Status follow user yang sedang login"
+										},
+										"followed_at": {
+											"type": "string",
+											"format": "date-time",
+											"description": "Waktu mulai follow"
+										}
+									}
+								}
+							},
+							"meta": {
+								"$ref": "#/components/schemas/CursorPaginationMeta"
 							}
 						}
 					},

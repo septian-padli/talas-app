@@ -62,8 +62,8 @@ services:
       - "5672:5672" # Port komunikasi antar service
       - "15672:15672" # Port Dashboard UI (Buka di browser)
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
     networks:
       - talas_network
 
