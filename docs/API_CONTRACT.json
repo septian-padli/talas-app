@@ -3277,12 +3277,13 @@
 													}
 												],
 												"pagination": {
-												"pagination": {
-													"next_cursor": "eyJpZCI...",
-													"has_next": true
-												}
-											},
-											"errors": null
+													"pagination": {
+														"next_cursor": "eyJpZCI...",
+														"has_next": true
+													}
+												},
+												"errors": null
+											}
 										}
 									},
 									"category_only": {

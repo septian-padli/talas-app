@@ -1,4 +1,4 @@
-version: "3.8"
+# version: "3.8"
 
 services:
   # ----------------------------------------------------------------
@@ -64,6 +64,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - talas_network
 
@@ -98,6 +103,33 @@ services:
     extra_hosts:
       # PENTING: Agar container bisa memanggil 'localhost' laptop kamu
       - "host.docker.internal:host-gateway"
+    networks:
+      - talas_network
+
+  # ----------------------------------------------------------------
+  # 7. USER SERVICE (Node.js - Port 3001)
+  # ----------------------------------------------------------------
+  user_service:
+    build: ./user-service # Arahkan ke folder user-service
+    container_name: talas_user_service
+    restart: always
+    # 1. Baca secret umum dari file .env (JWT_SECRET, INTERNAL_SECRET, dll)
+    env_file:
+      - ./user-service/.env
+    # 2. TAPI, paksa ganti URL koneksi agar cocok dengan jaringan Docker
+    # (Docker akan memprioritaskan nilai di bawah ini daripada yang ada di file .env)
+    environment:
+      - DATABASE_URL=postgresql://user_admin:password123@user_db:5432/talas_user?schema=public
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672
+      - PORT=3001
+    depends_on:
+      user_db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - talas_network
 

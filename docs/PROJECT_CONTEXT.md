@@ -13,7 +13,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 | Component | Technology | Port (Local) | Responsibility |
 | :--- | :--- | :--- | :--- |
 | **Frontend** | Next.js (TypeScript) | `3000` | Client UI & Upload Logic. |
-| **Gateway** | Nginx | `80` | Reverse Proxy, Routing, SSL Termination. |
+| **Gateway** | Nginx | `80` | Reverse Proxy, SSL, **No-Cache Policy**. |
 | **User Service** | Node.js (Express) + Prisma | `3001` | Auth, User Profile, Follows, Notif. |
 | **Content Service** | Go (Fiber) + GORM | `8080` | Projects, Comments, Feed, Collaborations. |
 | **Worker Service** | Go | - | Background Jobs (Consumer RabbitMQ). |
@@ -78,6 +78,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 #### ⚙️ Internal API (Private - Docker Network Only)
 * Prefix `/internal/*`
+* **Security:** Wajib menyertakan Header `x-service-secret` yang nilainya sama dengan ENV variable `INTERNAL_SERVICE_SECRET`.
 * `GET /internal/users/:id/followers` (Pagination supported - Fan-out Feed).
 * `POST /internal/users/bulk` (Return Map O(1) - Enrich data author/collaborator).
 
@@ -101,6 +102,20 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
     * `project.created` -> Worker index ke Elastic + Fan-out ke Redis followers.
     * `collaborator.invited` -> Worker create Notification.
     * `collaborator.responded` -> Worker create Notification to Owner.
+
+### D. Pagination Strategy (Cursor Based)
+* **Standard:** Semua endpoint `List` HARUS menggunakan **Cursor Pagination** untuk performa & konsistensi real-time.
+* **Request:** `?cursor=eyJ...&limit=10`.
+* **Response:**
+    ```json
+    "meta": {
+      "curr_cursor": "...",
+      "next_cursor": "...",
+      "has_next": true,
+      "limit": 10
+    }
+    ```
+* **Offset/Page** (`?page=1`) **DILARANG** digunakan (Deprecated).
 
 ## 6. Development Guidelines
 * **JSON Case:** Gunakan `snake_case` untuk response (`user_id`, `expired_at`).
