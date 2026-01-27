@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// generator client {
+//   provider = "prisma-client"
+//   output   = "../src/generated/prisma"
+// }
+
+// datasource db {
+//   provider = "postgresql"
+// }
+
+// Client Generator
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Koneksi Database
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------
+// MODEL: USER
+// --------------------------------------
+model User {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String  @unique
+  username  String  @unique
+  password  String // Akan di-hash dengan Bcrypt
+  name      String
+  bio       String? @db.Text
+  avatarUrl String? @map("avatar_url")
+  jobTitle  String? @map("job_title") // e.g. "Software Engineer"
+
+  // Social Stats (Denormalization agar query cepat)
+  followersCount Int @default(0) @map("followers_count")
+  followingCount Int @default(0) @map("following_count")
+
+  // Relasi Self-Join untuk Follow System
+  followedBy    Follow[]       @relation("followedBy")
+  following     Follow[]       @relation("following")
+  refreshTokens RefreshToken[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users") // Nama tabel di database pakai plural & lowercase
+}
+
+// --------------------------------------
+// MODEL: FOLLOW
+// --------------------------------------
+model Follow {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  followerId  String @map("follower_id") @db.Uuid
+  followingId String @map("following_id") @db.Uuid
+
+  // Relasi
+  follower  User @relation("following", fields: [followerId], references: [id])
+  following User @relation("followedBy", fields: [followingId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([followerId, followingId]) // Mencegah double follow
+  @@map("follows")
+}
+
+// --------------------------------------
+// MODEL: REFRESH TOKEN
+// --------------------------------------
+model RefreshToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token     String   @unique
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}

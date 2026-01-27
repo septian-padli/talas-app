@@ -1,0 +1,114 @@
+version: "3.8"
+
+services:
+  # ----------------------------------------------------------------
+  # 1. DATABASE USER (PostgreSQL - Port 5432)
+  # ----------------------------------------------------------------
+  user_db:
+    image: postgres:15-alpine
+    container_name: talas_user_db
+    restart: always
+    environment:
+      POSTGRES_USER: user_admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: talas_user
+    ports:
+      - "5400:5432" # Host Port : Container Port
+    volumes:
+      - pg_data_user:/var/lib/postgresql/data
+    networks:
+      - talas_network
+
+  # ----------------------------------------------------------------
+  # 2. DATABASE CONTENT (PostgreSQL - Port 5433)
+  # ----------------------------------------------------------------
+  content_db:
+    image: postgres:15-alpine
+    container_name: talas_content_db
+    restart: always
+    environment:
+      POSTGRES_USER: content_admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: talas_content
+    ports:
+      - "5401:5432" # PENTING: Kita mapping port 5433 laptop ke 5432 container
+    volumes:
+      - pg_data_content:/var/lib/postgresql/data
+    networks:
+      - talas_network
+
+  # ----------------------------------------------------------------
+  # 3. CACHE (Redis - Port 6379)
+  # ----------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: talas_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - talas_network
+
+  # ----------------------------------------------------------------
+  # 4. MESSAGE BROKER (RabbitMQ - Port 5672 & 15672)
+  # ----------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: talas_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672" # Port komunikasi antar service
+      - "15672:15672" # Port Dashboard UI (Buka di browser)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - talas_network
+
+  # ----------------------------------------------------------------
+  # 5. SEARCH ENGINE (Elasticsearch - Port 9200)
+  # ----------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    container_name: talas_elastic
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - talas_network
+
+  # ----------------------------------------------------------------
+  # 6. API GATEWAY (Nginx - Port 80)
+  # ----------------------------------------------------------------
+  gateway:
+    image: nginx:alpine
+    container_name: talas_gateway
+    restart: always
+    ports:
+      - "82:80" # Port 82 Laptop -> Port 80 Container
+    volumes:
+      # Mount file config dari laptop ke dalam container
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      # PENTING: Agar container bisa memanggil 'localhost' laptop kamu
+      - "host.docker.internal:host-gateway"
+    networks:
+      - talas_network
+
+# Definisi Volume (Agar data tidak hilang saat container mati)
+volumes:
+  pg_data_user:
+  pg_data_content:
+  redis_data:
+  es_data:
+
+# Definisi Network (Jalan raya khusus container)
+networks:
+  talas_network:
+    driver: bridge
