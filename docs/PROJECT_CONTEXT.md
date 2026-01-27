@@ -55,19 +55,20 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 * `GET /users/:username` (Public Profile)
 * `POST /users/:id/follow` (Toggle Follow)
 * `GET /notifications`, `GET /notifications/count`
-* `PATCH /notifications/:id/read` (**Override: Gunakan PATCH, bukan GET**)
+* `PATCH /notifications/read` (**Batch Read: Array User ID**)
 
 #### 🎨 Content Service (Go) -> Prefix `/v1`
 * **Showcases (Projects):**
     * `POST /showcases` (Create - Direct Publish).
-    * `GET /showcases/:slug` (Detail by Slug).
+    * `GET /showcases/user/:id` (User Profile Feed).
+    * `GET /showcases/:slug` (Detail by **Slug OR UUID**).
     * `PATCH /showcases/:id` (Edit), `DELETE /showcases/:id`.
     * `POST /showcases/:id/like`, `/showcases/:id/save`.
 * **Collaborations (Invites):**
     * `POST /showcases/:id/collaborators` (Invite User -> Status Pending).
     * `GET /collaborations/invitations` (List undangan masuk untuk user login).
     * `PATCH /collaborations/:id/response` (Action: Accept/Reject).
-* **Comments (Shallow Nesting):**
+* **Comments (Flattened Nesting):**
     * `GET /showcases/:id/comments` (List).
     * `POST /showcases/:id/comments` (Create).
     * `DELETE /comments/:id` (Delete direct by ID).
@@ -77,8 +78,8 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 #### ⚙️ Internal API (Private - Docker Network Only)
 * Prefix `/internal/*`
-* `GET /internal/users/:id/followers` (Digunakan Worker untuk Fan-out Feed).
-* `GET /internal/users/bulk` (Digunakan Content Svc untuk enrich data author/collaborator).
+* `GET /internal/users/:id/followers` (Pagination supported - Fan-out Feed).
+* `POST /internal/users/bulk` (Return Map O(1) - Enrich data author/collaborator).
 
 ## 5. Workflow & Logic Constraints
 
@@ -169,6 +170,17 @@ EXPIRE trending:{YYYY-MM-DD} 691200  # 8 hari dalam detik
 4. `EXPIRE trending:temp:{session_id} 10` atau langsung `DEL`.
 
 **Hasil:** Efek "Trending Minggu Ini" yang rolling, bukan reset paksa tiap Senin.
+
+---
+
+## 11. Comment System Strategy (Flattened Replies)
+
+### Logic:
+* **Max Visual Nesting:** 3 Level (0, 1, 2).
+* **Deep Replies (> Level 3):**
+    * Render sejajar dengan parent terakhir (Flat).
+    * Response API menyertakan field `reply_to: { username }`.
+    * UI menampilkan: "**@username** [isi komentar]".
 
 ---
 

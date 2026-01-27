@@ -36,20 +36,22 @@
 			"description": "Project showcase endpoints (Content Service)"
 		},
 		{
-			"name": "Feed",
+			"name": "Feeds",
 			"description": "Timeline & discovery endpoints (Content Service)"
 		},
 		{
 			"name": "Notifications",
 			"description": "Notification endpoints (User Service)"
+		},
+		{
+			"name": "Collaborations",
+			"description": "Managing showcase collaborators"
 		}
 	],
 	"paths": {
 		"/auth/register": {
 			"post": {
-				"tags": [
-					"Auth"
-				],
+				"tags": ["Auth"],
 				"summary": "Register user baru",
 				"description": "Mendaftarkan user baru ke sistem. Setelah register berhasil, user harus login untuk mendapatkan token.",
 				"operationId": "registerUser",
@@ -206,9 +208,7 @@
 		},
 		"/auth/login": {
 			"post": {
-				"tags": [
-					"Auth"
-				],
+				"tags": ["Auth"],
 				"summary": "Login user",
 				"description": "Authenticate user dengan email & password. Token JWT dikembalikan via **Set-Cookie header** (HttpOnly), BUKAN di response body.",
 				"operationId": "loginUser",
@@ -330,9 +330,7 @@
 		},
 		"/auth/logout": {
 			"post": {
-				"tags": [
-					"Auth"
-				],
+				"tags": ["Auth"],
 				"summary": "Logout user",
 				"description": "Logout user dengan menghapus cookie dan merevoke refresh token di database. Endpoint ini membutuhkan autentikasi (cookie valid).",
 				"operationId": "logoutUser",
@@ -414,9 +412,7 @@
 		},
 		"/auth/refresh": {
 			"post": {
-				"tags": [
-					"Auth"
-				],
+				"tags": ["Auth"],
 				"summary": "Refresh access token",
 				"description": "Mendapatkan access token baru menggunakan refresh token yang valid. Refresh token dikirim via cookie. Response mengembalikan access token baru via Set-Cookie header.",
 				"operationId": "refreshToken",
@@ -536,9 +532,7 @@
 		},
 		"/users/me": {
 			"get": {
-				"tags": [
-					"Users"
-				],
+				"tags": ["Users"],
 				"summary": "Get private profile (authenticated user)",
 				"description": "Mendapatkan profil lengkap user yang sedang login. **Requires Cookie Session (JWT)**. Response berisi data sensitif termasuk email dan is_verified.",
 				"operationId": "getMyProfile",
@@ -623,9 +617,7 @@
 				}
 			},
 			"patch": {
-				"tags": [
-					"Users"
-				],
+				"tags": ["Users"],
 				"summary": "Update private profile",
 				"description": "Update profil user yang sedang login. **Requires Cookie Session (JWT)**. Hanya field yang dikirim yang akan diupdate (partial update). Fields yang dapat diupdate: name, bio, avatar_url.",
 				"operationId": "updateMyProfile",
@@ -767,9 +759,7 @@
 		},
 		"/users/{username}": {
 			"get": {
-				"tags": [
-					"Users"
-				],
+				"tags": ["Users"],
 				"summary": "Get public profile by username",
 				"description": "Mendapatkan profil publik user berdasarkan username. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response HANYA berisi data non-sensitif (tanpa email dan is_verified).",
 				"operationId": "getPublicProfile",
@@ -860,9 +850,7 @@
 		},
 		"/users/{id}/follow": {
 			"post": {
-				"tags": [
-					"Users"
-				],
+				"tags": ["Users"],
 				"summary": "Toggle follow/unfollow user",
 				"description": "Follow atau unfollow user berdasarkan ID. **Requires Cookie Session (JWT)**. Endpoint ini bersifat toggle: jika sudah follow maka unfollow, jika belum follow maka follow.",
 				"operationId": "toggleFollowUser",
@@ -1010,9 +998,7 @@
 		},
 		"/showcases": {
 			"post": {
-				"tags": [
-					"Showcases"
-				],
+				"tags": ["Showcases"],
 				"summary": "Create new showcase",
 				"description": "Membuat showcase baru (project/postingan). **Requires Cookie Session (JWT)**. Media harus diupload terlebih dahulu ke Cloudinary, lalu URL dikirim ke endpoint ini.",
 				"operationId": "createShowcase",
@@ -1032,12 +1018,7 @@
 								"title": "Building a Modern Dashboard with Next.js",
 								"content": "In this project, I built a responsive admin dashboard using Next.js 14, featuring real-time data visualization and dark mode support.",
 								"category_id": "550e8400-e29b-41d4-a716-446655440001",
-								"tag": [
-									"nextjs",
-									"react",
-									"dashboard",
-									"tailwindcss"
-								],
+								"tag": ["nextjs", "react", "dashboard", "tailwindcss"],
 								"media": [
 									{
 										"url": "https://res.cloudinary.com/talas/image/upload/v1234567890/showcases/dashboard-1.jpg",
@@ -1076,12 +1057,7 @@
 											"slug": "building-a-modern-dashboard-with-nextjs",
 											"content": "In this project, I built a responsive admin dashboard...",
 											"is_archived": false,
-											"tag": [
-												"nextjs",
-												"react",
-												"dashboard",
-												"tailwindcss"
-											],
+											"tag": ["nextjs", "react", "dashboard", "tailwindcss"],
 											"count_like": 0,
 											"count_comment": 0,
 											"created_at": "2026-01-27T04:30:00Z",
@@ -1187,11 +1163,56 @@
 				}
 			}
 		},
+		"/showcases/me": {
+			"get": {
+				"tags": ["Showcases"],
+				"summary": "Get my showcases (Owner)",
+				"description": "Mendapatkan daftar showcase milik user yang sedang login. **Requires Cookie Session (JWT)**. Endpoint ini memungkinkan owner melihat project yang statusnya **Archived**.",
+				"operationId": "getMyShowcases",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "status",
+						"in": "query",
+						"required": false,
+						"description": "Filter status project (default: all)",
+						"schema": {
+							"type": "string",
+							"enum": ["all", "published", "archived"],
+							"default": "all"
+						}
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"schema": { "type": "integer", "default": 1 }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": { "type": "integer", "default": 10 }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List showcase berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/FeedResponse" }
+							}
+						}
+					},
+					"401": { "$ref": "#/components/responses/UnauthorizedError" }
+				}
+			}
+		},
 		"/showcases/{slug}": {
 			"get": {
-				"tags": [
-					"Showcases"
-				],
+				"tags": ["Showcases"],
 				"summary": "Get showcase by slug",
 				"description": "Mendapatkan detail showcase berdasarkan slug. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response menyertakan data author dan collaborators.",
 				"operationId": "getShowcaseBySlug",
@@ -1225,12 +1246,7 @@
 											"slug": "building-a-modern-dashboard-with-nextjs",
 											"content": "In this project, I built a responsive admin dashboard...",
 											"is_archived": false,
-											"tag": [
-												"nextjs",
-												"react",
-												"dashboard",
-												"tailwindcss"
-											],
+											"tag": ["nextjs", "react", "dashboard", "tailwindcss"],
 											"count_like": 42,
 											"count_comment": 8,
 											"created_at": "2026-01-27T04:30:00Z",
@@ -1318,10 +1334,40 @@
 			}
 		},
 		"/showcases/{id}": {
-			"patch": {
-				"tags": [
-					"Showcases"
+			"get": {
+				"tags": ["Showcases"],
+				"summary": "Get showcase by ID",
+				"description": "Mendapatkan detail showcase berdasarkan UUID. Berguna untuk navigasi dari notifikasi yang hanya membawa ID. **Public Access**.",
+				"operationId": "getShowcaseById",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "format": "uuid" }
+					}
 				],
+				"responses": {
+					"200": {
+						"description": "Showcase ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ShowcaseDetailResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundError"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			},
+			"patch": {
+				"tags": ["Showcases"],
 				"summary": "Update showcase",
 				"description": "Update showcase berdasarkan ID. **Requires Cookie Session (JWT)**. **Hanya owner** yang bisa mengupdate. Field yang bisa diupdate: content, id_category, tag. Title dan media URL tidak bisa diubah.",
 				"operationId": "updateShowcase",
@@ -1519,9 +1565,7 @@
 				}
 			},
 			"delete": {
-				"tags": [
-					"Showcases"
-				],
+				"tags": ["Showcases"],
 				"summary": "Delete (archive) showcase",
 				"description": "Soft delete showcase berdasarkan ID (set is_archived = true). **Requires Cookie Session (JWT)**. **Hanya owner** yang bisa menghapus. Showcase yang diarsipkan tidak muncul di feed/search.",
 				"operationId": "deleteShowcase",
@@ -1649,9 +1693,7 @@
 		},
 		"/showcases/{id}/like": {
 			"post": {
-				"tags": [
-					"Showcases"
-				],
+				"tags": ["Showcases"],
 				"summary": "Toggle like showcase",
 				"description": "Like atau unlike showcase. **Requires Cookie Session (JWT)**. Endpoint bersifat toggle: jika sudah like maka unlike, jika belum like maka like.",
 				"operationId": "toggleLikeShowcase",
@@ -1776,9 +1818,7 @@
 		},
 		"/showcases/{id}/save": {
 			"post": {
-				"tags": [
-					"Showcases"
-				],
+				"tags": ["Showcases"],
 				"summary": "Toggle save (bookmark) showcase",
 				"description": "Save atau unsave showcase ke bookmarks. **Requires Cookie Session (JWT)**. Endpoint bersifat toggle: jika sudah save maka unsave, jika belum save maka save.",
 				"operationId": "toggleSaveShowcase",
@@ -1903,9 +1943,7 @@
 		},
 		"/showcases/{id}/comments": {
 			"get": {
-				"tags": [
-					"Showcases"
-				],
+				"tags": ["Showcases"],
 				"summary": "Get comments for showcase",
 				"description": "Mendapatkan daftar komentar pada showcase. **Endpoint ini PUBLIC**. Response berisi nested comments (reply tanpa batas level).",
 				"operationId": "getShowcaseComments",
@@ -2046,9 +2084,7 @@
 				}
 			},
 			"post": {
-				"tags": [
-					"Showcases"
-				],
+				"tags": ["Showcases"],
 				"summary": "Create comment on showcase",
 				"description": "Membuat komentar baru pada showcase. **Requires Cookie Session (JWT)**. Untuk reply, sertakan parent_id (id komentar yang ingin di-reply).",
 				"operationId": "createShowcaseComment",
@@ -2235,9 +2271,7 @@
 		},
 		"/comments/{id}": {
 			"patch": {
-				"tags": [
-					"Comments"
-				],
+				"tags": ["Comments"],
 				"summary": "Update comment",
 				"description": "Edit konten komentar. **Requires Cookie Session (JWT)**. Hanya pemilik komentar yang dapat mengedit. Field updated_at akan otomatis ter-update sebagai penanda bahwa komentar sudah diedit.",
 				"operationId": "updateComment",
@@ -2433,9 +2467,7 @@
 				}
 			},
 			"delete": {
-				"tags": [
-					"Comments"
-				],
+				"tags": ["Comments"],
 				"summary": "Delete comment (soft delete)",
 				"description": "Hapus komentar (soft delete). **Requires Cookie Session (JWT)**. Hanya pemilik komentar yang dapat menghapus. Jika komentar memiliki replies, semua replies akan ikut terhapus (cascade soft delete). Komentar yang dihapus tidak akan muncul di list, tapi data tetap ada di database dengan flag deleted_at.",
 				"operationId": "deleteComment",
@@ -2563,6 +2595,1405 @@
 					}
 				}
 			}
+		},
+		"/notifications": {
+			"get": {
+				"tags": ["Notifications"],
+				"summary": "List notifications",
+				"description": "Mendapatkan daftar notifikasi user. **Requires Cookie Session (JWT)**. Support pagination untuk infinite scroll dan filter berdasarkan status (read/unread).",
+				"operationId": "listNotifications",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"description": "Halaman yang diminta (default: 1)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 1,
+							"example": 1
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Jumlah item per halaman untuk infinite scroll (default: 15)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50,
+							"default": 15,
+							"example": 15
+						}
+					},
+					{
+						"name": "status",
+						"in": "query",
+						"required": false,
+						"description": "Filter berdasarkan status (kosong = tampilkan semua)",
+						"schema": {
+							"type": "string",
+							"enum": ["unread", "all"],
+							"example": "unread"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Daftar notifikasi berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/NotificationsListResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"notifications": [
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440100",
+												"type": "LIKE",
+												"content": "User A, User B, dan 3 lainnya menyukai showcase-mu \"Dashboard Design\"",
+												"is_read": false,
+												"created_at": "2026-01-27T05:00:00Z",
+												"updated_at": "2026-01-27T05:30:00Z"
+											},
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440101",
+												"type": "COMMENT",
+												"content": "User C mengomentari showcase-mu \"Mobile App\"",
+												"is_read": false,
+												"created_at": "2026-01-27T04:30:00Z",
+												"updated_at": "2026-01-27T04:30:00Z"
+											},
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440102",
+												"type": "COLLABORATOR_INVITED",
+												"content": "User D mengundangmu sebagai collaborator di \"E-commerce Platform\"",
+												"is_read": true,
+												"created_at": "2026-01-27T03:00:00Z",
+												"updated_at": "2026-01-27T05:00:00Z"
+											}
+										],
+										"pagination": {
+											"page": 1,
+											"limit": 15,
+											"total_items": 48,
+											"total_pages": 4
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/notifications/count": {
+			"get": {
+				"tags": ["Notifications"],
+				"summary": "Get unread notifications count",
+				"description": "Mendapatkan jumlah notifikasi yang belum dibaca dengan breakdown per tipe. **Requires Cookie Session (JWT)**.",
+				"operationId": "getNotificationCount",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Count berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/NotificationCountResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"unread_count": 12,
+										"by_type": {
+											"LIKE": 5,
+											"COMMENT": 4,
+											"COLLABORATOR_INVITED": 2,
+											"COLLABORATOR_ACCEPTED": 1
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/feed": {
+			"get": {
+				"tags": ["Feeds"],
+				"summary": "Get personalized feed",
+				"description": "Mendapatkan feed showcase dari users yang di-follow. **Requires Cookie Session (JWT)**. Feed di-sort berdasarkan waktu publish terbaru (latest first).",
+				"operationId": "getPersonalizedFeed",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"description": "Halaman yang diminta (default: 1)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 1,
+							"example": 1
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Jumlah item per halaman untuk infinite scroll (default: 10)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50,
+							"default": 10,
+							"example": 10
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Feed berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FeedResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"showcases": [
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440001",
+												"title": "Modern Dashboard Design",
+												"slug": "modern-dashboard-design",
+												"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover1.jpg",
+												"content": "A sleek and modern dashboard design with dark mode support and intuitive user interface.",
+												"likes_count": 150,
+												"comments_count": 23,
+												"author": {
+													"username": "padli",
+													"avatar_url": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+												},
+												"is_liked": true,
+												"is_saved": false
+											},
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440002",
+												"title": "Mobile App Redesign",
+												"slug": "mobile-app-redesign",
+												"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover2.jpg",
+												"content": "Complete redesign of mobile banking app with improved UX and modern aesthetics.",
+												"likes_count": 89,
+												"comments_count": 12,
+												"author": {
+													"username": "designerA",
+													"avatar_url": "https://res.cloudinary.com/talas/avatar/user2.jpg"
+												},
+												"is_liked": false,
+												"is_saved": true
+											}
+										],
+										"pagination": {
+											"page": 1,
+											"limit": 10,
+											"total_items": 45,
+											"total_pages": 5
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/feed/trending": {
+			"get": {
+				"tags": ["Feeds"],
+				"summary": "Get trending feed",
+				"description": "Mendapatkan feed showcase yang sedang trending dalam 7 hari terakhir. **No authentication required**. Menggunakan Redis ZSET dengan 7-day rolling window untuk performa. Sort berdasarkan engagement score (likes + comments).",
+				"operationId": "getTrendingFeed",
+				"parameters": [
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"description": "Halaman yang diminta (default: 1)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 1,
+							"example": 1
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Jumlah item per halaman untuk infinite scroll (default: 10)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50,
+							"default": 10,
+							"example": 10
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Trending feed berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FeedResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"showcases": [
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440003",
+												"title": "AI-Powered Design System",
+												"slug": "ai-powered-design-system",
+												"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover3.jpg",
+												"content": "Revolutionary design system powered by AI for automated component generation.",
+												"likes_count": 520,
+												"comments_count": 87,
+												"author": {
+													"username": "techguru",
+													"avatar_url": "https://res.cloudinary.com/talas/avatar/user3.jpg"
+												},
+												"is_liked": null,
+												"is_saved": null
+											},
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440004",
+												"title": "E-commerce Platform Redesign",
+												"slug": "ecommerce-platform-redesign",
+												"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover4.jpg",
+												"content": "Complete overhaul of e-commerce platform with focus on conversion optimization.",
+												"likes_count": 380,
+												"comments_count": 56,
+												"author": {
+													"username": "uxmaster",
+													"avatar_url": "https://res.cloudinary.com/talas/avatar/user4.jpg"
+												},
+												"is_liked": null,
+												"is_saved": null
+											}
+										],
+										"pagination": {
+											"page": 1,
+											"limit": 10,
+											"total_items": 30,
+											"total_pages": 3
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/search": {
+			"get": {
+				"tags": ["Feeds"],
+				"summary": "Search showcases",
+				"description": "Mencari showcase menggunakan Elasticsearch dengan support full-text search, filter kategori, dan sorting. **Requires Cookie Session (JWT)**. Query minimal 3 karakter. Kategori menggunakan comma-separated slugs dengan logic OR.",
+				"operationId": "searchShowcases",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "q",
+						"in": "query",
+						"required": false,
+						"description": "Query pencarian (minimal 3 karakter). Nullable jika hanya filter by category.",
+						"schema": {
+							"type": "string",
+							"minLength": 3,
+							"example": "dashboard design"
+						}
+					},
+					{
+						"name": "category",
+						"in": "query",
+						"required": false,
+						"description": "Filter berdasarkan category slugs (comma-separated untuk multiple, logic OR)",
+						"schema": {
+							"type": "string",
+							"example": "web-design,mobile-app"
+						}
+					},
+					{
+						"name": "sort",
+						"in": "query",
+						"required": false,
+						"description": "Sorting hasil pencarian (default: relevance)",
+						"schema": {
+							"type": "string",
+							"enum": ["latest", "popular", "relevance"],
+							"default": "relevance",
+							"example": "relevance"
+						}
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"description": "Halaman yang diminta (default: 1)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 1,
+							"example": 1
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Jumlah item per halaman untuk infinite scroll (default: 10)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50,
+							"default": 10,
+							"example": 10
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Hasil pencarian (sukses atau kosong)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FeedResponse"
+								},
+								"examples": {
+									"with_query": {
+										"summary": "Search dengan query",
+										"value": {
+											"code": 200,
+											"success": true,
+											"data": {
+												"showcases": [
+													{
+														"id": "550e8400-e29b-41d4-a716-446655440001",
+														"title": "Modern Dashboard Design",
+														"slug": "modern-dashboard-design",
+														"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover1.jpg",
+														"content": "A sleek and modern dashboard design with dark mode support.",
+														"likes_count": 150,
+														"comments_count": 23,
+														"author": {
+															"username": "padli",
+															"avatar_url": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+														},
+														"is_liked": false,
+														"is_saved": true
+													}
+												],
+												"pagination": {
+													"page": 1,
+													"limit": 10,
+													"total_items": 15,
+													"total_pages": 2
+												}
+											},
+											"errors": null
+										}
+									},
+									"category_only": {
+										"summary": "Search by category saja (tanpa query)",
+										"value": {
+											"code": 200,
+											"success": true,
+											"data": {
+												"showcases": [
+													{
+														"id": "550e8400-e29b-41d4-a716-446655440002",
+														"title": "E-commerce Platform",
+														"slug": "ecommerce-platform",
+														"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover2.jpg",
+														"content": "Full-featured e-commerce platform with payment integration.",
+														"likes_count": 89,
+														"comments_count": 12,
+														"author": {
+															"username": "devmaster",
+															"avatar_url": "https://res.cloudinary.com/talas/avatar/user2.jpg"
+														},
+														"is_liked": true,
+														"is_saved": false
+													}
+												],
+												"pagination": {
+													"page": 1,
+													"limit": 10,
+													"total_items": 8,
+													"total_pages": 1
+												}
+											},
+											"errors": null
+										}
+									},
+									"no_results": {
+										"summary": "Pencarian tidak menemukan hasil (empty)",
+										"value": {
+											"code": 200,
+											"success": true,
+											"data": {
+												"showcases": [],
+												"pagination": {
+													"page": 1,
+													"limit": 10,
+													"total_items": 0,
+													"total_pages": 0
+												}
+											},
+											"errors": null
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"examples": {
+									"query_too_short": {
+										"summary": "Query terlalu pendek",
+										"value": {
+											"code": 400,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "q",
+													"message": "Query pencarian minimal 3 karakter"
+												}
+											]
+										}
+									},
+									"no_params": {
+										"summary": "Tidak ada query atau category",
+										"value": {
+											"code": 400,
+											"success": false,
+											"data": null,
+											"errors": [
+												{
+													"field": "search",
+													"message": "Minimal satu dari query (q) atau category harus diisi"
+												}
+											]
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/internal/users/bulk": {
+			"post": {
+				"tags": ["Internal"],
+				"summary": "Resolve bulk users (Internal Only)",
+				"description": "\u26a0\ufe0f **INTERNAL USE ONLY**. Endpoint ini digunakan oleh Content Service untuk resolve info user (name, username, avatar) dari list UUID. **Protected by Nginx Gateway (Not accessible publicly)**.",
+				"operationId": "internalResolveUsersBulk",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/InternalUserResolveRequest"
+							},
+							"example": {
+								"user_ids": [
+									"550e8400-e29b-41d4-a716-446655440001",
+									"550e8400-e29b-41d4-a716-446655440002"
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "User details resolved",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InternalUserResolveResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"users": {
+											"550e8400-e29b-41d4-a716-446655440001": {
+												"name": "Septian Padli",
+												"username": "padli",
+												"avatar_url": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+											},
+											"550e8400-e29b-41d4-a716-446655440002": {
+												"name": "Jane Doe",
+												"username": "janedoe",
+												"avatar_url": null
+											}
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 400,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "user_ids",
+											"message": "Array user_ids wajib diisi dan tidak boleh kosong"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/internal/users/{id}/followers": {
+			"get": {
+				"tags": ["Internal"],
+				"summary": "Get user followers list (Internal Only)",
+				"description": "\u26a0\ufe0f **INTERNAL USE ONLY**. Endpoint ini digunakan oleh Worker Service untuk mengambil daftar follower saat proses fan-out notifikasi. Menggunakan pagination untuk efisiensi memori. **Protected by Nginx Gateway**.",
+				"operationId": "internalGetUserFollowers",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID user yang akan diambil followernya",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"description": "Halaman (default: 1)",
+						"schema": {
+							"type": "integer",
+							"default": 1
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Limit per halaman (default: 1000 untuk internal usage)",
+						"schema": {
+							"type": "integer",
+							"default": 1000,
+							"maximum": 5000
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Daftar follower berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InternalFollowerListResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"follower_ids": [
+											"550e8400-e29b-41d4-a716-446655440010",
+											"550e8400-e29b-41d4-a716-446655440011",
+											"550e8400-e29b-41d4-a716-446655440012"
+										],
+										"pagination": {
+											"page": 1,
+											"limit": 1000,
+											"total_items": 5000,
+											"total_pages": 5
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/showcases/user/{id}": {
+			"get": {
+				"tags": ["Showcases"],
+				"summary": "Get user showcases",
+				"description": "Mendapatkan daftar showcase milik user tertentu. **Public Access (Auth Optional)**. Jika login, status like/save akan disesuaikan. Sort berdasarkan terbaru (latest first).",
+				"operationId": "getUserShowcases",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID user pemilik showcase",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"description": "Halaman yang diminta (default: 1)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 1,
+							"example": 1
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Jumlah item per halaman (default: 10)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50,
+							"default": 10,
+							"example": 10
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Daftar showcase berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FeedResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"showcases": [
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440020",
+												"title": "My Portfolio v2",
+												"slug": "my-portfolio-v2",
+												"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover5.jpg",
+												"content": "Updated portfolio with new projects.",
+												"likes_count": 45,
+												"comments_count": 5,
+												"author": {
+													"username": "targetuser",
+													"avatar_url": "https://res.cloudinary.com/talas/avatar/user5.jpg"
+												},
+												"is_liked": null,
+												"is_saved": null
+											}
+										],
+										"pagination": {
+											"page": 1,
+											"limit": 10,
+											"total_items": 12,
+											"total_pages": 2
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 404,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "id",
+											"message": "User tidak ditemukan"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/showcases/{id}/collaborators": {
+			"post": {
+				"tags": ["Collaborations"],
+				"summary": "Invite collaborators",
+				"description": "Mengundang satu atau lebih user sebagai collaborator di showcase. **Requires Cookie Session (JWT)**. Hanya **Owner** showcase yang boleh mengundang. Undangan akan berstatus PENDING dan expired dalam 7 hari.",
+				"operationId": "inviteCollaborators",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID showcase",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/InviteCollaboratorRequest"
+							},
+							"example": {
+								"usernames": ["janedoe", "designer_budi"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Berhasil mengirim undangan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"message": "Undangan berhasil dikirim ke 2 user",
+										"invited_users": ["janedoe", "designer_budi"]
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal (misal user tidak ditemukan atau sudah diundang)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedError"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenError"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundError"
+					}
+				}
+			}
+		},
+		"/collaborations/invitations": {
+			"get": {
+				"tags": ["Collaborations"],
+				"summary": "Get pending invitations",
+				"description": "Mendapatkan daftar undangan kolaborasi yang statusnya **PENDING**. **Requires Cookie Session (JWT)**.",
+				"operationId": "getCollabInvitations",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 1
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 10
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List undangan berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CollaborationInvitationListResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"invitations": [
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440999",
+												"status": "PENDING",
+												"created_at": "2026-01-27T10:00:00Z",
+												"expires_at": "2026-02-03T10:00:00Z",
+												"inviter": {
+													"username": "septian",
+													"avatar_url": "https://..."
+												},
+												"showcase": {
+													"id": "550e8400-e29b-41d4-a716-446655440111",
+													"title": "Super App Project",
+													"slug": "super-app-project",
+													"cover_url": "https://..."
+												}
+											}
+										],
+										"pagination": {
+											"page": 1,
+											"limit": 10,
+											"total_items": 1,
+											"total_pages": 1
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedError"
+					}
+				}
+			}
+		},
+		"/collaborations/{id}/response": {
+			"patch": {
+				"tags": ["Collaborations"],
+				"summary": "Respond to invitation",
+				"description": "Menerima (ACCEPTED) atau menolak (REJECTED) undangan kolaborasi. **Requires Cookie Session (JWT)**.",
+				"operationId": "respondToCollabInvitation",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID Collaboration (bukan ID showcase)",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CollaborationRespondRequest"
+							},
+							"example": {
+								"response": "ACCEPTED"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Berhasil merespon undangan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"message": "Undangan berhasil diterima. Anda sekarang adalah collaborator."
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/BadRequestError"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedError"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundError"
+					}
+				}
+			}
+		},
+		"/notifications/read": {
+			"patch": {
+				"tags": ["Notifications"],
+				"summary": "Mark notifications as read (batch)",
+				"description": "Mark satu atau beberapa notifikasi sebagai read. **Requires Cookie Session (JWT)**. Request body berisi array ID notifikasi.",
+				"operationId": "markNotificationAsRead",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/MarkNotificationsReadRequest"
+							},
+							"examples": {
+								"single": {
+									"summary": "Mark single notification",
+									"value": {
+										"notification_ids": ["550e8400-e29b-41d4-a716-446655440100"]
+									}
+								},
+								"batch": {
+									"summary": "Mark multiple notifications (batch)",
+									"value": {
+										"notification_ids": [
+											"550e8400-e29b-41d4-a716-446655440100",
+											"550e8400-e29b-41d4-a716-446655440101",
+											"550e8400-e29b-41d4-a716-446655440102"
+										]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Notifikasi berhasil di-mark as read",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MarkNotificationsReadResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"message": "3 notifikasi berhasil ditandai sebagai sudah dibaca",
+										"updated_ids": [
+											"550e8400-e29b-41d4-a716-446655440100",
+											"550e8400-e29b-41d4-a716-446655440101",
+											"550e8400-e29b-41d4-a716-446655440102"
+										]
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 400,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "notification_ids",
+											"message": "notification_ids wajib diisi dan harus berupa array"
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Tidak ada notifikasi yang ditemukan atau user tidak memiliki akses",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 404,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "notification_ids",
+											"message": "Tidak ada notifikasi yang ditemukan dengan ID tersebut"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	},
 	"components": {
@@ -2595,10 +4026,7 @@
 						}
 					}
 				},
-				"required": [
-					"code",
-					"success"
-				]
+				"required": ["code", "success"]
 			},
 			"FieldError": {
 				"type": "object",
@@ -2615,18 +4043,11 @@
 						"example": "Email tidak valid"
 					}
 				},
-				"required": [
-					"field",
-					"message"
-				]
+				"required": ["field", "message"]
 			},
 			"RegisterRequest": {
 				"type": "object",
-				"required": [
-					"email",
-					"password",
-					"username"
-				],
+				"required": ["email", "password", "username"],
 				"properties": {
 					"email": {
 						"type": "string",
@@ -2659,10 +4080,7 @@
 			},
 			"LoginRequest": {
 				"type": "object",
-				"required": [
-					"email",
-					"password"
-				],
+				"required": ["email", "password"],
 				"properties": {
 					"email": {
 						"type": "string",
@@ -2764,10 +4182,7 @@
 			"CreateShowcaseRequest": {
 				"type": "object",
 				"description": "Request body untuk membuat showcase baru",
-				"required": [
-					"title",
-					"category_id"
-				],
+				"required": ["title", "category_id"],
 				"properties": {
 					"title": {
 						"type": "string",
@@ -2792,12 +4207,7 @@
 							"type": "string"
 						},
 						"description": "Array of tags (opsional)",
-						"example": [
-							"nextjs",
-							"react",
-							"dashboard",
-							"tailwindcss"
-						]
+						"example": ["nextjs", "react", "dashboard", "tailwindcss"]
 					},
 					"media": {
 						"type": "array",
@@ -2828,7 +4238,7 @@
 						"items": {
 							"type": "string"
 						},
-						"description": "Array of tags",
+						"description": "Array of tags. **NOTE**: Mengirim field ini akan me-replace seluruh tag lama dengan yang baru (bukan menambah).",
 						"example": [
 							"nextjs",
 							"react",
@@ -2842,9 +4252,7 @@
 			"CreateCommentRequest": {
 				"type": "object",
 				"description": "Request body untuk membuat komentar",
-				"required": [
-					"content"
-				],
+				"required": ["content"],
 				"properties": {
 					"content": {
 						"type": "string",
@@ -2862,11 +4270,7 @@
 			"MediaItem": {
 				"type": "object",
 				"description": "Media item untuk showcase",
-				"required": [
-					"url",
-					"type",
-					"order"
-				],
+				"required": ["url", "type", "order"],
 				"properties": {
 					"id": {
 						"type": "string",
@@ -2881,10 +4285,7 @@
 					},
 					"type": {
 						"type": "string",
-						"enum": [
-							"image",
-							"video"
-						],
+						"enum": ["image", "video"],
 						"description": "Tipe media (image atau video)",
 						"example": "image"
 					},
@@ -3124,10 +4525,12 @@
 										"format": "date-time"
 									},
 									"is_liked": {
-										"type": "boolean"
+										"type": "boolean",
+										"nullable": true
 									},
 									"is_saved": {
-										"type": "boolean"
+										"type": "boolean",
+										"nullable": true
 									},
 									"category": {
 										"type": "object",
@@ -3440,6 +4843,16 @@
 							}
 						}
 					},
+					"reply_to": {
+						"type": "object",
+						"nullable": true,
+						"description": "User yang dibalas (untuk deep nesting display)",
+						"properties": {
+							"username": {
+								"type": "string"
+							}
+						}
+					},
 					"replies": {
 						"type": "array",
 						"items": {
@@ -3634,9 +5047,7 @@
 			"UpdateCommentRequest": {
 				"type": "object",
 				"description": "Request body untuk update comment",
-				"required": [
-					"content"
-				],
+				"required": ["content"],
 				"properties": {
 					"content": {
 						"type": "string",
@@ -3711,6 +5122,540 @@
 						}
 					}
 				}
+			},
+			"NotificationItem": {
+				"type": "object",
+				"description": "Schema untuk satu item notifikasi",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "UUID notifikasi",
+						"example": "550e8400-e29b-41d4-a716-446655440100"
+					},
+					"type": {
+						"type": "string",
+						"enum": [
+							"LIKE",
+							"COMMENT",
+							"COLLABORATOR_INVITED",
+							"COLLABORATOR_ACCEPTED"
+						],
+						"description": "Tipe notifikasi",
+						"example": "LIKE"
+					},
+					"content": {
+						"type": "string",
+						"description": "Konten notifikasi yang sudah di-format",
+						"example": "User A, User B, dan 3 lainnya menyukai showcase-mu \"Dashboard Design\""
+					},
+					"is_read": {
+						"type": "boolean",
+						"description": "Status sudah dibaca atau belum",
+						"example": false
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Waktu notifikasi pertama kali dibuat",
+						"example": "2026-01-27T05:00:00Z"
+					},
+					"updated_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Waktu terakhir notifikasi di-update (untuk batched notifications)",
+						"example": "2026-01-27T05:30:00Z"
+					}
+				}
+			},
+			"NotificationsListResponse": {
+				"type": "object",
+				"description": "Response untuk GET /notifications",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"notifications": {
+								"type": "array",
+								"description": "List notifikasi",
+								"items": {
+									"$ref": "#/components/schemas/NotificationItem"
+								}
+							},
+							"pagination": {
+								"$ref": "#/components/schemas/PaginationMeta"
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"items": {
+							"$ref": "#/components/schemas/FieldError"
+						}
+					}
+				}
+			},
+			"NotificationCountResponse": {
+				"type": "object",
+				"description": "Response untuk GET /notifications/count",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"unread_count": {
+								"type": "integer",
+								"description": "Total notifikasi yang belum dibaca",
+								"example": 12
+							},
+							"by_type": {
+								"type": "object",
+								"description": "Breakdown count per tipe notifikasi",
+								"properties": {
+									"LIKE": {
+										"type": "integer",
+										"example": 5
+									},
+									"COMMENT": {
+										"type": "integer",
+										"example": 4
+									},
+									"COLLABORATOR_INVITED": {
+										"type": "integer",
+										"example": 2
+									},
+									"COLLABORATOR_ACCEPTED": {
+										"type": "integer",
+										"example": 1
+									}
+								}
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"items": {
+							"$ref": "#/components/schemas/FieldError"
+						}
+					}
+				}
+			},
+			"MarkNotificationsReadRequest": {
+				"type": "object",
+				"description": "Request body untuk mark notification(s) as read",
+				"required": ["notification_ids"],
+				"properties": {
+					"notification_ids": {
+						"type": "array",
+						"description": "Array of notification UUIDs to mark as read",
+						"minItems": 1,
+						"items": {
+							"type": "string",
+							"format": "uuid"
+						},
+						"example": [
+							"550e8400-e29b-41d4-a716-446655440100",
+							"550e8400-e29b-41d4-a716-446655440101"
+						]
+					}
+				}
+			},
+			"MarkNotificationsReadResponse": {
+				"type": "object",
+				"description": "Response untuk PATCH /notifications/:id/read",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"message": {
+								"type": "string",
+								"description": "Pesan konfirmasi",
+								"example": "3 notifikasi berhasil ditandai sebagai sudah dibaca"
+							},
+							"updated_ids": {
+								"type": "array",
+								"description": "Array of notification IDs yang berhasil di-update",
+								"items": {
+									"type": "string",
+									"format": "uuid"
+								},
+								"example": [
+									"550e8400-e29b-41d4-a716-446655440100",
+									"550e8400-e29b-41d4-a716-446655440101",
+									"550e8400-e29b-41d4-a716-446655440102"
+								]
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"items": {
+							"$ref": "#/components/schemas/FieldError"
+						}
+					}
+				}
+			},
+			"PaginationMeta": {
+				"type": "object",
+				"description": "Metadata pagination untuk list endpoints",
+				"properties": {
+					"page": {
+						"type": "integer",
+						"description": "Halaman saat ini",
+						"example": 1
+					},
+					"limit": {
+						"type": "integer",
+						"description": "Jumlah item per halaman",
+						"example": 15
+					},
+					"total_items": {
+						"type": "integer",
+						"description": "Total jumlah item yang tersedia",
+						"example": 48
+					},
+					"total_pages": {
+						"type": "integer",
+						"description": "Total jumlah halaman",
+						"example": 4
+					}
+				}
+			},
+			"FeedShowcaseItem": {
+				"type": "object",
+				"description": "Schema untuk satu item showcase di feed",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "UUID showcase",
+						"example": "550e8400-e29b-41d4-a716-446655440001"
+					},
+					"title": {
+						"type": "string",
+						"description": "Judul showcase",
+						"example": "Modern Dashboard Design"
+					},
+					"slug": {
+						"type": "string",
+						"description": "URL-friendly slug",
+						"example": "modern-dashboard-design"
+					},
+					"cover_url": {
+						"type": "string",
+						"format": "uri",
+						"description": "URL cover image showcase",
+						"example": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover1.jpg"
+					},
+					"content": {
+						"type": "string",
+						"description": "Deskripsi showcase",
+						"example": "A sleek and modern dashboard design with dark mode support."
+					},
+					"likes_count": {
+						"type": "integer",
+						"description": "Jumlah likes",
+						"example": 150
+					},
+					"comments_count": {
+						"type": "integer",
+						"description": "Jumlah comments",
+						"example": 23
+					},
+					"author": {
+						"type": "object",
+						"description": "Info author showcase",
+						"properties": {
+							"username": {
+								"type": "string",
+								"example": "padli"
+							},
+							"avatar_url": {
+								"type": "string",
+								"format": "uri",
+								"nullable": true,
+								"example": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+							}
+						}
+					},
+					"is_liked": {
+						"type": "boolean",
+						"nullable": true,
+						"description": "Apakah current user sudah like (null jika tidak login)",
+						"example": true
+					},
+					"is_saved": {
+						"type": "boolean",
+						"nullable": true,
+						"description": "Apakah current user sudah save/bookmark (null jika tidak login)",
+						"example": false
+					}
+				}
+			},
+			"FeedResponse": {
+				"type": "object",
+				"description": "Response untuk GET /feed dan GET /feed/trending",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"showcases": {
+								"type": "array",
+								"description": "List showcase di feed",
+								"items": {
+									"$ref": "#/components/schemas/FeedShowcaseItem"
+								}
+							},
+							"pagination": {
+								"$ref": "#/components/schemas/PaginationMeta"
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"items": {
+							"$ref": "#/components/schemas/FieldError"
+						}
+					}
+				}
+			},
+			"InternalUserResolveRequest": {
+				"type": "object",
+				"required": ["user_ids"],
+				"properties": {
+					"user_ids": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid"
+						},
+						"minItems": 1,
+						"maxItems": 100,
+						"description": "Array UUID user yang akan di-resolve (maksimal 100 per request)"
+					}
+				}
+			},
+			"InternalUserResolveResponse": {
+				"type": "object",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"users": {
+								"type": "object",
+								"additionalProperties": {
+									"type": "object",
+									"properties": {
+										"name": {
+											"type": "string"
+										},
+										"username": {
+											"type": "string"
+										},
+										"avatar_url": {
+											"type": "string",
+											"format": "uri",
+											"nullable": true
+										}
+									}
+								},
+								"description": "Map: Key = UUID, Value = User Info"
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true
+					}
+				}
+			},
+			"InternalFollowerListResponse": {
+				"type": "object",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"follower_ids": {
+								"type": "array",
+								"items": {
+									"type": "string",
+									"format": "uuid"
+								},
+								"description": "List UUID followers"
+							},
+							"pagination": {
+								"$ref": "#/components/schemas/PaginationMeta"
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true
+					}
+				}
+			},
+			"InviteCollaboratorRequest": {
+				"type": "object",
+				"required": ["usernames"],
+				"properties": {
+					"usernames": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"minItems": 1,
+						"description": "Array username user yang akan diundang",
+						"example": ["janedoe", "budi123"]
+					}
+				}
+			},
+			"CollaborationInvitationItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "ID Invitation / Collaboration"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["PENDING"],
+						"example": "PENDING"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"expires_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"inviter": {
+						"type": "object",
+						"properties": {
+							"username": {
+								"type": "string"
+							},
+							"avatar_url": {
+								"type": "string",
+								"nullable": true
+							}
+						}
+					},
+					"showcase": {
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string",
+								"format": "uuid"
+							},
+							"title": {
+								"type": "string"
+							},
+							"slug": {
+								"type": "string"
+							},
+							"cover_url": {
+								"type": "string",
+								"nullable": true
+							}
+						}
+					}
+				}
+			},
+			"CollaborationInvitationListResponse": {
+				"type": "object",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 200
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"invitations": {
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/CollaborationInvitationItem"
+								}
+							},
+							"pagination": {
+								"$ref": "#/components/schemas/PaginationMeta"
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true
+					}
+				}
+			},
+			"CollaborationRespondRequest": {
+				"type": "object",
+				"required": ["response"],
+				"properties": {
+					"response": {
+						"type": "string",
+						"enum": ["ACCEPTED", "REJECTED"],
+						"description": "Jawaban undangan",
+						"example": "ACCEPTED"
+					}
+				}
 			}
 		},
 		"securitySchemes": {
@@ -3725,6 +5670,92 @@
 				"in": "cookie",
 				"name": "refresh_token",
 				"description": "JWT refresh token disimpan dalam HttpOnly cookie. Digunakan untuk mendapatkan access token baru."
+			}
+		},
+		"responses": {
+			"BadRequestError": {
+				"description": "Validasi gagal",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						},
+						"example": {
+							"code": 400,
+							"success": false,
+							"data": null,
+							"errors": [
+								{
+									"field": "field_name",
+									"message": "Error description"
+								}
+							]
+						}
+					}
+				}
+			},
+			"UnauthorizedError": {
+				"description": "Tidak terautentikasi (Token invalid/expired)",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						},
+						"example": {
+							"code": 401,
+							"success": false,
+							"data": null,
+							"errors": [
+								{
+									"field": "auth",
+									"message": "Token tidak valid atau sudah expired"
+								}
+							]
+						}
+					}
+				}
+			},
+			"ForbiddenError": {
+				"description": "Akses ditolak (Bukan owner/role tidak sesuai)",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						},
+						"example": {
+							"code": 403,
+							"success": false,
+							"data": null,
+							"errors": [
+								{
+									"field": "auth",
+									"message": "Anda tidak memiliki akses untuk aksi ini"
+								}
+							]
+						}
+					}
+				}
+			},
+			"NotFoundError": {
+				"description": "Resource tidak ditemukan",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						},
+						"example": {
+							"code": 404,
+							"success": false,
+							"data": null,
+							"errors": [
+								{
+									"field": "id",
+									"message": "Resource tidak ditemukan"
+								}
+							]
+						}
+					}
+				}
 			}
 		}
 	}
