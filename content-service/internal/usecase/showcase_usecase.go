@@ -22,7 +22,7 @@ type ShowcaseUsecase interface {
 	CreateShowcase(ctx context.Context, input *entity.CreateShowcaseRequest, files []*multipart.FileHeader, userID uuid.UUID) (*entity.Showcase, error)
 	GetShowcaseBySlug(ctx context.Context, slug string) (*entity.Showcase, error)
 	GetShowcasesByUser(ctx context.Context, userIDStr string, limit int, cursor string) (map[string]interface{}, error)
-	GetMyShowcases(ctx context.Context, userID uuid.UUID, statusFilter string, limit int, cursor string) (map[string]interface{}, error)
+	GetMyShowcases(ctx context.Context, userID uuid.UUID, limit int, cursor string) (map[string]interface{}, error)
 }
 
 type showcaseUsecase struct {
@@ -103,21 +103,57 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 	categoryID, _ := uuid.Parse(input.CategoryID)
 	slug := strings.ReplaceAll(strings.ToLower(input.Title), " ", "-") + "-" + uuid.New().String()[:8]
 
+	// Create Showcase without UserID, but with Creator as Collaborator (OWNER)
+	creatorCollaborator := entity.Collaborator{
+		Role:   entity.CollaborationRoleOwner,
+		Status: entity.CollaborationStatusAccepted,
+		UserID: userID,
+	}
+	// Need to set ID manually for base? Base has BeforeCreate, so it's fine.
+
 	showcase := &entity.Showcase{
-		UserID:      userID,
 		Title:       input.Title,
 		Slug:        slug,
-		Description: input.Description,
+		Content:     input.Content,
 		CategoryID:  categoryID,
-		Status:      entity.StatusPublished,
 		Tags:        strings.Split(input.Tags, ","),
 		Media:       mediaList,
+		Collaborators: []entity.Collaborator{creatorCollaborator},
 	}
 
 	// 5. Save to DB
-	if err := u.repo.Create(showcase); err != nil {
-		u.log.Errorf("Failed to create showcase in db: %v", err)
-		return nil, err
+	err = u.repo.Create(showcase)
+	if err != nil {
+		u.log.Errorf("Failed to create showcase: %v", err)
+		return nil, errors.New("failed to save showcase")
+	}
+
+	// Enrich with Author Data (which is the creator)
+	// Even though we just created it, for consistent response structure.
+	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
+	if err == nil {
+		if creatorData, found := usersMap[userID]; found {
+			showcase.EnrichedCollaborators = []entity.EnrichedCollaborator{
+				{
+					ID:     uuid.Nil, // Has no DB ID yet or doesn't matter for response? Wait, db collaborator has no ID yet? The entity created has Collaborators list.
+					// Actually we just inserted it. We can get ID from creatorCollaborator?
+					// Or just leave ID nil/random. The UI needs User ID mostly.
+					// But wait, response contract says collaborator has ID.
+					// Since we just created it, we rely on GORM? GORM populates IDs after Create if passed by pointer.
+					// But `creatorCollaborator` was passed by value in slice.
+					// It's safer to just return User data. API contract says ID is UUID.
+					// Let's assume ID is generated.
+					Role:   entity.CollaborationRoleOwner,
+					Status: entity.CollaborationStatusAccepted,
+					User: &entity.User{
+						ID:        userID,
+						Name:      creatorData.Name,
+						Username:  creatorData.Username,
+						AvatarURL: creatorData.AvatarURL,
+					},
+				},
+			}
+		}
 	}
 
 	return showcase, nil
@@ -130,43 +166,40 @@ func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*
 		return nil, err
 	}
 
-	// 2. Fetch Author & Collaborators Data (Enrichment)
-	userIDs := []uuid.UUID{showcase.UserID}
-	
-	// Collect Collaborator IDs
+	// 2. Fetch Collaborators Data (Enrichment)
+	// Collect UserIDs from Collaborators
+	var userIDs []uuid.UUID
 	for _, col := range showcase.Collaborators {
 		userIDs = append(userIDs, col.UserID)
 	}
 
 	// Use UserClient to get bulk data
-	usersMap, err := u.userClient.GetUsersBulk(userIDs)
-	if err != nil {
-		u.log.Warnf("Failed to fetch user data for showcase %s: %v", slug, err)
-	} else {
-		// Map Author
-		if authorData, found := usersMap[showcase.UserID]; found {
-			showcase.Author = &entity.User{
-				ID:        showcase.UserID,
-				Name:      authorData.Name,
-				Username:  authorData.Username,
-				AvatarURL: authorData.AvatarURL,
+	if len(userIDs) > 0 {
+		usersMap, err := u.userClient.GetUsersBulk(userIDs)
+		if err != nil {
+			u.log.Warnf("Failed to fetch user data for showcase %s: %v", slug, err)
+		} else {
+			// Map Collaborators to EnrichedCollaborator
+			var enrichedCols []entity.EnrichedCollaborator
+			for _, col := range showcase.Collaborators {
+				if userData, found := usersMap[col.UserID]; found {
+					enrichedCols = append(enrichedCols, entity.EnrichedCollaborator{
+						ID:     col.ID,
+						Role:   col.Role,
+						Status: col.Status,
+						User: &entity.User{
+							ID:        col.UserID,
+							Name:      userData.Name,
+							Username:  userData.Username,
+							AvatarURL: userData.AvatarURL,
+						},
+					})
+				}
 			}
+			showcase.EnrichedCollaborators = enrichedCols
 		}
-
-		// Map Collaborators
-		var enrichedCols []*entity.User
-		for _, col := range showcase.Collaborators {
-			if userData, found := usersMap[col.UserID]; found {
-				enrichedCols = append(enrichedCols, &entity.User{
-					ID:        col.UserID,
-					Name:      userData.Name,
-					Username:  userData.Username,
-					AvatarURL: userData.AvatarURL,
-				})
-			}
-		}
-		showcase.EnrichedCollaborators = enrichedCols
 	}
+	
 	return showcase, nil
 }
 
@@ -177,33 +210,57 @@ func (u *showcaseUsecase) GetShowcasesByUser(ctx context.Context, userIDStr stri
 		return nil, fmt.Errorf("invalid user id format")
 	}
 
-	// 1. Get from Repo (Public only shows PUBLISHED)
-	showcases, meta, err := u.repo.GetByUserID(userID, []string{entity.StatusPublished}, limit, cursor)
+	// 1. Get from Repo (Results filtered by JOIN collaborators.user_id = userID)
+	showcases, meta, err := u.repo.GetByUserID(userID, limit, cursor)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Enrich with Author Data
-	// Since all showcases belong to the SAME user, we only need to fetch ONE user from User Service.
+	// 2. Enrich with Collaborator (Owner) Data
 	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
 	if err != nil {
 		u.log.Warnf("Failed to fetch author data for user feed %s: %v", userIDStr, err)
 	}
 
-	// Apply Author Data to all items
-	// Note: We are returning []entity.Showcase, but we can return []FeedShowcaseItem DTO if preferred.
-	// For simplicity, we assume entity.Showcase has JSON tags close enough to FeedShowcaseItem or we map it here.
-	// Looking at API contract FeedShowcaseItem, it matches entity.Showcase JSON tags.
-
-	if authorDetail, found := usersMap[userID]; found {
-		authorEntity := &entity.User{
+	if userDetail, found := usersMap[userID]; found {
+		userEntity := &entity.User{
 			ID:        userID,
-			Name:      authorDetail.Name,
-			Username:  authorDetail.Username,
-			AvatarURL: authorDetail.AvatarURL,
+			Name:      userDetail.Name,
+			Username:  userDetail.Username,
+			AvatarURL: userDetail.AvatarURL,
 		}
+		
 		for i := range showcases {
-			showcases[i].Author = authorEntity
+			// Since we called GetByUserID, we know 'userID' is at least a collaborator.
+			// Ideally we fetch actual role from DB (it's in 'Collaborators' relation if Preloaded).
+			// If Repo preloads Collaborators, we can find the specific role.
+			
+			var myRole = entity.CollaborationRoleOwner // Default assumption if not found (should not happen if data consistent)
+			var myStatus = entity.CollaborationStatusAccepted
+			var colID = uuid.Nil
+
+			// Iterasi existing collaborators untuk cari detailnya
+			for _, c := range showcases[i].Collaborators {
+				if c.UserID == userID {
+					myRole = c.Role
+					myStatus = c.Status
+					colID = c.ID
+					break
+				}
+			}
+
+			// Assign Enriched Data specifically for the feed view
+			// Usually feed only shows "Author" (Owner). 
+			// If we want to show all collaborators in feed, we'd need to fetch all UserIDs.
+			// For now, we only enrich the "Author" (the user whose feed we are viewing).
+			showcases[i].EnrichedCollaborators = []entity.EnrichedCollaborator{
+				{
+					ID:     colID,
+					Role:   myRole,
+					Status: myStatus,
+					User:   userEntity,
+				},
+			}
 		}
 	}
 
@@ -219,42 +276,49 @@ func (u *showcaseUsecase) GetShowcasesByUser(ctx context.Context, userIDStr stri
 	return response, nil
 }
 
-func (u *showcaseUsecase) GetMyShowcases(ctx context.Context, userID uuid.UUID, statusFilter string, limit int, cursor string) (map[string]interface{}, error) {
-	// Determine Allowed Statuses
-	var allowedStatuses []string
-	switch strings.ToLower(statusFilter) {
-	case "published":
-		allowedStatuses = []string{entity.StatusPublished}
-	case "archived":
-		allowedStatuses = []string{entity.StatusArchived}
-	case "draft": // Optional if needed
-		allowedStatuses = []string{entity.StatusDraft}
-	default: // "all" or empty
-		allowedStatuses = []string{entity.StatusPublished, entity.StatusArchived, entity.StatusDraft}
-	}
-
+func (u *showcaseUsecase) GetMyShowcases(ctx context.Context, userID uuid.UUID, limit int, cursor string) (map[string]interface{}, error) {
 	// 1. Get FROM Repo
-	showcases, meta, err := u.repo.GetByUserID(userID, allowedStatuses, limit, cursor)
+	showcases, meta, err := u.repo.GetByUserID(userID, limit, cursor)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2. Enrich Author Data (Self)
-	// Even though it's "Me", fetching from User Service ensures we get latest Avatar/Name
 	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
 	if err != nil {
 		u.log.Warnf("Failed to fetch author data for my feed %s: %v", userID, err)
 	}
 
-	if authorDetail, found := usersMap[userID]; found {
-		authorEntity := &entity.User{
+	if userDetail, found := usersMap[userID]; found {
+		userEntity := &entity.User{
 			ID:        userID,
-			Name:      authorDetail.Name,
-			Username:  authorDetail.Username,
-			AvatarURL: authorDetail.AvatarURL,
+			Name:      userDetail.Name,
+			Username:  userDetail.Username,
+			AvatarURL: userDetail.AvatarURL,
 		}
 		for i := range showcases {
-			showcases[i].Author = authorEntity
+			// Find Role from Loaded Collaborators
+			var myRole = entity.CollaborationRoleOwner
+			var myStatus = entity.CollaborationStatusAccepted
+			var colID = uuid.Nil
+
+			for _, c := range showcases[i].Collaborators {
+				if c.UserID == userID {
+					myRole = c.Role
+					myStatus = c.Status
+					colID = c.ID
+					break
+				}
+			}
+
+			showcases[i].EnrichedCollaborators = []entity.EnrichedCollaborator{
+				{
+					ID:     colID,
+					Role:   myRole,
+					Status: myStatus,
+					User:   userEntity,
+				},
+			}
 		}
 	}
 

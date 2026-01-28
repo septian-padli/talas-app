@@ -23,31 +23,37 @@ type Category struct {
 
 type Showcase struct {
 	Base
-	UserID uuid.UUID `gorm:"type:uuid;index;not null" json:"user_id"` // Ghost FK ke User Service
 
 	Title       string         `gorm:"type:varchar(255);not null" json:"title"`
 	Slug        string         `gorm:"type:varchar(300);not null;unique;index" json:"slug"`
-	Description string         `gorm:"type:text" json:"description"`
-	Status      string         `gorm:"type:varchar(20);default:'PUBLISHED';index" json:"status"`
-	Tags        pq.StringArray `gorm:"type:text[]" json:"tags"` // Array of strings (Postgres Native)
+	Content     string         `gorm:"type:text" json:"content"` // Renamed from Description? User schema has 'content'
+	Tags        pq.StringArray `gorm:"type:text[]" json:"tags"`
 
-	// Counters (Denormalization for Performance)
+	// Counters
 	ViewsCount    int `gorm:"default:0" json:"views_count"`
 	LikesCount    int `gorm:"default:0" json:"likes_count"`
 	CommentsCount int `gorm:"default:0" json:"comments_count"`
-	SharesCount   int `gorm:"default:0" json:"shares_count"` // Optional
+	SharesCount   int `gorm:"default:0" json:"shares_count"`
 
 	// Relasi
 	CategoryID uuid.UUID      `gorm:"type:uuid;not null" json:"category_id"`
-	Category   *Category      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"category,omitempty"`
+	Category   *Category      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"category,omitempty"` // Changed to RESTRICT
 	Media      []ShowcaseMedia `gorm:"foreignKey:ShowcaseID;constraint:OnDelete:CASCADE" json:"media,omitempty"`
-	Comments   []Comment      `gorm:"foreignKey:ShowcaseID" json:"comments,omitempty"`
-	Likes      []ShowcaseLike  `gorm:"foreignKey:ShowcaseID" json:"likes,omitempty"`
-	Collaborators []Collaborator `gorm:"foreignKey:ShowcaseID" json:"-"` // DB Relation (Hidden in JSON)
+	Comments   []Comment      `gorm:"foreignKey:ShowcaseID;constraint:OnDelete:CASCADE" json:"comments,omitempty"` // Added Cascade
+	Likes      []ShowcaseLike  `gorm:"foreignKey:ShowcaseID;constraint:OnDelete:CASCADE" json:"likes,omitempty"` // Added Cascade
+	Bookmarks  []Bookmark     `gorm:"foreignKey:ShowcaseID;constraint:OnDelete:CASCADE" json:"bookmarks,omitempty"` // Added Cascade as well
+	Collaborators []Collaborator `gorm:"foreignKey:ShowcaseID;constraint:OnDelete:CASCADE" json:"-"`
 
-	// Enriched Data (Not in DB)
-	Author *User `gorm:"-" json:"author,omitempty"`
-	EnrichedCollaborators []*User `gorm:"-" json:"collaborators,omitempty"`
+	// Enriched Data
+	// Enriched Data
+	EnrichedCollaborators []EnrichedCollaborator `gorm:"-" json:"collaborators,omitempty"`
+}
+
+type EnrichedCollaborator struct {
+	ID     uuid.UUID `json:"id"`
+	Role   string    `json:"role"`
+	Status string    `json:"status"`
+	User   *User     `json:"user"`
 }
 
 // User struct (Ghost object from User Service)
@@ -69,7 +75,7 @@ type ShowcaseMedia struct {
 // DTOs
 type CreateShowcaseRequest struct {
 	Title       string `form:"title" validate:"required,min=5,max=100"`
-	Description string `form:"description" validate:"required,min=10"`
+	Content     string `form:"content" validate:"required,min=10"`
 	CategoryID  string `form:"category_id" validate:"required,uuid"`
 	Tags        string `form:"tags"` // Comma separated: "design,ui,ux"
 }

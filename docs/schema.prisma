@@ -1,0 +1,180 @@
+// This schema file is auto-generated based on Content Service Entities
+// DataSource
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+// Enums
+enum CollaborationRole {
+    OWNER
+    COLLABORATOR
+}
+
+enum CollaborationStatus {
+    PENDING
+    ACCEPTED
+    REJECTED
+}
+
+enum MediaType {
+    IMAGE
+    VIDEO
+}
+
+// Models
+
+model Category {
+    id        String    @id @default(uuid()) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at") // Soft Delete
+
+    name           String @unique @db.VarChar(100)
+    slug           String @unique @db.VarChar(150)
+    countShowcases Int    @default(0) @map("count_showcases")
+
+    showcases Showcase[]
+
+    @@map("categories")
+}
+
+model Showcase {
+    id        String    @id @default(uuid()) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    title   String   @db.VarChar(255)
+    slug    String   @unique @db.VarChar(300)
+    content String?  @db.Text
+    status  String   @default("PUBLISHED") @db.VarChar(20) // Enum handling usually via string in Go Gorm unless specific type
+    tags    String[] @db.Text // Postgres Array
+
+    // Counters
+    viewsCount    Int @default(0) @map("views_count")
+    likesCount    Int @default(0) @map("likes_count")
+    commentsCount Int @default(0) @map("comments_count")
+    sharesCount   Int @default(0) @map("shares_count")
+
+    // Relations
+    categoryId String   @map("category_id") @db.Uuid
+    category   Category @relation(fields: [categoryId], references: [id])
+
+    media         ShowcaseMedia[]
+    comments      Comment[]
+    likes         ShowcaseLike[]
+    bookmarks     Bookmark[]
+    collaborators Collaborator[]
+
+    @@index([status])
+    @@map("showcases")
+}
+
+model ShowcaseMedia {
+    id        String    @id @default(uuid()) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    showcaseId String   @map("showcase_id") @db.Uuid
+    showcase   Showcase @relation(fields: [showcaseId], references: [id], onDelete: Cascade)
+
+    url      String @db.Text
+    type     String @default("IMAGE") @db.VarChar(20)
+    position Int    @default(0)
+
+    @@index([showcaseId])
+    @@map("showcase_media")
+}
+
+model Comment {
+    id        String    @id @default(uuid()) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    showcaseId String   @map("showcase_id") @db.Uuid
+    showcase   Showcase @relation(fields: [showcaseId], references: [id])
+
+    userId  String @map("user_id") @db.Uuid // Ghost FK
+    content String @db.Text
+
+    // Nested Replies
+    parentId String?   @map("parent_id") @db.Uuid
+    parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+    replies  Comment[] @relation("CommentReplies")
+
+    replyTo    String? @map("reply_to") @db.VarChar(100) // Snapshot username
+    likesCount Int     @default(0) @map("likes_count")
+
+    likes CommentLike[]
+
+    @@index([showcaseId])
+    @@index([userId])
+    @@map("comments")
+}
+
+model ShowcaseLike {
+    id        String   @id @default(uuid()) @db.Uuid
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    showcaseId String   @map("showcase_id") @db.Uuid
+    showcase   Showcase @relation(fields: [showcaseId], references: [id])
+    userId     String   @map("user_id") @db.Uuid
+
+    @@unique([showcaseId, userId]) // Unique Constraint
+    @@map("showcase_likes")
+}
+
+model CommentLike {
+    id        String   @id @default(uuid()) @db.Uuid
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    commentId String  @map("comment_id") @db.Uuid
+    comment   Comment @relation(fields: [commentId], references: [id])
+    userId    String  @map("user_id") @db.Uuid
+
+    @@unique([commentId, userId])
+    @@map("comment_likes")
+}
+
+model Bookmark {
+    id        String    @id @default(uuid()) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    showcaseId String   @map("showcase_id") @db.Uuid
+    showcase   Showcase @relation(fields: [showcaseId], references: [id])
+    userId     String   @map("user_id") @db.Uuid
+
+    @@unique([showcaseId, userId])
+    @@map("bookmarks")
+}
+
+model Collaborator {
+    id        String    @id @default(uuid()) @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    showcaseId String   @map("showcase_id") @db.Uuid
+    showcase   Showcase @relation(fields: [showcaseId], references: [id])
+
+    userId String @map("user_id") @db.Uuid // Ghost FK
+
+    role      CollaborationRole   @default(COLLABORATOR)
+    status    CollaborationStatus @default(PENDING)
+    expiredAt DateTime?           @map("expired_at")
+
+    @@index([showcaseId])
+    @@index([userId])
+    @@map("collaborators")
+}

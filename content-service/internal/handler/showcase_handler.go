@@ -131,10 +131,9 @@ func (h *ShowcaseHandler) GetMyShowcases(c *fiber.Ctx) error {
 	}
 
 	cursor := c.Query("cursor")
-	status := c.Query("status")
 	limit := c.QueryInt("limit", 10)
 
-	result, err := h.usecase.GetMyShowcases(c.Context(), userID, status, limit, cursor)
+	result, err := h.usecase.GetMyShowcases(c.Context(), userID, limit, cursor)
 	if err != nil {
 		return utils.ErrorResponse(c, 500, err.Error(), nil)
 	}

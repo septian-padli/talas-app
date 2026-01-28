@@ -14,7 +14,7 @@ type ShowcaseRepository interface {
 	Create(showcase *entity.Showcase) error
 	GetBySlug(slug string) (*entity.Showcase, error)
 
-	GetByUserID(userID uuid.UUID, allowedStatuses []string, limit int, cursor string) ([]entity.Showcase, *PaginationMeta, error)
+	GetByUserID(userID uuid.UUID, limit int, cursor string) ([]entity.Showcase, *PaginationMeta, error)
 }
 
 type paginationCursor struct {
@@ -54,20 +54,18 @@ func (r *showcaseRepository) GetBySlug(slug string) (*entity.Showcase, error) {
 	return &showcase, nil
 }
 
-func (r *showcaseRepository) GetByUserID(userID uuid.UUID, allowedStatuses []string, limit int, cursor string) ([]entity.Showcase, *PaginationMeta, error) {
+func (r *showcaseRepository) GetByUserID(userID uuid.UUID, limit int, cursor string) ([]entity.Showcase, *PaginationMeta, error) {
 	var showcases []entity.Showcase
+	// Query with Join on Collaborators
 	query := r.db.Preload("Category").
 		Preload("Media", func(db *gorm.DB) *gorm.DB {
 			return db.Order("position ASC")
 		}).
-		Where("user_id = ?", userID).
-		Order("created_at DESC, id DESC").
+		Preload("Collaborators").
+		Joins("JOIN collaborators ON collaborators.showcase_id = showcases.id").
+		Where("collaborators.user_id = ?", userID).
+		Order("showcases.created_at DESC, showcases.id DESC").
 		Limit(limit + 1)
-
-	// Apply Status Filter
-	if len(allowedStatuses) > 0 {
-		query = query.Where("status IN ?", allowedStatuses)
-	}
 
 	// Apply Cursor Condition
 

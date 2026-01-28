@@ -1160,13 +1160,24 @@
 									"data": {
 										"showcase": {
 											"id": "550e8400-e29b-41d4-a716-446655440002",
-											"user_id": "550e8400-e29b-41d4-a716-446655440000",
 											"category_id": "550e8400-e29b-41d4-a716-446655440001",
 											"title": "Building a Modern Dashboard with Next.js",
 											"slug": "building-a-modern-dashboard-with-nextjs",
 											"content": "In this project, I built a responsive admin dashboard...",
-											"is_archived": false,
 											"tag": ["nextjs", "react", "dashboard", "tailwindcss"],
+											"collaborators": [
+												{
+													"id": "550e8400-e29b-41d4-a716-446655440099",
+													"role": "OWNER",
+													"status": "ACCEPTED",
+													"user": {
+														"id": "550e8400-e29b-41d4-a716-446655440000",
+														"username": "septian",
+														"name": "Septian Padli",
+														"avatar_url": "https://example.com/avatar.jpg"
+													}
+												}
+											],
 											"count_like": 0,
 											"count_comment": 0,
 											"created_at": "2026-01-27T04:30:00Z",
@@ -1285,17 +1296,6 @@
 				],
 				"parameters": [
 					{
-						"name": "status",
-						"in": "query",
-						"required": false,
-						"description": "Filter status project (default: all)",
-						"schema": {
-							"type": "string",
-							"enum": ["all", "published", "archived"],
-							"default": "all"
-						}
-					},
-					{
 						"name": "cursor",
 						"in": "query",
 						"required": false,
@@ -1371,18 +1371,28 @@
 												"title": "Web Development",
 												"slug": "web-development"
 											},
-											"author": {
-												"id": "550e8400-e29b-41d4-a716-446655440000",
-												"username": "johndoe",
-												"name": "John Doe",
-												"avatar_url": "https://res.cloudinary.com/talas/avatar.jpg"
-											},
 											"collaborators": [
 												{
+													"id": "collab-uuid-1",
+													"role": "OWNER",
+													"status": "ACCEPTED",
+													"user": {
+														"id": "550e8400-e29b-41d4-a716-446655440000",
+														"username": "johndoe",
+														"name": "John Doe",
+														"avatar_url": "https://res.cloudinary.com/talas/avatar.jpg"
+													}
+												},
+												{
 													"id": "550e8400-e29b-41d4-a716-446655440010",
-													"username": "janedoe",
-													"name": "Jane Doe",
-													"avatar_url": "https://res.cloudinary.com/talas/avatar2.jpg"
+													"role": "COLLABORATOR",
+													"status": "ACCEPTED",
+													"user": {
+														"id": "550e8400-e29b-41d4-a716-446655440020",
+														"username": "janedoe",
+														"name": "Jane Doe",
+														"avatar_url": "https://res.cloudinary.com/talas/avatar2.jpg"
+													}
 												}
 											],
 											"media": [
@@ -3116,10 +3126,19 @@
 												"content": "Revolutionary design system powered by AI for automated component generation.",
 												"likes_count": 520,
 												"comments_count": 87,
-												"author": {
-													"username": "techguru",
-													"avatar_url": "https://res.cloudinary.com/talas/avatar/user3.jpg"
-												},
+												"collaborators": [
+													{
+														"id": "collab-uuid-3",
+														"role": "OWNER",
+														"status": "ACCEPTED",
+														"user": {
+															"id": "uuid-techguru",
+															"username": "techguru",
+															"name": "Tech Guru",
+															"avatar_url": "https://res.cloudinary.com/talas/avatar/user3.jpg"
+														}
+													}
+												],
 												"is_liked": null,
 												"is_saved": null
 											},
@@ -3131,10 +3150,19 @@
 												"content": "Complete overhaul of e-commerce platform with focus on conversion optimization.",
 												"likes_count": 380,
 												"comments_count": 56,
-												"author": {
-													"username": "uxmaster",
-													"avatar_url": "https://res.cloudinary.com/talas/avatar/user4.jpg"
-												},
+												"collaborators": [
+													{
+														"id": "collab-uuid-4",
+														"role": "OWNER",
+														"status": "ACCEPTED",
+														"user": {
+															"id": "uuid-uxmaster",
+															"username": "uxmaster",
+															"name": "UX Master",
+															"avatar_url": "https://res.cloudinary.com/talas/avatar/user4.jpg"
+														}
+													}
+												],
 												"is_liked": null,
 												"is_saved": null
 											}
@@ -3268,10 +3296,19 @@
 														"content": "A sleek and modern dashboard design with dark mode support.",
 														"likes_count": 150,
 														"comments_count": 23,
-														"author": {
-															"username": "padli",
-															"avatar_url": "https://res.cloudinary.com/talas/avatar/user1.jpg"
-														},
+														"collaborators": [
+															{
+																"id": "collab-uuid-1",
+																"role": "OWNER",
+																"status": "ACCEPTED",
+																"user": {
+																	"id": "uuid-padli",
+																	"username": "padli",
+																	"name": "Septian Padli",
+																	"avatar_url": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+																}
+															}
+														],
 														"is_liked": false,
 														"is_saved": true
 													}
@@ -3656,10 +3693,19 @@
 												"content": "Updated portfolio with new projects.",
 												"likes_count": 45,
 												"comments_count": 5,
-												"author": {
-													"username": "targetuser",
-													"avatar_url": "https://res.cloudinary.com/talas/avatar/user5.jpg"
-												},
+												"collaborators": [
+													{
+														"id": "collab-uuid-5",
+														"role": "OWNER",
+														"status": "ACCEPTED",
+														"user": {
+															"id": "uuid-targetuser",
+															"username": "targetuser",
+															"name": "Target User",
+															"avatar_url": "https://res.cloudinary.com/talas/avatar/user5.jpg"
+														}
+													}
+												],
 												"is_liked": null,
 												"is_saved": null
 											}
@@ -4716,25 +4762,6 @@
 											}
 										}
 									},
-									"author": {
-										"type": "object",
-										"properties": {
-											"id": {
-												"type": "string",
-												"format": "uuid"
-											},
-											"username": {
-												"type": "string"
-											},
-											"name": {
-												"type": "string"
-											},
-											"avatar_url": {
-												"type": "string",
-												"format": "uri"
-											}
-										}
-									},
 									"collaborators": {
 										"type": "array",
 										"items": {
@@ -4744,15 +4771,32 @@
 													"type": "string",
 													"format": "uuid"
 												},
-												"username": {
-													"type": "string"
-												},
-												"name": {
-													"type": "string"
-												},
-												"avatar_url": {
+												"role": {
 													"type": "string",
-													"format": "uri"
+													"enum": ["OWNER", "COLLABORATOR"]
+												},
+												"status": {
+													"type": "string",
+													"enum": ["PENDING", "ACCEPTED", "REJECTED"]
+												},
+												"user": {
+													"type": "object",
+													"properties": {
+														"id": {
+															"type": "string",
+															"format": "uuid"
+														},
+														"username": {
+															"type": "string"
+														},
+														"name": {
+															"type": "string"
+														},
+														"avatar_url": {
+															"type": "string",
+															"format": "uri"
+														}
+													}
 												}
 											}
 										}
@@ -4798,10 +4842,6 @@
 										"type": "string",
 										"format": "uuid"
 									},
-									"user_id": {
-										"type": "string",
-										"format": "uuid"
-									},
 									"category_id": {
 										"type": "string",
 										"format": "uuid"
@@ -4816,13 +4856,49 @@
 										"type": "string",
 										"nullable": true
 									},
-									"is_archived": {
-										"type": "boolean"
-									},
 									"tag": {
 										"type": "array",
 										"items": {
 											"type": "string"
+										}
+									},
+									"collaborators": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"id": {
+													"type": "string",
+													"format": "uuid"
+												},
+												"role": {
+													"type": "string",
+													"enum": ["OWNER", "COLLABORATOR"]
+												},
+												"status": {
+													"type": "string",
+													"enum": ["PENDING", "ACCEPTED", "REJECTED"]
+												},
+												"user": {
+													"type": "object",
+													"properties": {
+														"id": {
+															"type": "string",
+															"format": "uuid"
+														},
+														"username": {
+															"type": "string"
+														},
+														"name": {
+															"type": "string"
+														},
+														"avatar_url": {
+															"type": "string",
+															"format": "uri"
+														}
+													}
+												}
+											}
 										}
 									},
 									"count_like": {
@@ -5546,23 +5622,49 @@
 						"description": "Jumlah comments",
 						"example": 23
 					},
-					"author": {
-						"type": "object",
-						"description": "Info author showcase",
-						"properties": {
-							"name": {
-								"type": "string",
-								"example": "Septian Padli"
-							},
-							"username": {
-								"type": "string",
-								"example": "padli"
-							},
-							"avatar_url": {
-								"type": "string",
-								"format": "uri",
-								"nullable": true,
-								"example": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+					"collaborators": {
+						"type": "array",
+						"description": "List kolaborator (termasuk OWNER)",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string",
+									"format": "uuid"
+								},
+								"role": {
+									"type": "string",
+									"enum": ["OWNER", "COLLABORATOR"],
+									"example": "OWNER"
+								},
+								"status": {
+									"type": "string",
+									"enum": ["PENDING", "ACCEPTED", "REJECTED"],
+									"example": "ACCEPTED"
+								},
+								"user": {
+									"type": "object",
+									"properties": {
+										"id": {
+											"type": "string",
+											"format": "uuid"
+										},
+										"name": {
+											"type": "string",
+											"example": "Septian Padli"
+										},
+										"username": {
+											"type": "string",
+											"example": "padli"
+										},
+										"avatar_url": {
+											"type": "string",
+											"format": "uri",
+											"nullable": true,
+											"example": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+										}
+									}
+								}
 							}
 						}
 					},

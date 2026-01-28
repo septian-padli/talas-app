@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -19,13 +21,21 @@ type Comment struct {
 }
 
 type ShowcaseLike struct {
-	Base
+	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	// No DeletedAt (Hard Delete)
+
 	ShowcaseID uuid.UUID `gorm:"type:uuid;not null;index:idx_showcase_like_unique,unique" json:"showcase_id"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null;index:idx_showcase_like_unique,unique" json:"user_id"`
+	UserID     uuid.UUID `gorm:"type:uuid;not null;index:idx_showcase_like_unique,unique" json:"user_id"`
 }
 
 type CommentLike struct {
-	Base
+	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	// No DeletedAt (Hard Delete)
+
 	CommentID uuid.UUID `gorm:"type:uuid;not null;index:idx_comment_like_unique,unique" json:"comment_id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index:idx_comment_like_unique,unique" json:"user_id"`
 }

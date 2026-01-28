@@ -10,6 +10,9 @@ const (
 	CollaborationStatusPending  = "PENDING"
 	CollaborationStatusAccepted = "ACCEPTED"
 	CollaborationStatusRejected = "REJECTED"
+
+	CollaborationRoleOwner        = "OWNER"
+	CollaborationRoleCollaborator = "COLLABORATOR"
 )
 
 type Collaborator struct {
