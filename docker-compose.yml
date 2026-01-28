@@ -113,6 +113,8 @@ services:
     build: ./user-service # Arahkan ke folder user-service
     container_name: talas_user_service
     restart: always
+    ports:
+      - "3001:3001"
     # 1. Baca secret umum dari file .env (JWT_SECRET, INTERNAL_SECRET, dll)
     env_file:
       - ./user-service/.env

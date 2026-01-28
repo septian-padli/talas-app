@@ -72,6 +72,76 @@ func (h *ShowcaseHandler) CreateShowcase(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, 201, "Showcase created successfully", result)
 }
 
+func (h *ShowcaseHandler) GetShowcaseBySlug(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return utils.ErrorResponse(c, 400, "Slug is required", nil)
+	}
+
+	showcase, err := h.usecase.GetShowcaseBySlug(c.Context(), slug)
+	if err != nil {
+		if err.Error() == "record not found" {
+			return utils.ErrorResponse(c, 404, "Showcase not found", nil)
+		}
+		return utils.ErrorResponse(c, 500, err.Error(), nil)
+	}
+
+	// Wrapper response to match contract
+	// Contract: { code: 200, success: true, data: { showcase: ... } }
+	return utils.SuccessResponse(c, 200, "Showcase found", fiber.Map{
+		"showcase": showcase,
+	})
+}
+
+func (h *ShowcaseHandler) GetShowcasesByUser(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	cursor := c.Query("cursor")
+	limit := c.QueryInt("limit", 10)
+
+	result, err := h.usecase.GetShowcasesByUser(c.Context(), userID, limit, cursor)
+	if err != nil {
+		if err.Error() == "invalid user id format" {
+			return utils.ErrorResponse(c, 400, "Invalid User ID", nil)
+		}
+		return utils.ErrorResponse(c, 500, err.Error(), nil)
+	}
+
+	return utils.SuccessResponse(c, 200, "User showcases retrieved", result)
+}
+
+func (h *ShowcaseHandler) GetMyShowcases(c *fiber.Ctx) error {
+	// Get User ID from Middleware
+	userIDVal := c.Locals("user_id")
+	if userIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		// Try parsing if string
+		if strID, ok := userIDVal.(string); ok {
+			parsedID, err := uuid.Parse(strID)
+			if err == nil {
+				userID = parsedID
+			} else {
+				return utils.ErrorResponse(c, 401, "Invalid User ID in Token", nil)
+			}
+		} else {
+			return utils.ErrorResponse(c, 401, "Invalid User ID type", nil)
+		}
+	}
+
+	cursor := c.Query("cursor")
+	status := c.Query("status")
+	limit := c.QueryInt("limit", 10)
+
+	result, err := h.usecase.GetMyShowcases(c.Context(), userID, status, limit, cursor)
+	if err != nil {
+		return utils.ErrorResponse(c, 500, err.Error(), nil)
+	}
+
+	return utils.SuccessResponse(c, 200, "My showcases retrieved", result)
+}
+
 func contains(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

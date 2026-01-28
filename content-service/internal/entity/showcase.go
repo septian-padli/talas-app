@@ -43,6 +43,19 @@ type Showcase struct {
 	Media      []ShowcaseMedia `gorm:"foreignKey:ShowcaseID;constraint:OnDelete:CASCADE" json:"media,omitempty"`
 	Comments   []Comment      `gorm:"foreignKey:ShowcaseID" json:"comments,omitempty"`
 	Likes      []ShowcaseLike  `gorm:"foreignKey:ShowcaseID" json:"likes,omitempty"`
+	Collaborators []Collaborator `gorm:"foreignKey:ShowcaseID" json:"-"` // DB Relation (Hidden in JSON)
+
+	// Enriched Data (Not in DB)
+	Author *User `gorm:"-" json:"author,omitempty"`
+	EnrichedCollaborators []*User `gorm:"-" json:"collaborators,omitempty"`
+}
+
+// User struct (Ghost object from User Service)
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	Username  string    `json:"username"`
+	AvatarURL string    `json:"avatar_url"`
 }
 
 type ShowcaseMedia struct {

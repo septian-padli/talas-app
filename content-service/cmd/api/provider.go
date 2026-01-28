@@ -35,9 +35,17 @@ func NewFiberApp(
 
 	// Register Routes
 	api := app.Group("/api")
-	// Protected Routes (Apply Middleware)
-	protected := api.Use(authMiddleware.Protect)
-	
+
+	// Protected Routes (Specific First)
+	api.Get("/showcases/me", authMiddleware.Protect, showcaseHandler.GetMyShowcases)
+
+	// Public Routes
+	api.Get("/showcases/:slug", showcaseHandler.GetShowcaseBySlug)
+	api.Get("/showcases/user/:id", showcaseHandler.GetShowcasesByUser)
+
+	// Protected Group (Generic)
+	protected := api.Group("/")
+	protected.Use(authMiddleware.Protect)
 	protected.Get("/test", func(c *fiber.Ctx) error {
 		userID := c.Locals("user_id")
 		return c.JSON(fiber.Map{

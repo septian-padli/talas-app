@@ -10,13 +10,10 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/handler"
 	"github.com/septianpadli/talas/content-service/internal/repository"
 	"github.com/septianpadli/talas/content-service/internal/usecase"
+	"github.com/septianpadli/talas/content-service/pkg/clients"
 	"github.com/septianpadli/talas/content-service/pkg/database"
 	"github.com/septianpadli/talas/content-service/pkg/logger"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
-	// Import package internal kamu nanti disini
-	// "github.com/septianpadli/talas/content-service/internal/repository"
-	// "github.com/septianpadli/talas/content-service/internal/usecase"
-	// "github.com/septianpadli/talas/content-service/internal/handler"
 )
 
 // Ini adalah fungsi yang akan kita panggil di main.go
@@ -34,6 +31,9 @@ func InitializeApp() (*fiber.App, error) {
 
 		// Database
 		database.ConnectDB,
+
+		// Clients
+		clients.NewUserClient,
 
 		// Repository
 		repository.NewShowcaseRepository,

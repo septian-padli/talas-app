@@ -25,6 +25,10 @@ type Config struct {
 
 	// Auth
 	JWTSecret string
+
+	// Services
+	UserServiceURL       string
+	InternalServiceSecret string
 }
 
 func LoadConfig() *Config {
@@ -51,6 +55,10 @@ func LoadConfig() *Config {
 
 		// Auth
 		JWTSecret: getEnv("JWT_SECRET", "supersecretkey"),
+
+		// Services
+		UserServiceURL:        getEnv("USER_SERVICE_URL", "http://localhost:3001"),
+		InternalServiceSecret: getEnv("INTERNAL_SERVICE_SECRET", ""),
 	}
 }
 

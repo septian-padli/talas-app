@@ -12,6 +12,7 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/handler"
 	"github.com/septianpadli/talas/content-service/internal/repository"
 	"github.com/septianpadli/talas/content-service/internal/usecase"
+	"github.com/septianpadli/talas/content-service/pkg/clients"
 	"github.com/septianpadli/talas/content-service/pkg/database"
 	"github.com/septianpadli/talas/content-service/pkg/logger"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
@@ -26,7 +27,8 @@ func InitializeApp() (*fiber.App, error) {
 	db := database.ConnectDB(configConfig)
 	showcaseRepository := repository.NewShowcaseRepository(db)
 	logrusLogger := logger.NewLogger()
-	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, configConfig, logrusLogger)
+	userClient := clients.NewUserClient(configConfig, logrusLogger)
+	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, userClient, configConfig, logrusLogger)
 	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase)
 	authMiddleware := middleware.NewAuthMiddleware(configConfig)
 	app := NewFiberApp(db, showcaseHandler, authMiddleware, logrusLogger)
