@@ -17,6 +17,14 @@ type Config struct {
 	DBName     string
 	DBPort     string
 	DBSSLMode  string
+
+	// Cloudinary
+	CloudinaryCloudName string
+	CloudinaryAPIKey    string
+	CloudinaryAPISecret string
+
+	// Auth
+	JWTSecret string
 }
 
 func LoadConfig() *Config {
@@ -35,6 +43,14 @@ func LoadConfig() *Config {
 		DBName:     getEnv("DB_NAME", "talas_content"),
 		DBPort:     getEnv("DB_PORT", "5432"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+
+		// Cloudinary
+		CloudinaryCloudName: getEnv("CLOUDINARY_CLOUD_NAME", ""),
+		CloudinaryAPIKey:    getEnv("CLOUDINARY_API_KEY", ""),
+		CloudinaryAPISecret: getEnv("CLOUDINARY_API_SECRET", ""),
+
+		// Auth
+		JWTSecret: getEnv("JWT_SECRET", "supersecretkey"),
 	}
 }
 

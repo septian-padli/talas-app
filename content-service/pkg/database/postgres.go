@@ -29,10 +29,10 @@ func ConnectDB(cfg *config.Config) *gorm.DB {
 	// Auto Migration
 	err = db.AutoMigrate(
 		&entity.Category{},
-		&entity.Project{},
-		&entity.ProjectMedia{},
+		&entity.Showcase{},
+		&entity.ShowcaseMedia{},
 		&entity.Comment{},
-		&entity.ProjectLike{},
+		&entity.ShowcaseLike{},
 		&entity.CommentLike{},
 		&entity.Bookmark{},
 		&entity.Collaborator{},

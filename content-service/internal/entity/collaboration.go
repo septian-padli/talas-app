@@ -14,7 +14,7 @@ const (
 
 type Collaborator struct {
 	Base
-	ProjectID uuid.UUID `gorm:"type:uuid;not null;index" json:"project_id"`
+	ShowcaseID uuid.UUID `gorm:"type:uuid;not null;index" json:"showcase_id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"` // Ghost FK
 
 	Role      string    `gorm:"type:varchar(50);default:'EDITOR'" json:"role"` // OWNER, EDITOR, VIEWER

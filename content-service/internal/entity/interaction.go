@@ -6,7 +6,7 @@ import (
 
 type Comment struct {
 	Base
-	ProjectID uuid.UUID `gorm:"type:uuid;not null;index" json:"project_id"`
+	ShowcaseID uuid.UUID `gorm:"type:uuid;not null;index" json:"showcase_id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"` // Ghost FK ke User Service
 
 	Body string `gorm:"type:text;not null" json:"body"`
@@ -18,10 +18,10 @@ type Comment struct {
 	LikesCount int `gorm:"default:0" json:"likes_count"`
 }
 
-type ProjectLike struct {
+type ShowcaseLike struct {
 	Base
-	ProjectID uuid.UUID `gorm:"type:uuid;not null;index:idx_project_like_unique,unique" json:"project_id"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null;index:idx_project_like_unique,unique" json:"user_id"`
+	ShowcaseID uuid.UUID `gorm:"type:uuid;not null;index:idx_showcase_like_unique,unique" json:"showcase_id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null;index:idx_showcase_like_unique,unique" json:"user_id"`
 }
 
 type CommentLike struct {
@@ -32,6 +32,6 @@ type CommentLike struct {
 
 type Bookmark struct {
 	Base
-	ProjectID uuid.UUID `gorm:"type:uuid;not null;index:idx_bookmark_unique,unique" json:"project_id"`
+	ShowcaseID uuid.UUID `gorm:"type:uuid;not null;index:idx_bookmark_unique,unique" json:"showcase_id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index:idx_bookmark_unique,unique" json:"user_id"`
 }

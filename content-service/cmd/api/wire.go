@@ -12,6 +12,7 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/usecase"
 	"github.com/septianpadli/talas/content-service/pkg/database"
 	"github.com/septianpadli/talas/content-service/pkg/logger"
+	"github.com/septianpadli/talas/content-service/pkg/middleware"
 	// Import package internal kamu nanti disini
 	// "github.com/septianpadli/talas/content-service/internal/repository"
 	// "github.com/septianpadli/talas/content-service/internal/usecase"
@@ -28,17 +29,20 @@ func InitializeApp() (*fiber.App, error) {
 		// Logger
 		logger.NewLogger,
 
+		// Middleware
+		middleware.NewAuthMiddleware,
+
 		// Database
 		database.ConnectDB,
 
 		// Repository
-		repository.NewProjectRepository,
+		repository.NewShowcaseRepository,
 
 		// Usecase
-		usecase.NewProjectUsecase,
+		usecase.NewShowcaseUsecase,
 
 		// Handler
-		handler.NewProjectHandler,
+		handler.NewShowcaseHandler,
 
 		// App
 		NewFiberApp,

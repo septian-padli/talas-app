@@ -18,10 +18,10 @@ type Category struct {
 	Slug string `gorm:"type:varchar(150);not null;unique;index" json:"slug"`
 
 	// Relasi
-	Projects []Project `gorm:"foreignKey:CategoryID" json:"projects,omitempty"`
+	Showcases []Showcase `gorm:"foreignKey:CategoryID" json:"showcases,omitempty"`
 }
 
-type Project struct {
+type Showcase struct {
 	Base
 	UserID uuid.UUID `gorm:"type:uuid;index;not null" json:"user_id"` // Ghost FK ke User Service
 
@@ -40,15 +40,23 @@ type Project struct {
 	// Relasi
 	CategoryID uuid.UUID      `gorm:"type:uuid;not null" json:"category_id"`
 	Category   *Category      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"category,omitempty"`
-	Media      []ProjectMedia `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"media,omitempty"`
-	Comments   []Comment      `gorm:"foreignKey:ProjectID" json:"comments,omitempty"`
-	Likes      []ProjectLike  `gorm:"foreignKey:ProjectID" json:"likes,omitempty"`
+	Media      []ShowcaseMedia `gorm:"foreignKey:ShowcaseID;constraint:OnDelete:CASCADE" json:"media,omitempty"`
+	Comments   []Comment      `gorm:"foreignKey:ShowcaseID" json:"comments,omitempty"`
+	Likes      []ShowcaseLike  `gorm:"foreignKey:ShowcaseID" json:"likes,omitempty"`
 }
 
-type ProjectMedia struct {
+type ShowcaseMedia struct {
 	Base
-	ProjectID uuid.UUID `gorm:"type:uuid;not null;index" json:"project_id"`
+	ShowcaseID uuid.UUID `gorm:"type:uuid;not null;index" json:"showcase_id"`
 	URL       string    `gorm:"type:text;not null" json:"url"`
 	Type      string    `gorm:"type:varchar(20);default:'IMAGE'" json:"type"` // IMAGE, VIDEO
 	Position  int       `gorm:"default:0" json:"position"`
+}
+
+// DTOs
+type CreateShowcaseRequest struct {
+	Title       string `form:"title" validate:"required,min=5,max=100"`
+	Description string `form:"description" validate:"required,min=10"`
+	CategoryID  string `form:"category_id" validate:"required,uuid"`
+	Tags        string `form:"tags"` // Comma separated: "design,ui,ux"
 }

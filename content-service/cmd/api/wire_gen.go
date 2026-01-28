@@ -14,6 +14,7 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/usecase"
 	"github.com/septianpadli/talas/content-service/pkg/database"
 	"github.com/septianpadli/talas/content-service/pkg/logger"
+	"github.com/septianpadli/talas/content-service/pkg/middleware"
 )
 
 // Injectors from wire.go:
@@ -23,10 +24,11 @@ import (
 func InitializeApp() (*fiber.App, error) {
 	configConfig := config.LoadConfig()
 	db := database.ConnectDB(configConfig)
-	projectRepository := repository.NewProjectRepository(db)
-	projectUsecase := usecase.NewProjectUsecase(projectRepository)
-	projectHandler := handler.NewProjectHandler(projectUsecase)
+	showcaseRepository := repository.NewShowcaseRepository(db)
 	logrusLogger := logger.NewLogger()
-	app := NewFiberApp(db, projectHandler, logrusLogger)
+	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, configConfig, logrusLogger)
+	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase)
+	authMiddleware := middleware.NewAuthMiddleware(configConfig)
+	app := NewFiberApp(db, showcaseHandler, authMiddleware, logrusLogger)
 	return app, nil
 }
