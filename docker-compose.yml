@@ -135,6 +135,38 @@ services:
     networks:
       - talas_network
 
+  # ----------------------------------------------------------------
+  # 8. CONTENT SERVICE (Go - Port 3002)
+  # ----------------------------------------------------------------
+  content_service:
+    build: ./content-service
+    container_name: talas_content_service
+    restart: always
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./content-service/.env
+    environment:
+      - DB_HOST=content_db
+      - DB_PORT=5432
+      - DB_USER=content_admin
+      - DB_PASSWORD=password123
+      - DB_NAME=talas_content
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
+      - USER_SERVICE_URL=http://user_service:3001
+      - PORT=3002
+    depends_on:
+      content_db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      user_service:
+        condition: service_started
+    networks:
+      - talas_network
+
 # Definisi Volume (Agar data tidak hilang saat container mati)
 volumes:
   pg_data_user:
