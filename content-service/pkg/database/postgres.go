@@ -41,6 +41,6 @@ func ConnectDB(cfg *config.Config) *gorm.DB {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	logrus.Info("Database connected & migrated successfully")
+	// logrus.Info("Database connected & migrated successfully")
 	return db
 }

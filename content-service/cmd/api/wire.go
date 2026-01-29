@@ -13,6 +13,7 @@ import (
 	"github.com/septianpadli/talas/content-service/pkg/clients"
 	"github.com/septianpadli/talas/content-service/pkg/database"
 	"github.com/septianpadli/talas/content-service/pkg/logger"
+	"github.com/septianpadli/talas/content-service/pkg/media"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
 )
 
@@ -31,6 +32,10 @@ func InitializeApp() (*fiber.App, error) {
 
 		// Database
 		database.ConnectDB,
+
+		// Media
+		media.NewCloudinaryUploader,
+		wire.Bind(new(media.MediaUploader), new(*media.CloudinaryUploader)),
 
 		// Clients
 		clients.NewUserClient,

@@ -55,7 +55,6 @@ func (h *ShowcaseHandler) CreateShowcase(c *fiber.Ctx) error {
 	// 4. Call Usecase
 	result, err := h.usecase.CreateShowcase(c.Context(), &req, files, userID)
 	if err != nil {
-		fmt.Printf("❌ CreateShowcase Error: %v\n", err) // Debug print
 		
 		// Map known validation errors to 400 Bad Request
 		errMsg := err.Error()

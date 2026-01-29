@@ -8,14 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudinary/cloudinary-go/v2"
-	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/config"
 	"github.com/septianpadli/talas/content-service/internal/entity"
 	"github.com/septianpadli/talas/content-service/internal/repository"
 	"github.com/septianpadli/talas/content-service/pkg/clients"
+	"github.com/septianpadli/talas/content-service/pkg/media"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,20 +42,22 @@ type ShowcaseUsecase interface {
 }
 
 type showcaseUsecase struct {
-	repo       repository.ShowcaseRepository
-	userClient clients.UserClient
-	cfg        *config.Config
-	log        *logrus.Logger
-	validate   *validator.Validate
+	repo          repository.ShowcaseRepository
+	userClient    clients.UserClient
+	mediaUploader media.MediaUploader
+	cfg           *config.Config
+	log           *logrus.Logger
+	validate      *validator.Validate
 }
 
-func NewShowcaseUsecase(repo repository.ShowcaseRepository, userClient clients.UserClient, cfg *config.Config, log *logrus.Logger) ShowcaseUsecase {
+func NewShowcaseUsecase(repo repository.ShowcaseRepository, userClient clients.UserClient, mediaUploader media.MediaUploader, cfg *config.Config, log *logrus.Logger) ShowcaseUsecase {
 	return &showcaseUsecase{
-		repo:       repo,
-		userClient: userClient,
-		cfg:        cfg,
-		log:        log,
-		validate:   validator.New(),
+		repo:          repo,
+		userClient:    userClient,
+		mediaUploader: mediaUploader,
+		cfg:           cfg,
+		log:           log,
+		validate:      validator.New(),
 	}
 }
 
@@ -85,12 +86,6 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 	}
 
 	// 3. Upload to Cloudinary & Prepare Media
-	cld, err := cloudinary.NewFromParams(u.cfg.CloudinaryCloudName, u.cfg.CloudinaryAPIKey, u.cfg.CloudinaryAPISecret)
-	if err != nil {
-		u.log.Errorf("Failed to init cloudinary: %v", err)
-		return nil, errors.New("internal server error")
-	}
-
 	var mediaList []entity.ShowcaseMedia
 
 	for i, file := range files {
@@ -99,9 +94,8 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 			return nil, err
 		}
 		
-		uploadResult, err := cld.Upload.Upload(ctx, fileContent, uploader.UploadParams{
-			Folder: "talas/showcases",
-		})
+		// Use u.mediaUploader
+		secureURL, err := u.mediaUploader.Upload(ctx, fileContent, file.Filename, "talas/showcases")
 		fileContent.Close() // Close immediately after upload
 
 		if err != nil {
@@ -110,7 +104,7 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		}
 
 		mediaList = append(mediaList, entity.ShowcaseMedia{
-			URL:      uploadResult.SecureURL,
+			URL:      secureURL,
 			Type:     "IMAGE",
 			Position: i + 1,
 		})
@@ -139,7 +133,7 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 	}
 
 	// 5. Save to DB
-	err = u.repo.Create(showcase)
+	err := u.repo.Create(showcase)
 	if err != nil {
 		u.log.Errorf("Failed to create showcase: %v", err)
 		return nil, errors.New("failed to save showcase")
