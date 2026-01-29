@@ -42,6 +42,7 @@ func NewFiberApp(
 	// Public Routes
 	api.Get("/showcases/:slug", showcaseHandler.GetShowcaseBySlug)
 	api.Get("/showcases/user/:id", showcaseHandler.GetShowcasesByUser)
+	api.Get("/showcases/:id/comments", showcaseHandler.GetShowcaseComments)
 
 	// Protected Group (Generic)
 	protected := api.Group("/")
@@ -56,6 +57,14 @@ func NewFiberApp(
 	})
 
 	protected.Post("/showcases", showcaseHandler.CreateShowcase)
+	protected.Patch("/showcases/:id", showcaseHandler.UpdateShowcase)
+	protected.Delete("/showcases/:id", showcaseHandler.DeleteShowcase)
+	protected.Post("/showcases/:id/like", showcaseHandler.ToggleLike)
+	protected.Post("/showcases/:id/bookmark", showcaseHandler.ToggleBookmark)
+	protected.Post("/showcases/:id/comments", showcaseHandler.CreateComment)
+	protected.Post("/comments/:id/reply", showcaseHandler.ReplyComment)
+	protected.Patch("/comments/:id", showcaseHandler.UpdateComment)
+	protected.Delete("/comments/:id", showcaseHandler.DeleteComment)
 
 	return app
 }

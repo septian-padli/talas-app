@@ -26,8 +26,9 @@ type Showcase struct {
 
 	Title       string         `gorm:"type:varchar(255);not null" json:"title"`
 	Slug        string         `gorm:"type:varchar(300);not null;unique;index" json:"slug"`
-	Content     string         `gorm:"type:text" json:"content"` // Renamed from Description? User schema has 'content'
+	Content     string         `gorm:"type:text" json:"content"`
 	Tags        pq.StringArray `gorm:"type:text[]" json:"tags"`
+	IsEdited    bool           `gorm:"default:false" json:"is_edited"`
 
 	// Counters
 	ViewsCount    int `gorm:"default:0" json:"views_count"`
@@ -78,4 +79,10 @@ type CreateShowcaseRequest struct {
 	Content     string `form:"content" validate:"required,min=10"`
 	CategoryID  string `form:"category_id" validate:"required,uuid"`
 	Tags        string `form:"tags"` // Comma separated: "design,ui,ux"
+}
+
+type UpdateShowcaseRequest struct {
+	Content    *string  `json:"content"`
+	CategoryID *string  `json:"category_id"`
+	Tags       []string `json:"tags"`
 }

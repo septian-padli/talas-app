@@ -23,6 +23,15 @@ type ShowcaseUsecase interface {
 	GetShowcaseBySlug(ctx context.Context, slug string) (*entity.Showcase, error)
 	GetShowcasesByUser(ctx context.Context, userIDStr string, limit int, cursor string) (map[string]interface{}, error)
 	GetMyShowcases(ctx context.Context, userID uuid.UUID, limit int, cursor string) (map[string]interface{}, error)
+	UpdateShowcase(ctx context.Context, id uuid.UUID, input *entity.UpdateShowcaseRequest, userID uuid.UUID) (*entity.Showcase, error)
+	ToggleLike(ctx context.Context, userID uuid.UUID, showcaseID uuid.UUID) (bool, error)
+	ToggleBookmark(ctx context.Context, userID uuid.UUID, showcaseID uuid.UUID) (bool, error)
+	CreateComment(ctx context.Context, showcaseID uuid.UUID, input *entity.CreateCommentRequest, userID uuid.UUID) (*entity.Comment, error)
+	ReplyComment(ctx context.Context, parentID uuid.UUID, input *entity.ReplyCommentRequest, userID uuid.UUID) (*entity.Comment, error)
+	GetShowcaseComments(ctx context.Context, showcaseID uuid.UUID, limit int, cursor string) (map[string]interface{}, error)
+	UpdateComment(ctx context.Context, id uuid.UUID, input *entity.UpdateCommentRequest, userID uuid.UUID) (*entity.Comment, error)
+	DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+	DeleteShowcase(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
 
 type showcaseUsecase struct {
@@ -159,9 +168,438 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 	return showcase, nil
 }
 
+
+func (u *showcaseUsecase) UpdateShowcase(ctx context.Context, id uuid.UUID, input *entity.UpdateShowcaseRequest, userID uuid.UUID) (*entity.Showcase, error) {
+	// 1. Get Existing Showcase
+	showcase, err := u.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	// Note: First() returns error if not found, so err check covers it.
+	
+	// 2. Check Ownership (Must be OWNER)
+	isOwner := false
+	for _, col := range showcase.Collaborators {
+		if col.UserID == userID && col.Role == entity.CollaborationRoleOwner {
+			isOwner = true
+			break
+		}
+	}
+	if !isOwner {
+		return nil, errors.New("forbidden: only owner can update showcase")
+	}
+
+	// 3. Apply Updates
+	updated := false
+
+	if input.Content != nil {
+		if len(*input.Content) < 10 {
+			return nil, errors.New("content must be at least 10 characters")
+		}
+		showcase.Content = *input.Content
+		updated = true
+	}
+
+	if input.CategoryID != nil {
+		catID, err := uuid.Parse(*input.CategoryID)
+		if err != nil {
+			return nil, errors.New("invalid category id format")
+		}
+		showcase.CategoryID = catID
+		showcase.CategoryID = catID
+		updated = true
+	}
+
+	if input.Tags != nil {
+		showcase.Tags = input.Tags
+		updated = true
+	}
+
+	if updated {
+		showcase.IsEdited = true
+		// 4. Save
+		err = u.repo.Update(showcase)
+		if err != nil {
+			u.log.Errorf("Failed to update showcase %s: %v", id, err)
+			return nil, errors.New("failed to update showcase")
+		}
+	}
+	
+	return showcase, nil
+}
+
+
+func (u *showcaseUsecase) ToggleLike(ctx context.Context, userID uuid.UUID, showcaseID uuid.UUID) (bool, error) {
+	// 1. Check if Showcase exists
+	showcase, err := u.repo.GetByID(showcaseID)
+	if err != nil {
+		return false, err
+	}
+	if showcase == nil {
+		return false, errors.New("showcase not found")
+	}
+
+	// 2. Toggle in Repo
+	isLiked, err := u.repo.ToggleLike(userID, showcaseID)
+	if err != nil {
+		u.log.Errorf("Failed to toggle like: %v", err)
+		return false, errors.New("failed to toggle like")
+	}
+	return isLiked, nil
+}
+
+func (u *showcaseUsecase) ToggleBookmark(ctx context.Context, userID uuid.UUID, showcaseID uuid.UUID) (bool, error) {
+	// 1. Check if Showcase exists
+	showcase, err := u.repo.GetByID(showcaseID)
+	if err != nil {
+		return false, err
+	}
+	if showcase == nil {
+		return false, errors.New("showcase not found")
+	}
+
+	// 2. Toggle in Repo
+	isBookmarked, err := u.repo.ToggleBookmark(userID, showcaseID)
+	if err != nil {
+		u.log.Errorf("Failed to toggle bookmark: %v", err)
+		return false, errors.New("failed to toggle bookmark")
+	}
+	return isBookmarked, nil
+}
+
+func (u *showcaseUsecase) CreateComment(ctx context.Context, showcaseID uuid.UUID, input *entity.CreateCommentRequest, userID uuid.UUID) (*entity.Comment, error) {
+	// 1. Validate Input
+	if len(input.Content) < 1 || len(input.Content) > 1000 {
+		return nil, errors.New("content must be between 1 and 1000 characters")
+	}
+
+	// 2. Check Showcase
+	showcase, err := u.repo.GetByID(showcaseID)
+	if err != nil {
+		return nil, err
+	}
+	if showcase == nil {
+		return nil, errors.New("showcase not found")
+	}
+
+	comment := &entity.Comment{
+		ShowcaseID: showcaseID,
+		UserID:     userID,
+		Body:       input.Content,
+		LikesCount: 0,
+	}
+
+	// 3. Handle Reply
+	if input.ParentID != nil && *input.ParentID != "" {
+		parentUUID, err := uuid.Parse(*input.ParentID)
+		if err != nil {
+			return nil, errors.New("invalid parent_id format")
+		}
+
+		parentComment, err := u.repo.GetCommentByID(parentUUID)
+		if err != nil {
+			return nil, err
+		}
+		if parentComment == nil {
+			return nil, errors.New("parent comment not found")
+		}
+
+		// Ensure parent comment belongs to same showcase (optional consistency check)
+		if parentComment.ShowcaseID != showcaseID {
+			return nil, errors.New("parent comment does not belong to this showcase")
+		}
+
+		comment.ParentID = &parentUUID
+		
+		// Fetch Parent Author Username for ReplyTo (Snapshot)
+		usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{parentComment.UserID})
+		if err == nil {
+			if user, ok := usersMap[parentComment.UserID]; ok {
+				comment.ReplyTo = user.Username
+			}
+		} else {
+			u.log.Warnf("Failed to fetch parent comment author info: %v", err)
+		}
+	}
+
+	// 4. Create in Repo
+	if err := u.repo.CreateComment(comment); err != nil {
+		u.log.Errorf("Failed to create comment: %v", err)
+		return nil, errors.New("failed to create comment")
+	}
+
+	// 5. Populate Author Info
+	// Fetch both Author and Parent Author (if reply) in one go if possible, or separately.
+	// Only Author needed for response.
+	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
+	if err == nil {
+		if userDetail, ok := usersMap[userID]; ok {
+			comment.Author = &entity.User{
+				ID:        userDetail.ID,
+				Name:      userDetail.Name,
+				Username:  userDetail.Username,
+				AvatarURL: userDetail.AvatarURL,
+			}
+		}
+	} else {
+		u.log.Warnf("Failed to fetch comment author info: %v", err)
+	}
+
+	return comment, nil
+}
+
+func (u *showcaseUsecase) ReplyComment(ctx context.Context, parentID uuid.UUID, input *entity.ReplyCommentRequest, userID uuid.UUID) (*entity.Comment, error) {
+	// 1. Get Parent Comment to find ShowcaseID
+	parentComment, err := u.repo.GetCommentByID(parentID)
+	if err != nil {
+		return nil, err
+	}
+	if parentComment == nil {
+		return nil, errors.New("parent comment not found")
+	}
+
+	// 2. Reuse CreateComment Logic
+	// Transform ReplyCommentRequest to CreateCommentRequest
+	parentIDStr := parentID.String()
+	createInput := &entity.CreateCommentRequest{
+		Content:  input.Content,
+		ParentID: &parentIDStr,
+	}
+
+	return u.CreateComment(ctx, parentComment.ShowcaseID, createInput, userID)
+}
+
+func (u *showcaseUsecase) GetShowcaseComments(ctx context.Context, showcaseID uuid.UUID, limit int, cursor string) (map[string]interface{}, error) {
+	// 1. Get Parents and Replies from Repo
+	parents, replies, meta, err := u.repo.GetCommentsByShowcaseID(showcaseID, limit, cursor)
+	if err != nil {
+		u.log.Errorf("Failed to fetch comments for showcase %s: %v", showcaseID, err)
+		return nil, errors.New("failed to fetch comments")
+	}
+
+	// 2. Collect User IDs for Bulk Fetch
+	userIDsMap := make(map[uuid.UUID]bool)
+	for _, p := range parents {
+		userIDsMap[p.UserID] = true
+	}
+	for _, r := range replies {
+		userIDsMap[r.UserID] = true
+	}
+
+	var userIDs []uuid.UUID
+	for uid := range userIDsMap {
+		userIDs = append(userIDs, uid)
+	}
+
+	// 3. Bulk Fetch Users
+	usersMap := make(map[uuid.UUID]clients.UserDetail)
+	if len(userIDs) > 0 {
+		fetchedUsers, err := u.userClient.GetUsersBulk(userIDs)
+		if err == nil {
+			usersMap = fetchedUsers
+		} else {
+			u.log.Warnf("Failed to fetch users bulk: %v", err)
+		}
+	}
+
+	// 4. Construct Nested Structure & Populate Author
+	// Helper to populate user
+	populateUser := func(c *entity.Comment) {
+		// If deleted and we are here (meaning it has children), mask it
+		if c.DeletedAt.Valid {
+			c.Body = "[Comment deleted]"
+			c.Author = &entity.User{
+				Name:     "[Unknown]",
+				Username: "unknown",
+			}
+			return
+		}
+
+		if detail, ok := usersMap[c.UserID]; ok {
+			c.Author = &entity.User{
+				ID:        detail.ID,
+				Name:      detail.Name,
+				Username:  detail.Username,
+				AvatarURL: detail.AvatarURL,
+			}
+		}
+	}
+
+	// Group replies by ParentID
+	repliesMap := make(map[uuid.UUID][]entity.Comment)
+	for i := range replies {
+		// Populate user first, masking will be handled during pruning/traversal if needed
+		// But wait, pruning happens after tree construction.
+		if replies[i].ParentID != nil {
+			pid := *replies[i].ParentID
+			repliesMap[pid] = append(repliesMap[pid], replies[i])
+		}
+	}
+
+	// Attach replies to parents (Build Full Tree)
+	for i := range parents {
+		if r, ok := repliesMap[parents[i].ID]; ok {
+			parents[i].Replies = r
+		} else {
+			parents[i].Replies = []entity.Comment{}
+		}
+	}
+
+	// 5. Recursive Pruning (Post-Order Traversal)
+	// Logic:
+	// - Active: Keep.
+	// - Deleted: Keep ONLY IF visible children exist. Else prune.
+	var prune func(comments []entity.Comment) []entity.Comment
+	prune = func(comments []entity.Comment) []entity.Comment {
+		var filtered []entity.Comment
+		for i := range comments {
+			// Recurse first (Post-order)
+			if len(comments[i].Replies) > 0 {
+				comments[i].Replies = prune(comments[i].Replies)
+			}
+
+			// Check visibility
+			if !comments[i].DeletedAt.Valid {
+				// Active -> Visible
+				populateUser(&comments[i])
+				filtered = append(filtered, comments[i])
+			} else {
+				// Deleted
+				if len(comments[i].Replies) > 0 {
+					// Has visible children -> Tombstone
+					populateUser(&comments[i])
+					filtered = append(filtered, comments[i])
+				} else {
+					// No visible children -> Hide (Prune)
+				}
+			}
+		}
+		return filtered
+	}
+
+	finalComments := prune(parents)
+
+	return map[string]interface{}{
+		"comments":   finalComments,
+		"pagination": meta,
+	}, nil
+}
+
+func (u *showcaseUsecase) UpdateComment(ctx context.Context, id uuid.UUID, input *entity.UpdateCommentRequest, userID uuid.UUID) (*entity.Comment, error) {
+	// 1. Get Comment
+	comment, err := u.repo.GetCommentByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if comment == nil {
+		return nil, errors.New("comment not found")
+	}
+
+	// 2. Check Ownership
+	if comment.UserID != userID {
+		return nil, errors.New("forbidden: only owner can update comment")
+	}
+
+	// 3. Update Content
+	comment.Body = input.Content
+	// You might want to update UpdatedAt explicitly if GORM doesn't handle it automatically on Save with struct
+	// but GORM usually handles time.Time fields update on Save if they are not zero.
+	// But let's rely on GORM's auto update for now or repo implementation.
+
+	// 3. Update Content
+	comment.Body = input.Content
+	comment.IsEdited = true
+
+	if err := u.repo.UpdateComment(comment); err != nil {
+		u.log.Errorf("Failed to update comment %s: %v", id, err)
+		return nil, errors.New("failed to update comment")
+	}
+
+	// 4. Populate Author (Consistency)
+	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
+	if err == nil {
+		if userDetail, ok := usersMap[userID]; ok {
+			comment.Author = &entity.User{
+				ID:        userDetail.ID,
+				Name:      userDetail.Name,
+				Username:  userDetail.Username,
+				AvatarURL: userDetail.AvatarURL,
+			}
+		}
+	} else {
+		u.log.Warnf("Failed to fetch author info for updated comment: %v", err)
+	}
+
+	return comment, nil
+}
+
+func (u *showcaseUsecase) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	// 1. Get Comment
+	comment, err := u.repo.GetCommentByID(id)
+	if err != nil {
+		return err
+	}
+	if comment == nil {
+		return errors.New("comment not found")
+	}
+
+	// 2. Check Ownership
+	if comment.UserID != userID {
+		return errors.New("forbidden: only owner can delete comment")
+	}
+
+	// 3. Delete
+	if err := u.repo.DeleteComment(id); err != nil {
+		u.log.Errorf("Failed to delete comment %s: %v", id, err)
+		return errors.New("failed to delete comment")
+	}
+
+	return nil
+}
+
+func (u *showcaseUsecase) DeleteShowcase(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	// 1. Get Showcase
+	showcase, err := u.repo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if showcase == nil {
+		return errors.New("showcase not found")
+	}
+
+	// 2. Check Ownership
+	isOwner := false
+	for _, col := range showcase.Collaborators {
+		if col.UserID == userID && col.Role == entity.CollaborationRoleOwner {
+			isOwner = true
+			break
+		}
+	}
+	if !isOwner {
+		return errors.New("forbidden: only owner can delete showcase")
+	}
+
+	// 3. Delete (Soft)
+	if err := u.repo.DeleteShowcase(id); err != nil {
+		u.log.Errorf("Failed to delete showcase %s: %v", id, err)
+		return errors.New("failed to delete showcase")
+	}
+
+	return nil
+}
+
 func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*entity.Showcase, error) {
 	// 1. Get from Repo
-	showcase, err := u.repo.GetBySlug(slug)
+	var showcase *entity.Showcase
+	var err error
+
+	// Check if input is UUID
+	if id, parseErr := uuid.Parse(slug); parseErr == nil {
+		showcase, err = u.repo.GetByID(id)
+	} else {
+		showcase, err = u.repo.GetBySlug(slug)
+	}
+	
 	if err != nil {
 		return nil, err
 	}

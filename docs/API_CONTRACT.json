@@ -1326,15 +1326,15 @@
 		"/showcases/{slug}": {
 			"get": {
 				"tags": ["Showcases"],
-				"summary": "Get showcase by slug",
-				"description": "Mendapatkan detail showcase berdasarkan slug. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response menyertakan data author dan collaborators.",
-				"operationId": "getShowcaseBySlug",
+				"summary": "Get showcase by slug or id",
+				"description": "Mendapatkan detail showcase berdasarkan slug atau UUID. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response menyertakan data author dan collaborators.",
+				"operationId": "getShowcaseBySlugOrId",
 				"parameters": [
 					{
 						"name": "slug",
 						"in": "path",
 						"required": true,
-						"description": "Slug unik showcase",
+						"description": "Slug unik showcase atau UUID",
 						"schema": {
 							"type": "string",
 							"example": "building-a-modern-dashboard-with-nextjs"
@@ -1365,7 +1365,7 @@
 											"created_at": "2026-01-27T04:30:00Z",
 											"updated_at": "2026-01-27T04:30:00Z",
 											"is_liked": false,
-											"is_saved": false,
+											"is_bookmarked": false,
 											"category": {
 												"id": "550e8400-e29b-41d4-a716-446655440001",
 												"title": "Web Development",
@@ -1457,42 +1457,10 @@
 			}
 		},
 		"/showcases/{id}": {
-			"get": {
-				"tags": ["Showcases"],
-				"summary": "Get showcase by ID",
-				"description": "Mendapatkan detail showcase berdasarkan UUID. Berguna untuk navigasi dari notifikasi yang hanya membawa ID. **Public Access**.",
-				"operationId": "getShowcaseById",
-				"parameters": [
-					{
-						"name": "id",
-						"in": "path",
-						"required": true,
-						"schema": { "type": "string", "format": "uuid" }
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Showcase ditemukan",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ShowcaseDetailResponse"
-								}
-							}
-						}
-					},
-					"404": {
-						"$ref": "#/components/responses/NotFoundError"
-					},
-					"500": {
-						"description": "Internal server error"
-					}
-				}
-			},
 			"patch": {
 				"tags": ["Showcases"],
 				"summary": "Update showcase",
-				"description": "Update showcase berdasarkan ID. **Requires Cookie Session (JWT)**. **Hanya owner** yang bisa mengupdate. Field yang bisa diupdate: content, id_category, tag. Title dan media URL tidak bisa diubah.",
+				"description": "Update showcase berdasarkan ID. **Requires Cookie Session (JWT)**. **Hanya owner** yang bisa mengupdate. Field yang bisa diupdate: content, category_id, tags. Title dan media URL tidak bisa diubah.",
 				"operationId": "updateShowcase",
 				"security": [
 					{
@@ -1522,7 +1490,7 @@
 							"example": {
 								"content": "Updated description with more details about the project...",
 								"category_id": "550e8400-e29b-41d4-a716-446655440001",
-								"tag": [
+								"tags": [
 									"nextjs",
 									"react",
 									"dashboard",
@@ -1690,7 +1658,7 @@
 			"delete": {
 				"tags": ["Showcases"],
 				"summary": "Delete (archive) showcase",
-				"description": "Soft delete showcase berdasarkan ID (set is_archived = true). **Requires Cookie Session (JWT)**. **Hanya owner** yang bisa menghapus. Showcase yang diarsipkan tidak muncul di feed/search.",
+				"description": "Menghapus (soft delete) showcase. Hanya pemilik yang bisa menghapus. Item tetap ada di DB dengan deleted_at terisi.",
 				"operationId": "deleteShowcase",
 				"security": [
 					{
@@ -1939,12 +1907,12 @@
 				}
 			}
 		},
-		"/showcases/{id}/save": {
+		"/showcases/{id}/bookmark": {
 			"post": {
 				"tags": ["Showcases"],
-				"summary": "Toggle save (bookmark) showcase",
-				"description": "Save atau unsave showcase ke bookmarks. **Requires Cookie Session (JWT)**. Endpoint bersifat toggle: jika sudah save maka unsave, jika belum save maka save.",
-				"operationId": "toggleSaveShowcase",
+				"summary": "Toggle bookmark showcase",
+				"description": "Bookmark atau unbookmark showcase. **Requires Cookie Session (JWT)**. Endpoint bersifat toggle: jika sudah bookmark maka unbookmark, jika belum maka bookmark.",
+				"operationId": "toggleBookmarkShowcase",
 				"security": [
 					{
 						"cookieAuth": []
@@ -1965,31 +1933,31 @@
 				],
 				"responses": {
 					"200": {
-						"description": "Save/unsave berhasil",
+						"description": "Bookmark/unbookmark berhasil",
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/ToggleSaveResponse"
+									"$ref": "#/components/schemas/ToggleBookmarkResponse"
 								},
 								"examples": {
-									"saved": {
-										"summary": "Berhasil save showcase",
+									"bookmarked": {
+										"summary": "Berhasil bookmark showcase",
 										"value": {
 											"code": 200,
 											"success": true,
 											"data": {
-												"is_saved": true
+												"is_bookmarked": true
 											},
 											"errors": null
 										}
 									},
-									"unsaved": {
-										"summary": "Berhasil unsave showcase",
+									"unbookmarked": {
+										"summary": "Berhasil unbookmark showcase",
 										"value": {
 											"code": 200,
 											"success": true,
 											"data": {
-												"is_saved": false
+												"is_bookmarked": false
 											},
 											"errors": null
 										}
@@ -2066,7 +2034,7 @@
 		},
 		"/showcases/{id}/comments": {
 			"get": {
-				"tags": ["Showcases"],
+				"tags": ["Comments"],
 				"summary": "Get comments for showcase",
 				"description": "Mendapatkan daftar komentar pada showcase. **Endpoint ini PUBLIC**. Response berisi nested comments (reply tanpa batas level).",
 				"operationId": "getShowcaseComments",
@@ -2134,6 +2102,7 @@
 														"id": "550e8400-e29b-41d4-a716-446655440021",
 														"parent_id": "550e8400-e29b-41d4-a716-446655440020",
 														"content": "Thanks! Appreciate the feedback.",
+														"reply_to": "janedoe",
 														"count_like": 2,
 														"is_liked": false,
 														"created_at": "2026-01-27T05:30:00Z",
@@ -2203,7 +2172,7 @@
 				}
 			},
 			"post": {
-				"tags": ["Showcases"],
+				"tags": ["Comments"],
 				"summary": "Create comment on showcase",
 				"description": "Membuat komentar baru pada showcase. **Requires Cookie Session (JWT)**. Untuk reply, sertakan parent_id (id komentar yang ingin di-reply).",
 				"operationId": "createShowcaseComment",
@@ -2392,7 +2361,7 @@
 			"patch": {
 				"tags": ["Comments"],
 				"summary": "Update comment",
-				"description": "Edit konten komentar. **Requires Cookie Session (JWT)**. Hanya pemilik komentar yang dapat mengedit. Field updated_at akan otomatis ter-update sebagai penanda bahwa komentar sudah diedit.",
+				"description": "Edit konten komentar. **Requires Cookie Session (JWT)**. Hanya pemilik komentar yang dapat mengedit.",
 				"operationId": "updateComment",
 				"security": [
 					{
@@ -2432,20 +2401,157 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/UpdateCommentResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden (Bukan pemilik komentar)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Komentar tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": ["Comments"],
+				"summary": "Delete comment",
+				"description": "Hapus komentar (Soft delete). **Requires Cookie Session (JWT)**. Hanya pemilik komentar yang dapat menghapus. Jika punya child, konten diganti jadi tombstone.",
+				"operationId": "deleteComment",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID komentar",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Komentar berhasil dihapus",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DeleteCommentResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not Found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/comments/{id}/reply": {
+			"post": {
+				"tags": ["Comments"],
+				"summary": "Reply to comment",
+				"description": "Membalas komentar. **Requires Cookie Session (JWT)**. ID pada URL adalah parent comment ID.",
+				"operationId": "replyComment",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID parent comment",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"example": "550e8400-e29b-41d4-a716-446655440020"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReplyCommentRequest"
+							},
+							"example": {
+								"content": "Thanks for the feedback! I appreciate it."
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Berhasil membalas komentar",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CommentReplyResponse"
 								},
 								"example": {
-									"code": 200,
+									"code": 201,
 									"success": true,
 									"data": {
 										"comment": {
-											"id": "550e8400-e29b-41d4-a716-446655440020",
-											"parent_id": null,
+											"id": "550e8400-e29b-41d4-a716-446655440055",
+											"parent_id": "550e8400-e29b-41d4-a716-446655440020",
 											"project_id": "550e8400-e29b-41d4-a716-446655440002",
-											"content": "Amazing project! Love the design and attention to detail.",
-											"count_like": 5,
+											"content": "Thanks for the feedback! I appreciate it.",
+											"reply_to": "janedoe",
+											"count_like": 0,
 											"is_liked": false,
-											"created_at": "2026-01-27T05:00:00Z",
-											"updated_at": "2026-01-27T06:15:00Z",
+											"created_at": "2026-01-27T08:00:00Z",
+											"updated_at": "2026-01-27T08:00:00Z",
 											"author": {
 												"id": "550e8400-e29b-41d4-a716-446655440010",
 												"username": "janedoe",
@@ -2465,36 +2571,6 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"examples": {
-									"empty_content": {
-										"summary": "Content wajib diisi",
-										"value": {
-											"code": 400,
-											"success": false,
-											"data": null,
-											"errors": [
-												{
-													"field": "content",
-													"message": "Content wajib diisi"
-												}
-											]
-										}
-									},
-									"content_too_long": {
-										"summary": "Content terlalu panjang",
-										"value": {
-											"code": 400,
-											"success": false,
-											"data": null,
-											"errors": [
-												{
-													"field": "content",
-													"message": "Content maksimal 1000 karakter"
-												}
-											]
-										}
-									}
 								}
 							}
 						}
@@ -2505,209 +2581,16 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 401,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "auth",
-											"message": "Token tidak valid atau sudah expired"
-										}
-									]
-								}
-							}
-						}
-					},
-					"403": {
-						"description": "Tidak memiliki akses (bukan pemilik komentar)",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 403,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "authorization",
-											"message": "Anda tidak memiliki akses untuk mengedit komentar ini"
-										}
-									]
 								}
 							}
 						}
 					},
 					"404": {
-						"description": "Komentar tidak ditemukan",
+						"description": "Parent comment tidak ditemukan",
 						"content": {
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 404,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "id",
-											"message": "Komentar tidak ditemukan"
-										}
-									]
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 500,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "server",
-											"message": "Terjadi kesalahan pada server"
-										}
-									]
-								}
-							}
-						}
-					}
-				}
-			},
-			"delete": {
-				"tags": ["Comments"],
-				"summary": "Delete comment (soft delete)",
-				"description": "Hapus komentar (soft delete). **Requires Cookie Session (JWT)**. Hanya pemilik komentar yang dapat menghapus. Jika komentar memiliki replies, semua replies akan ikut terhapus (cascade soft delete). Komentar yang dihapus tidak akan muncul di list, tapi data tetap ada di database dengan flag deleted_at.",
-				"operationId": "deleteComment",
-				"security": [
-					{
-						"cookieAuth": []
-					}
-				],
-				"parameters": [
-					{
-						"name": "id",
-						"in": "path",
-						"required": true,
-						"description": "UUID komentar yang akan dihapus",
-						"schema": {
-							"type": "string",
-							"format": "uuid",
-							"example": "550e8400-e29b-41d4-a716-446655440020"
-						}
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Komentar berhasil dihapus",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/DeleteCommentResponse"
-								},
-								"example": {
-									"code": 200,
-									"success": true,
-									"data": {
-										"message": "Komentar berhasil dihapus",
-										"deleted_count": 3
-									},
-									"errors": null
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Tidak terautentikasi",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 401,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "auth",
-											"message": "Token tidak valid atau sudah expired"
-										}
-									]
-								}
-							}
-						}
-					},
-					"403": {
-						"description": "Tidak memiliki akses (bukan pemilik komentar)",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 403,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "authorization",
-											"message": "Anda tidak memiliki akses untuk menghapus komentar ini"
-										}
-									]
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "Komentar tidak ditemukan",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 404,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "id",
-											"message": "Komentar tidak ditemukan"
-										}
-									]
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 500,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "server",
-											"message": "Terjadi kesalahan pada server"
-										}
-									]
 								}
 							}
 						}
@@ -2999,7 +2882,7 @@
 													"avatar_url": "https://res.cloudinary.com/talas/avatar/user1.jpg"
 												},
 												"is_liked": true,
-												"is_saved": false
+												"is_bookmarked": false
 											},
 											{
 												"id": "550e8400-e29b-41d4-a716-446655440002",
@@ -3014,7 +2897,7 @@
 													"avatar_url": "https://res.cloudinary.com/talas/avatar/user2.jpg"
 												},
 												"is_liked": false,
-												"is_saved": true
+												"is_bookmarked": true
 											}
 										],
 										"pagination": {
@@ -3140,7 +3023,7 @@
 													}
 												],
 												"is_liked": null,
-												"is_saved": null
+												"is_bookmarked": null
 											},
 											{
 												"id": "550e8400-e29b-41d4-a716-446655440004",
@@ -3164,7 +3047,7 @@
 													}
 												],
 												"is_liked": null,
-												"is_saved": null
+												"is_bookmarked": null
 											}
 										],
 										"pagination": {
@@ -3310,7 +3193,7 @@
 															}
 														],
 														"is_liked": false,
-														"is_saved": true
+														"is_bookmarked": true
 													}
 												],
 												"pagination": {
@@ -3343,7 +3226,7 @@
 															"avatar_url": "https://res.cloudinary.com/talas/avatar/user2.jpg"
 														},
 														"is_liked": true,
-														"is_saved": false
+														"is_bookmarked": false
 													}
 												],
 												"pagination": {
@@ -3636,7 +3519,7 @@
 			"get": {
 				"tags": ["Showcases"],
 				"summary": "Get user showcases",
-				"description": "Mendapatkan daftar showcase milik user tertentu. **Public Access (Auth Optional)**. Jika login, status like/save akan disesuaikan. Sort berdasarkan terbaru (latest first).",
+				"description": "Mendapatkan daftar showcase milik user tertentu. **Public Access (Auth Optional)**. Jika login, status like/bookmark akan disesuaikan. Sort berdasarkan terbaru (latest first).",
 				"operationId": "getUserShowcases",
 				"parameters": [
 					{
@@ -3707,7 +3590,7 @@
 													}
 												],
 												"is_liked": null,
-												"is_saved": null
+												"is_bookmarked": null
 											}
 										],
 										"pagination": {
@@ -4365,7 +4248,7 @@
 						"description": "UUID kategori showcase",
 						"example": "550e8400-e29b-41d4-a716-446655440001"
 					},
-					"tag": {
+					"tags": {
 						"type": "array",
 						"items": {
 							"type": "string"
@@ -4396,6 +4279,18 @@
 						"format": "uuid",
 						"description": "UUID parent comment jika reply (opsional)",
 						"example": "550e8400-e29b-41d4-a716-446655440020"
+					}
+				}
+			},
+			"ReplyCommentRequest": {
+				"type": "object",
+				"description": "Request body untuk membalas komentar",
+				"required": ["content"],
+				"properties": {
+					"content": {
+						"type": "string",
+						"description": "Isi komentar (wajib)",
+						"example": "Thanks for the feedback! I appreciate it."
 					}
 				}
 			},
@@ -4719,6 +4614,10 @@
 									"is_archived": {
 										"type": "boolean"
 									},
+									"is_edited": {
+										"type": "boolean",
+										"description": "Status edit content"
+									},
 									"tag": {
 										"type": "array",
 										"items": {
@@ -4743,7 +4642,7 @@
 										"type": "boolean",
 										"nullable": true
 									},
-									"is_saved": {
+									"is_bookmarked": {
 										"type": "boolean",
 										"nullable": true
 									},
@@ -4856,6 +4755,10 @@
 										"type": "string",
 										"nullable": true
 									},
+									"is_edited": {
+										"type": "boolean",
+										"description": "Status edit content"
+									},
 									"tag": {
 										"type": "array",
 										"items": {
@@ -4964,9 +4867,9 @@
 					}
 				}
 			},
-			"ToggleSaveResponse": {
+			"ToggleBookmarkResponse": {
 				"type": "object",
-				"description": "Response untuk toggle save/bookmark showcase",
+				"description": "Response untuk toggle bookmark showcase",
 				"properties": {
 					"code": {
 						"type": "integer",
@@ -4979,7 +4882,7 @@
 					"data": {
 						"type": "object",
 						"properties": {
-							"is_saved": {
+							"is_bookmarked": {
 								"type": "boolean"
 							}
 						}
@@ -5051,6 +4954,10 @@
 					"is_liked": {
 						"type": "boolean"
 					},
+					"is_edited": {
+						"type": "boolean",
+						"description": "Status edit content"
+					},
 					"created_at": {
 						"type": "string",
 						"format": "date-time"
@@ -5075,19 +4982,43 @@
 						}
 					},
 					"reply_to": {
-						"type": "object",
+						"type": "string",
 						"nullable": true,
-						"description": "User yang dibalas (untuk deep nesting display)",
-						"properties": {
-							"username": {
-								"type": "string"
-							}
-						}
+						"description": "Username user yang dibalas (snapshot string), null jika top-level"
 					},
 					"replies": {
 						"type": "array",
 						"items": {
 							"$ref": "#/components/schemas/Comment"
+						}
+					}
+				}
+			},
+			"CommentReplyResponse": {
+				"type": "object",
+				"description": "Response untuk POST /comments/:id/reply",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"example": 201
+					},
+					"success": {
+						"type": "boolean",
+						"example": true
+					},
+					"data": {
+						"type": "object",
+						"properties": {
+							"comment": {
+								"$ref": "#/components/schemas/Comment"
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"items": {
+							"$ref": "#/components/schemas/FieldError"
 						}
 					}
 				}
@@ -5674,10 +5605,10 @@
 						"description": "Apakah current user sudah like (null jika tidak login)",
 						"example": true
 					},
-					"is_saved": {
+					"is_bookmarked": {
 						"type": "boolean",
 						"nullable": true,
-						"description": "Apakah current user sudah save/bookmark (null jika tidak login)",
+						"description": "Apakah current user sudah mem-bookmark (null jika tidak login)",
 						"example": false
 					}
 				}
