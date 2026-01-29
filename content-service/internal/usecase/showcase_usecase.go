@@ -194,6 +194,16 @@ func (u *showcaseUsecase) UpdateShowcase(ctx context.Context, id uuid.UUID, inpu
 	// 3. Apply Updates
 	updated := false
 
+	if input.Title != nil {
+		if len(*input.Title) < 3 { // Validation constraint
+			return nil, errors.New("title must be at least 3 characters")
+		}
+		showcase.Title = *input.Title
+		// Ideally we should update slug too, but for simplicity let's keep slug stable or regenerate
+		// For now: Keep slug or update? Let's keep slug stable to avoid broken links.
+		updated = true
+	}
+
 	if input.Content != nil {
 		if len(*input.Content) < 10 {
 			return nil, errors.New("content must be at least 10 characters")

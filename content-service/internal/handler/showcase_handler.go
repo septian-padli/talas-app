@@ -174,7 +174,7 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 	result, err := h.usecase.UpdateShowcase(c.Context(), id, &req, userID)
 	if err != nil {
 		errMsg := err.Error()
-		if strings.Contains(errMsg, "not found") {
+		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "record not found") {
 			return utils.ErrorResponse(c, 404, "Showcase not found", nil)
 		}
 		if strings.Contains(errMsg, "forbidden") {
@@ -295,7 +295,7 @@ func (h *ShowcaseHandler) CreateComment(c *fiber.Ctx) error {
 	comment, err := h.usecase.CreateComment(c.Context(), showcaseID, &req, userID)
 	if err != nil {
 		errMsg := err.Error()
-		if strings.Contains(errMsg, "showcase not found") || strings.Contains(errMsg, "parent comment not found") {
+		if strings.Contains(errMsg, "showcase not found") || strings.Contains(errMsg, "parent comment not found") || strings.Contains(errMsg, "record not found") {
 			return utils.ErrorResponse(c, 404, errMsg, nil)
 		}
 		if strings.Contains(errMsg, "content must be") || strings.Contains(errMsg, "invalid") || strings.Contains(errMsg, "belong") {
@@ -341,7 +341,7 @@ func (h *ShowcaseHandler) ReplyComment(c *fiber.Ctx) error {
 	comment, err := h.usecase.ReplyComment(c.Context(), parentID, &req, userID)
 	if err != nil {
 		errMsg := err.Error()
-		if strings.Contains(errMsg, "parent comment not found") {
+		if strings.Contains(errMsg, "parent comment not found") || strings.Contains(errMsg, "record not found") {
 			return utils.ErrorResponse(c, 404, errMsg, nil)
 		}
 		if strings.Contains(errMsg, "content must be") || strings.Contains(errMsg, "invalid") || strings.Contains(errMsg, "belong") {
@@ -517,7 +517,7 @@ func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 
 	if err := h.usecase.DeleteShowcase(c.Context(), showcaseID, userID); err != nil {
 		errMsg := err.Error()
-		if strings.Contains(errMsg, "not found") {
+		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "record not found") {
 			return utils.ErrorResponse(c, 404, errMsg, nil)
 		}
 		if strings.Contains(errMsg, "forbidden") {

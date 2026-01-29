@@ -171,6 +171,9 @@ func setupIntegrationApp() (*fiber.App, *gorm.DB) {
 	protected.Use(auth.Protect)
 
 	protected.Post("/showcases", h.CreateShowcase)
+	protected.Patch("/showcases/:id", h.UpdateShowcase)
+	protected.Delete("/showcases/:id", h.DeleteShowcase)
+	
 	protected.Post("/showcases/:id/collaborators", h.InviteCollaborators)
 	protected.Delete("/showcases/:id/collaborators/:userId", h.RemoveCollaborator)
 	protected.Get("/showcases/:id/collaborators", h.GetCollaborators)
@@ -179,6 +182,11 @@ func setupIntegrationApp() (*fiber.App, *gorm.DB) {
 	
 	protected.Post("/showcases/:id/like", h.ToggleLike)
 	protected.Post("/comments/:id/like", h.ToggleCommentLike)
+	
+	protected.Post("/showcases/:id/comments", h.CreateComment)
+	
+	protected.Post("/comments/:id/reply", h.ReplyComment)
+	protected.Delete("/comments/:id", h.DeleteComment)
 	// Add other routes as needed for tests
 
 	return app, db

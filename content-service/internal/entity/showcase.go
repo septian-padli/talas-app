@@ -82,6 +82,7 @@ type CreateShowcaseRequest struct {
 }
 
 type UpdateShowcaseRequest struct {
+	Title      *string  `json:"title"`
 	Content    *string  `json:"content"`
 	CategoryID *string  `json:"category_id"`
 	Tags       []string `json:"tags"`
