@@ -24,6 +24,7 @@ type ShowcaseRepository interface {
 	GetCommentsByShowcaseID(showcaseID uuid.UUID, limit int, cursor string) ([]entity.Comment, []entity.Comment, *PaginationMeta, error)
 	UpdateComment(comment *entity.Comment) error
 	DeleteComment(id uuid.UUID) error
+	ToggleCommentLike(userID uuid.UUID, commentID uuid.UUID) (bool, int, error)
 	DeleteShowcase(id uuid.UUID) error
 	DeleteCollaborator(showcaseID, userID uuid.UUID) error
 	GetCollaboratorsByShowcaseID(showcaseID uuid.UUID) ([]entity.Collaborator, error)
@@ -305,6 +306,59 @@ func (r *showcaseRepository) UpdateComment(comment *entity.Comment) error {
 
 func (r *showcaseRepository) DeleteComment(id uuid.UUID) error {
 	return r.db.Delete(&entity.Comment{}, id).Error
+}
+
+// ToggleCommentLike toggles like/unlike on a comment (returns liked status and new count)
+func (r *showcaseRepository) ToggleCommentLike(userID uuid.UUID, commentID uuid.UUID) (bool, int, error) {
+	var like entity.CommentLike
+	var isLiked bool
+	var likesCount int
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// Check if like exists
+		result := tx.Where("user_id = ? AND comment_id = ?", userID, commentID).Limit(1).Find(&like)
+		
+		if result.Error != nil {
+			return result.Error
+		}
+
+		if result.RowsAffected > 0 {
+			// Found -> Delete (Unlike)
+			if err := tx.Delete(&like).Error; err != nil {
+				return err
+			}
+			// Decrement Count
+			if err := tx.Model(&entity.Comment{}).Where("id = ?", commentID).UpdateColumn("likes_count", gorm.Expr("likes_count - ?", 1)).Error; err != nil {
+				return err
+			}
+			isLiked = false
+		} else {
+			// Not Found -> Create (Like)
+			newLike := entity.CommentLike{
+				UserID:    userID,
+				CommentID: commentID,
+			}
+			if err := tx.Create(&newLike).Error; err != nil {
+				return err
+			}
+			// Increment Count
+			if err := tx.Model(&entity.Comment{}).Where("id = ?", commentID).UpdateColumn("likes_count", gorm.Expr("likes_count + ?", 1)).Error; err != nil {
+				return err
+			}
+			isLiked = true
+		}
+
+		// Get updated count
+		var comment entity.Comment
+		if err := tx.Select("likes_count").Where("id = ?", commentID).First(&comment).Error; err != nil {
+			return err
+		}
+		likesCount = comment.LikesCount
+
+		return nil
+	})
+
+	return isLiked, likesCount, err
 }
 
 func (r *showcaseRepository) DeleteShowcase(id uuid.UUID) error {

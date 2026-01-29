@@ -68,6 +68,7 @@ func NewFiberApp(
 	protected.Post("/comments/:id/reply", showcaseHandler.ReplyComment)
 	protected.Patch("/comments/:id", showcaseHandler.UpdateComment)
 	protected.Delete("/comments/:id", showcaseHandler.DeleteComment)
+	protected.Post("/comments/:id/like", showcaseHandler.ToggleCommentLike)
 
 	protected.Delete("/collaborations/invitations/:id", showcaseHandler.DeleteInvitation)
 	protected.Get("/collaborations/invitations", showcaseHandler.GetPendingInvitations)

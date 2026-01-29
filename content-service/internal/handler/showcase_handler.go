@@ -458,6 +458,44 @@ func (h *ShowcaseHandler) DeleteComment(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, 200, "Comment deleted successfully", nil)
 }
 
+// ToggleCommentLike toggles like/unlike on a comment
+func (h *ShowcaseHandler) ToggleCommentLike(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	commentID, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid Comment UUID", nil)
+	}
+
+	userIDVal := c.Locals("user_id")
+	if userIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	var userID uuid.UUID
+	if str, ok := userIDVal.(string); ok {
+		userID, _ = uuid.Parse(str)
+	} else if uid, ok := userIDVal.(uuid.UUID); ok {
+		userID = uid
+	} else {
+		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
+	}
+
+	isLiked, likesCount, err := h.usecase.ToggleCommentLike(c.Context(), userID, commentID)
+	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			return utils.ErrorResponse(c, 404, errMsg, nil)
+		}
+		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
+	}
+
+	responseData := map[string]interface{}{
+		"liked":       isLiked,
+		"likes_count": likesCount,
+	}
+
+	return utils.SuccessResponse(c, 200, "Success toggle like", responseData)
+}
+
 // DeleteShowcase handles deleting a showcase
 func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 	showcaseID, err := uuid.Parse(c.Params("id"))

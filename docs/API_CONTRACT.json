@@ -2690,6 +2690,83 @@
 				}
 			}
 		},
+		"/comments/{id}/like": {
+			"post": {
+				"tags": ["Comments"],
+				"summary": "Toggle like on comment",
+				"description": "Like atau Unlike komentar. **Requires Cookie Session (JWT)**. Toggle behavior: jika sudah like akan unlike, jika belum like akan like.",
+				"operationId": "toggleCommentLike",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						},
+						"description": "Comment UUID"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Berhasil toggle like",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"code": { "type": "integer", "example": 200 },
+										"success": { "type": "boolean", "example": true },
+										"message": {
+											"type": "string",
+											"example": "Success toggle like"
+										},
+										"data": {
+											"type": "object",
+											"properties": {
+												"liked": {
+													"type": "boolean",
+													"description": "true jika baru saja di-like, false jika baru saja di-unlike"
+												},
+												"likes_count": {
+													"type": "integer",
+													"description": "Jumlah total likes pada comment"
+												}
+											}
+										}
+									}
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"message": "Success toggle like",
+									"data": {
+										"liked": true,
+										"likes_count": 5
+									}
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Comment tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/notifications": {
 			"get": {
 				"tags": ["Notifications"],

@@ -32,6 +32,7 @@ type ShowcaseUsecase interface {
 	GetShowcaseComments(ctx context.Context, showcaseID uuid.UUID, limit int, cursor string) (map[string]interface{}, error)
 	UpdateComment(ctx context.Context, id uuid.UUID, input *entity.UpdateCommentRequest, userID uuid.UUID) (*entity.Comment, error)
 	DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+	ToggleCommentLike(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) (bool, int, error)
 	DeleteShowcase(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 	RemoveCollaborator(ctx context.Context, showcaseID uuid.UUID, targetUserID uuid.UUID, actorUserID uuid.UUID) error
 	GetCollaborators(ctx context.Context, showcaseID uuid.UUID, userID uuid.UUID) ([]entity.Collaborator, error)
@@ -562,6 +563,26 @@ func (u *showcaseUsecase) DeleteComment(ctx context.Context, id uuid.UUID, userI
 	}
 
 	return nil
+}
+
+func (u *showcaseUsecase) ToggleCommentLike(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) (bool, int, error) {
+	// 1. Verify comment exists
+	comment, err := u.repo.GetCommentByID(commentID)
+	if err != nil {
+		return false, 0, err
+	}
+	if comment == nil {
+		return false, 0, errors.New("comment not found")
+	}
+
+	// 2. Toggle like
+	isLiked, likesCount, err := u.repo.ToggleCommentLike(userID, commentID)
+	if err != nil {
+		u.log.Errorf("Failed to toggle like on comment %s: %v", commentID, err)
+		return false, 0, errors.New("failed to toggle like")
+	}
+
+	return isLiked, likesCount, nil
 }
 
 func (u *showcaseUsecase) DeleteShowcase(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
