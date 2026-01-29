@@ -1782,6 +1782,98 @@
 				}
 			}
 		},
+		"/showcases/{id}/collaborators/{userId}": {
+			"delete": {
+				"tags": ["Collaborations"],
+				"summary": "Remove Collaborator / Leave Project",
+				"description": "Menghapus collaborator dari showcase. \n- **Owner** bisa menghapus member manapun.\n- **Member** bisa menghapus dirinya sendiri (Leave).\n- Jika **Owner** leave dan masih ada member lain, ownership akan dipindahkan ke collaborator terlama (oldest created_at).\n- **Sole Owner** tidak bisa leave (harus delete showcase).",
+				"operationId": "removeCollaborator",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "Showcase ID",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "userId",
+						"in": "path",
+						"required": true,
+						"description": "User ID collaborator yang akan dihapus",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Collaborator berhasil dihapus",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request (e.g., Sole owner trying to leave, target not found)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden (Bukan Owner / Member bukan self)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Showcase tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/showcases/{id}/like": {
 			"post": {
 				"tags": ["Showcases"],
@@ -3427,6 +3519,57 @@
 				}
 			}
 		},
+		"/internal/users/lookup": {
+			"post": {
+				"tags": ["Internal"],
+				"summary": "Resolve bulk users by usernames (Internal Only)",
+				"description": "\u26a0\ufe0f **INTERNAL USE ONLY**. Endpoint ini digunakan oleh Content Service untuk resolve info user dari list username.",
+				"operationId": "internalResolveUsersByUsername",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"usernames": {
+										"type": "array",
+										"items": {
+											"type": "string"
+										}
+									}
+								}
+							},
+							"example": {
+								"usernames": ["user1", "user2"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "User details resolved",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InternalUserResolveResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/internal/users/{id}/followers": {
 			"get": {
 				"tags": ["Internal"],
@@ -3638,6 +3781,86 @@
 			}
 		},
 		"/showcases/{id}/collaborators": {
+			"get": {
+				"tags": ["Collaborations"],
+				"summary": "Get List Collaborators",
+				"description": "Menampilkan list collaborator dari sebuah showcase. **Requires Cookie Session (JWT)**. Hanya bisa diakses oleh member project. Urutan berdasarkan *created_at ASC* (oldest first).",
+				"operationId": "getCollaborators",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID Showcase",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List collaborator berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"collaborators": [
+											{
+												"id": "abc-uuid",
+												"showcase_id": "xyz-uuid",
+												"user_id": "user-1",
+												"role": "OWNER",
+												"status": "ACCEPTED",
+												"created_at": "2026-01-01T00:00:00Z",
+												"user": {
+													"id": "user-1",
+													"username": "owner",
+													"name": "Owner Name",
+													"avatar_url": "https://..."
+												}
+											},
+											{
+												"id": "def-uuid",
+												"showcase_id": "xyz-uuid",
+												"user_id": "user-2",
+												"role": "COLLABORATOR",
+												"status": "PENDING",
+												"created_at": "2026-01-05T00:00:00Z",
+												"user": {
+													"id": "user-2",
+													"username": "collab",
+													"name": "Collab Name",
+													"avatar_url": null
+												}
+											}
+										]
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedError"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenError"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundError"
+					}
+				}
+			},
 			"post": {
 				"tags": ["Collaborations"],
 				"summary": "Invite collaborators",
@@ -3788,6 +4011,69 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedError"
+					}
+				}
+			}
+		},
+
+		"/collaborations/invitations/{id}": {
+			"delete": {
+				"tags": ["Collaborations"],
+				"summary": "Cancel/Revoke Invitation",
+				"description": "Membatalkan undangan kolaborasi yang masih PENDING. **Requires Cookie Session (JWT)**. Hanya bisa dilakukan oleh Owner showcase.",
+				"operationId": "deleteInvitation",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID Collaborator (Invitation ID)",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Undangan berhasil dibatalkan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": null,
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Status bukan PENDING",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedError"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenError"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundError"
 					}
 				}
 			}

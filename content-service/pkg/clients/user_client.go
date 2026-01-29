@@ -14,6 +14,7 @@ import (
 
 type UserClient interface {
 	GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]UserDetail, error)
+	GetUsersByUsernames(usernames []string) (map[string]UserDetail, error)
 }
 
 type userClient struct {
@@ -31,6 +32,10 @@ type UserDetail struct {
 
 type bulkUserRequest struct {
 	UserIDs []uuid.UUID `json:"userIds"`
+}
+
+type bulkUsernameRequest struct {
+	Usernames []string `json:"usernames"`
 }
 
 type bulkUserResponse struct {
@@ -91,6 +96,53 @@ func (c *userClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]UserDetail
 	result := make(map[uuid.UUID]UserDetail)
 	for _, user := range apiResp.Data {
 		result[user.ID] = user
+	}
+
+	return result, nil
+}
+
+func (c *userClient) GetUsersByUsernames(usernames []string) (map[string]UserDetail, error) {
+	url := fmt.Sprintf("%s/api/internal/users/lookup", c.cfg.UserServiceURL)
+
+	reqBody := bulkUsernameRequest{Usernames: usernames}
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Service-Secret", c.cfg.InternalServiceSecret)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		c.log.Errorf("Failed to call user service (lookup): %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.log.Warnf("User service lookup returned status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("user service error: %d", resp.StatusCode)
+	}
+
+	var apiResp bulkUserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if !apiResp.Success {
+		return nil, fmt.Errorf("user service returned failure")
+	}
+
+	// Convert Array to Map (Key: Username)
+	result := make(map[string]UserDetail)
+	for _, user := range apiResp.Data {
+		result[user.Username] = user
 	}
 
 	return result, nil

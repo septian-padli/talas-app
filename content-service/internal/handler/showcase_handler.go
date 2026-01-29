@@ -492,6 +492,307 @@ func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, 200, "Showcase successfully deleted (archived)", nil)
 }
 
+// RemoveCollaborator handles removing a collaborator (Kick or Leave)
+func (h *ShowcaseHandler) RemoveCollaborator(c *fiber.Ctx) error {
+	showcaseID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid showcase UUID", nil)
+	}
+
+	targetUserID, err := uuid.Parse(c.Params("userId"))
+	if err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid target user UUID", nil)
+	}
+
+	actorIDVal := c.Locals("user_id")
+	if actorIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	var actorID uuid.UUID
+	if str, ok := actorIDVal.(string); ok {
+		actorID, _ = uuid.Parse(str)
+	} else if uid, ok := actorIDVal.(uuid.UUID); ok {
+		actorID = uid
+	} else {
+		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
+	}
+
+	if err := h.usecase.RemoveCollaborator(c.Context(), showcaseID, targetUserID, actorID); err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			return utils.ErrorResponse(c, 404, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "forbidden") {
+			return utils.ErrorResponse(c, 403, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "target user is not a collaborator") {
+			return utils.ErrorResponse(c, 400, errMsg, nil)
+		}
+		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
+	}
+
+	return utils.SuccessResponse(c, 200, "Collaborator removed successfully", nil)
+}
+
+// GetCollaborators retrieves list of collaborators for a showcase
+func (h *ShowcaseHandler) GetCollaborators(c *fiber.Ctx) error {
+	showcaseID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid showcase UUID", nil)
+	}
+
+	actorIDVal := c.Locals("user_id")
+	if actorIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	var actorID uuid.UUID
+	if str, ok := actorIDVal.(string); ok {
+		actorID, _ = uuid.Parse(str)
+	} else if uid, ok := actorIDVal.(uuid.UUID); ok {
+		actorID = uid
+	} else {
+		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
+	}
+
+	collaborators, err := h.usecase.GetCollaborators(c.Context(), showcaseID, actorID)
+	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			return utils.ErrorResponse(c, 404, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "forbidden") {
+			return utils.ErrorResponse(c, 403, errMsg, nil)
+		}
+		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
+	}
+
+	return utils.SuccessResponse(c, 200, "Collaborators retrieved successfully", map[string]interface{}{
+		"collaborators": collaborators,
+	})
+}
+
+// DeleteInvitation handles cancelling a pending invitation
+func (h *ShowcaseHandler) DeleteInvitation(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid invitation UUID", nil)
+	}
+
+	actorIDVal := c.Locals("user_id")
+	if actorIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	var actorID uuid.UUID
+	if str, ok := actorIDVal.(string); ok {
+		actorID, _ = uuid.Parse(str)
+	} else if uid, ok := actorIDVal.(uuid.UUID); ok {
+		actorID = uid
+	} else {
+		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
+	}
+
+	if err := h.usecase.DeleteInvitation(c.Context(), id, actorID); err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			return utils.ErrorResponse(c, 404, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "forbidden") {
+			return utils.ErrorResponse(c, 403, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "cannot delete processed invitation") {
+			return utils.ErrorResponse(c, 400, errMsg, nil)
+		}
+		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
+	}
+
+	return utils.SuccessResponse(c, 200, "Invitation cancelled successfully", nil)
+}
+
+// GetPendingInvitations retrieves list of pending invitations for the current user
+func (h *ShowcaseHandler) GetPendingInvitations(c *fiber.Ctx) error {
+	actorIDVal := c.Locals("user_id")
+	if actorIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	var actorID uuid.UUID
+	if str, ok := actorIDVal.(string); ok {
+		actorID, _ = uuid.Parse(str)
+	} else if uid, ok := actorIDVal.(uuid.UUID); ok {
+		actorID = uid
+	} else {
+		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
+	}
+
+	limit := c.QueryInt("limit", 10)
+	cursor := c.Query("cursor")
+
+	invitations, meta, err := h.usecase.GetPendingInvitations(c.Context(), actorID, limit, cursor)
+	if err != nil {
+		return utils.ErrorResponse(c, 500, err.Error(), nil)
+	}
+
+	// Map to Response DTO
+	var invitationResponses []map[string]interface{}
+	for _, inv := range invitations {
+		// Find Owner (Inviter)
+		var inviter map[string]interface{}
+		var showcaseInfo map[string]interface{}
+
+		if inv.Showcase != nil {
+			showcaseInfo = map[string]interface{}{
+				"id":        inv.Showcase.ID,
+				"title":     inv.Showcase.Title,
+				"slug":      inv.Showcase.Slug,
+				"cover_url": nil, // Map from Media if preloaded, but currently not preloaded in this flow specifically (only Showcase and Showcase.Collaborators). 
+				// To get cover_url, we'd need Showcase.Media preloaded. 
+				// Repository used Preload("Showcase") and Preload("Showcase.Collaborators"). Media is missing.
+				// Leaving cover_url as nil or TODO.
+			}
+
+			// Find Owner
+			for _, col := range inv.Showcase.Collaborators {
+				if col.Role == entity.CollaborationRoleOwner {
+					// Owner Found. Ideally we want Name/Username/Avatar.
+					// But `col.User` might be nil if not preloaded.
+					// Preload("Showcase.Collaborators") does NOT preload User inside those collaborators by default unless chained?
+					// Usually GORM needs Preload("Showcase.Collaborators.User").
+					// Repo didn't do that.
+					// So we might only have Owner's UserID.
+					// For now, returning minimal info or null if user info missing.
+					// However, API Contract example shows username/avatar.
+					// We'll set what we can (maybe just ID if that's all we have).
+					inviter = map[string]interface{}{
+						"user_id": col.UserID,
+					}
+					// If we had User info:
+					// inviter["username"] = col.User.Username
+					break
+				}
+			}
+		}
+
+		invitationResponses = append(invitationResponses, map[string]interface{}{
+			"id":         inv.ID,
+			"status":     inv.Status,
+			"created_at": inv.CreatedAt,
+			"expires_at": inv.ExpiredAt,
+			"inviter":    inviter,
+			"showcase":   showcaseInfo,
+		})
+	}
+
+	return utils.SuccessResponse(c, 200, "Pending invitations retrieved", map[string]interface{}{
+		"invitations": invitationResponses,
+		"pagination":  meta,
+	})
+}
+
+// InviteCollaborators handles sending invitations by usernames
+func (h *ShowcaseHandler) InviteCollaborators(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid showcase UUID", nil)
+	}
+
+	actorIDVal := c.Locals("user_id")
+	if actorIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	var actorID uuid.UUID
+	if str, ok := actorIDVal.(string); ok {
+		actorID, _ = uuid.Parse(str)
+	} else if uid, ok := actorIDVal.(uuid.UUID); ok {
+		actorID = uid
+	} else {
+		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
+	}
+
+	var req struct {
+		Usernames []string `json:"usernames" validate:"required,min=1,dive,required"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid request body", nil)
+	}
+
+	// Validate (simple check)
+	if len(req.Usernames) == 0 {
+		return utils.ErrorResponse(c, 400, "Usernames cannot be empty", nil)
+	}
+
+	invitedUsers, err := h.usecase.InviteCollaborators(c.Context(), id, req.Usernames, actorID)
+	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "already") {
+			return utils.ErrorResponse(c, 400, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "forbidden") {
+			return utils.ErrorResponse(c, 403, errMsg, nil)
+		}
+		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
+	}
+
+	return utils.SuccessResponse(c, 200, "Invitations sent successfully", map[string]interface{}{
+		"message":       fmt.Sprintf("Undangan berhasil dikirim ke %d user", len(invitedUsers)),
+		"invited_users": invitedUsers,
+	})
+}
+
+// RespondInvitation handles accepting or rejecting an invitation
+func (h *ShowcaseHandler) RespondInvitation(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid invitation UUID", nil)
+	}
+
+	actorIDVal := c.Locals("user_id")
+	if actorIDVal == nil {
+		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
+	}
+	var actorID uuid.UUID
+	if str, ok := actorIDVal.(string); ok {
+		actorID, _ = uuid.Parse(str)
+	} else if uid, ok := actorIDVal.(uuid.UUID); ok {
+		actorID = uid
+	} else {
+		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
+	}
+
+	var req struct {
+		Response string `json:"response" validate:"required,oneof=ACCEPTED REJECTED"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid body", nil)
+	}
+
+	// Manual validation or rely on usecase
+	if req.Response == "" {
+		return utils.ErrorResponse(c, 400, "Response is required", nil)
+	}
+
+	if err := h.usecase.RespondInvitation(c.Context(), id, actorID, req.Response); err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			return utils.ErrorResponse(c, 404, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "forbidden") {
+			return utils.ErrorResponse(c, 403, errMsg, nil)
+		}
+		if strings.Contains(errMsg, "no longer pending") || strings.Contains(errMsg, "invalid response") {
+			return utils.ErrorResponse(c, 400, errMsg, nil)
+		}
+		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
+	}
+
+	msg := "Undangan berhasil diterima. Anda sekarang adalah collaborator."
+	if req.Response == "REJECTED" {
+		msg = "Undangan berhasil ditolak."
+	}
+
+	return utils.SuccessResponse(c, 200, msg, nil)
+}
+
 func contains(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

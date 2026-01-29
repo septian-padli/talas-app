@@ -57,7 +57,10 @@ func NewFiberApp(
 	})
 
 	protected.Post("/showcases", showcaseHandler.CreateShowcase)
+	protected.Get("/showcases/:id/collaborators", showcaseHandler.GetCollaborators)
+	protected.Post("/showcases/:id/collaborators", showcaseHandler.InviteCollaborators)
 	protected.Patch("/showcases/:id", showcaseHandler.UpdateShowcase)
+	protected.Delete("/showcases/:id/collaborators/:userId", showcaseHandler.RemoveCollaborator)
 	protected.Delete("/showcases/:id", showcaseHandler.DeleteShowcase)
 	protected.Post("/showcases/:id/like", showcaseHandler.ToggleLike)
 	protected.Post("/showcases/:id/bookmark", showcaseHandler.ToggleBookmark)
@@ -65,6 +68,10 @@ func NewFiberApp(
 	protected.Post("/comments/:id/reply", showcaseHandler.ReplyComment)
 	protected.Patch("/comments/:id", showcaseHandler.UpdateComment)
 	protected.Delete("/comments/:id", showcaseHandler.DeleteComment)
+
+	protected.Delete("/collaborations/invitations/:id", showcaseHandler.DeleteInvitation)
+	protected.Get("/collaborations/invitations", showcaseHandler.GetPendingInvitations)
+	protected.Patch("/collaborations/:id/response", showcaseHandler.RespondInvitation)
 
 	return app
 }

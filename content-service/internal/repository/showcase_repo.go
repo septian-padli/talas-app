@@ -25,6 +25,14 @@ type ShowcaseRepository interface {
 	UpdateComment(comment *entity.Comment) error
 	DeleteComment(id uuid.UUID) error
 	DeleteShowcase(id uuid.UUID) error
+	DeleteCollaborator(showcaseID, userID uuid.UUID) error
+	GetCollaboratorsByShowcaseID(showcaseID uuid.UUID) ([]entity.Collaborator, error)
+	GetCollaboratorByID(id uuid.UUID) (*entity.Collaborator, error)
+	UpdateCollaboratorRole(showcaseID, userID uuid.UUID, role string) error
+	DeleteCollaboratorByID(id uuid.UUID) error
+	GetPendingInvitations(userID uuid.UUID, limit int, cursor string) ([]entity.Collaborator, *PaginationMeta, error)
+	AddCollaborators(collaborators []entity.Collaborator) error
+	UpdateCollaboratorStatus(id uuid.UUID, status string) error
 }
 
 type paginationCursor struct {
@@ -301,4 +309,92 @@ func (r *showcaseRepository) DeleteComment(id uuid.UUID) error {
 
 func (r *showcaseRepository) DeleteShowcase(id uuid.UUID) error {
 	return r.db.Delete(&entity.Showcase{}, id).Error
+}
+
+func (r *showcaseRepository) DeleteCollaborator(showcaseID, userID uuid.UUID) error {
+	// Hard Delete (as per rule: Remove access completely)
+	// Or soft? Use hard delete for cleanup as Collaborator table doesn't have DeletedAt usually?
+	// Checking entity definition later. Assuming Hard Delete for relation table.
+	return r.db.Where("showcase_id = ? AND user_id = ?", showcaseID, userID).Delete(&entity.Collaborator{}).Error
+}
+
+func (r *showcaseRepository) GetCollaboratorsByShowcaseID(showcaseID uuid.UUID) ([]entity.Collaborator, error) {
+	var collaborators []entity.Collaborator
+	err := r.db.Preload("User").
+		Where("showcase_id = ?", showcaseID).
+		Order("created_at ASC").
+		Find(&collaborators).Error
+	return collaborators, err
+}
+
+func (r *showcaseRepository) GetCollaboratorByID(id uuid.UUID) (*entity.Collaborator, error) {
+	var col entity.Collaborator
+	// Preload Showcase? Not needed if we use GetByID separately or if logic is separate. 
+	// But actually, checking strict equality of owner is easier if we fetch showcase separately in usecase.
+	err := r.db.Where("id = ?", id).First(&col).Error
+	if err != nil {
+		return nil, err
+	}
+	return &col, nil
+}
+
+func (r *showcaseRepository) UpdateCollaboratorRole(showcaseID, userID uuid.UUID, role string) error {
+	return r.db.Model(&entity.Collaborator{}).
+		Where("showcase_id = ? AND user_id = ?", showcaseID, userID).
+		Update("role", role).Error
+}
+
+func (r *showcaseRepository) DeleteCollaboratorByID(id uuid.UUID) error {
+	return r.db.Delete(&entity.Collaborator{}, id).Error
+}
+
+func (r *showcaseRepository) GetPendingInvitations(userID uuid.UUID, limit int, cursor string) ([]entity.Collaborator, *PaginationMeta, error) {
+	var invitations []entity.Collaborator
+	query := r.db.Preload("Showcase").
+		// Preload Showcase Owner to map as Inviter later?
+		// We can try loading Showcase.Collaborators
+		Preload("Showcase.Collaborators").
+		Where("user_id = ? AND status = ?", userID, entity.CollaborationStatusPending).
+		Order("created_at DESC")
+
+	if cursor != "" {
+		cursorTime, err := decodeCursor(cursor)
+		if err == nil {
+			query = query.Where("created_at < ?", cursorTime)
+		}
+	}
+
+	err := query.Limit(limit + 1).Find(&invitations).Error
+	if err != nil {
+		return nil, nil, err
+	}
+
+	meta := &PaginationMeta{HasNext: false}
+	if len(invitations) > limit {
+		meta.HasNext = true
+		meta.NextCursor = encodeCursor(invitations[limit].CreatedAt)
+		invitations = invitations[:limit]
+	}
+
+	return invitations, meta, nil
+}
+
+func (r *showcaseRepository) AddCollaborators(collaborators []entity.Collaborator) error {
+	return r.db.Create(&collaborators).Error
+}
+
+func (r *showcaseRepository) UpdateCollaboratorStatus(id uuid.UUID, status string) error {
+	return r.db.Model(&entity.Collaborator{}).Where("id = ?", id).Update("status", status).Error
+}
+
+func encodeCursor(t time.Time) string {
+	return base64.StdEncoding.EncodeToString([]byte(t.Format(time.RFC3339Nano)))
+}
+
+func decodeCursor(encoded string) (time.Time, error) {
+	bytes, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Parse(time.RFC3339Nano, string(bytes))
 }

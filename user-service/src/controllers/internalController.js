@@ -43,6 +43,49 @@ const getBulkUsers = async (req, res) => {
   }
 };
 
+// 1.5 Get Bulk Users By Username (untuk Invite Collaborator)
+const getBulkUsersByUsername = async (req, res) => {
+  try {
+    const { usernames } = req.body;
+
+    if (!usernames || !Array.isArray(usernames) || usernames.length === 0) {
+      return res.status(400).json({
+        code: 400,
+        success: false,
+        message: 'Invalid input: usernames must be a non-empty array'
+      });
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        username: { in: usernames }
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        avatarUrl: true,
+        jobTitle: true,
+        isVerified: true
+      }
+    });
+
+    res.json({
+      code: 200,
+      success: true,
+      data: users
+    });
+
+  } catch (error) {
+    console.error('Internal BulkUsersByUsername Error:', error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: 'Internal Server Error'
+    });
+  }
+};
+
 // 2. Get User Follower IDs (untuk Filter Feed)
 const getUserFollowers = async (req, res) => {
   try {
@@ -118,5 +161,6 @@ const getUserFollowers = async (req, res) => {
 
 module.exports = {
   getBulkUsers,
+  getBulkUsersByUsername,
   getUserFollowers
 };

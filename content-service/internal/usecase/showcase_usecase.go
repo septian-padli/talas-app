@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"strings"
+	"time"
 
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
@@ -32,6 +33,12 @@ type ShowcaseUsecase interface {
 	UpdateComment(ctx context.Context, id uuid.UUID, input *entity.UpdateCommentRequest, userID uuid.UUID) (*entity.Comment, error)
 	DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 	DeleteShowcase(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+	RemoveCollaborator(ctx context.Context, showcaseID uuid.UUID, targetUserID uuid.UUID, actorUserID uuid.UUID) error
+	GetCollaborators(ctx context.Context, showcaseID uuid.UUID, userID uuid.UUID) ([]entity.Collaborator, error)
+	DeleteInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID) error
+	GetPendingInvitations(ctx context.Context, userID uuid.UUID, limit int, cursor string) ([]entity.Collaborator, *repository.PaginationMeta, error)
+	InviteCollaborators(ctx context.Context, showcaseID uuid.UUID, usernames []string, actorUserID uuid.UUID) ([]string, error)
+	RespondInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID, response string) error
 }
 
 type showcaseUsecase struct {
@@ -586,6 +593,280 @@ func (u *showcaseUsecase) DeleteShowcase(ctx context.Context, id uuid.UUID, user
 	}
 
 	return nil
+}
+
+func (u *showcaseUsecase) RemoveCollaborator(ctx context.Context, showcaseID uuid.UUID, targetUserID uuid.UUID, actorUserID uuid.UUID) error {
+	// 1. Get Showcase with Collaborators
+	showcase, err := u.repo.GetByID(showcaseID)
+	if err != nil {
+		return err
+	}
+	if showcase == nil {
+		return errors.New("showcase not found")
+	}
+
+	// 2. Find Logic Actors
+	var actorCol *entity.Collaborator
+	var targetCol *entity.Collaborator
+	
+	for i := range showcase.Collaborators {
+		if showcase.Collaborators[i].UserID == actorUserID {
+			actorCol = &showcase.Collaborators[i]
+		}
+		if showcase.Collaborators[i].UserID == targetUserID {
+			targetCol = &showcase.Collaborators[i]
+		}
+	}
+
+	if actorCol == nil {
+		return errors.New("forbidden: actor is not a collaborator")
+	}
+	// Case: Kick (target must be part of project to be kicked)
+	// Or Leave (target == actor, found)
+	// BUT invalidation: if deleting non-existing member? Repo delete handles "not found" silently usuallly, but business rule should return "user not in project" if strict.
+	// For idempotency or UX, let's verify target existence.
+	if targetCol == nil {
+		return errors.New("target user is not a collaborator")
+	}
+
+	// 3. Logic Branching
+	isSelfAction := (targetUserID == actorUserID)
+
+	// Scenario A: LEAVE (Self Action)
+	if isSelfAction {
+		// If NOT owner -> Just leave
+		if actorCol.Role != entity.CollaborationRoleOwner {
+			return u.repo.DeleteCollaborator(showcaseID, actorUserID)
+		}
+
+		// If OWNER -> Check successors
+		// Count other ACCEPTED collaborators
+		var successors []entity.Collaborator
+		for _, c := range showcase.Collaborators {
+			if c.UserID != actorUserID && c.Status == entity.CollaborationStatusAccepted {
+				successors = append(successors, c)
+			}
+		}
+
+		if len(successors) == 0 {
+			return errors.New("forbidden: sole owner cannot leave. please delete the showcase instead")
+		}
+
+		// Find Oldest Successor (Created At ASC)
+		// Assuming collaborators are not strictly sorted by created_at in preload, let's sort or find min
+		oldest := successors[0] // pointer copy from slice
+		for _, s := range successors {
+			if s.CreatedAt.Before(oldest.CreatedAt) {
+				oldest = s
+			}
+		}
+
+		// Transfer Ownership & Leave
+		// 1. Promote Successor
+		if err := u.repo.UpdateCollaboratorRole(showcaseID, oldest.UserID, entity.CollaborationRoleOwner); err != nil {
+			return err
+		}
+		// 2. Delete Self
+		return u.repo.DeleteCollaborator(showcaseID, actorUserID)
+	}
+
+	// Scenario B: KICK (Actor != Target)
+	// Only Owner can kick
+	if actorCol.Role != entity.CollaborationRoleOwner {
+		return errors.New("forbidden: only owner can remove members")
+	}
+	
+	// Owner cannot kick another Owner (if multiple owners exist in future, but for now strict)
+	// Or if transferring process.
+	if targetCol.Role == entity.CollaborationRoleOwner {
+		return errors.New("forbidden: cannot kick another owner")
+	}
+
+	return u.repo.DeleteCollaborator(showcaseID, targetUserID)
+}
+
+func (u *showcaseUsecase) GetCollaborators(ctx context.Context, showcaseID uuid.UUID, userID uuid.UUID) ([]entity.Collaborator, error) {
+	// 1. Fetch Collaborators
+	collaborators, err := u.repo.GetCollaboratorsByShowcaseID(showcaseID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Access Control: Check if requester is a member (Accepted or Pending? User said "Only member", implies accepted/pending is fine as long as they are related to project. Usually Pending users shouldn't see details, but maybe they should see who invited them? Safer to assume ANY record in collaborators table = access)
+	isMember := false
+	for _, c := range collaborators {
+		if c.UserID == userID {
+			isMember = true
+			break
+		}
+	}
+
+	if !isMember {
+		return nil, errors.New("forbidden: you are not a member of this project")
+	}
+
+	return collaborators, nil
+}
+
+func (u *showcaseUsecase) DeleteInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID) error {
+	// 1. Get Collaborator (Invitation)
+	invitation, err := u.repo.GetCollaboratorByID(id)
+	if err != nil {
+		return err // Returns error if not found
+	}
+	// Note: If repo returns error on not found, we handle it. If Gorm returns ErrRecordNotFound, we should probably wrap it or handler checks it.
+
+	// 2. Validate Status
+	if invitation.Status != entity.CollaborationStatusPending {
+		return errors.New("cannot delete processed invitation. use remove collaborator instead")
+	}
+
+	// 3. Get Showcase for Owner Check
+	showcase, err := u.repo.GetByID(invitation.ShowcaseID)
+	if err != nil {
+		return err
+	}
+	if showcase == nil {
+		return errors.New("showcase not found")
+	}
+
+	// 4. Check if Actor is Owner
+	isOwner := false
+	for _, c := range showcase.Collaborators {
+		if c.UserID == actorUserID && c.Role == entity.CollaborationRoleOwner {
+			isOwner = true
+			break
+		}
+	}
+	if !isOwner {
+		return errors.New("forbidden: only owner can cancel invitations")
+	}
+
+	// 5. Delete
+	return u.repo.DeleteCollaboratorByID(id)
+}
+
+func (u *showcaseUsecase) GetPendingInvitations(ctx context.Context, userID uuid.UUID, limit int, cursor string) ([]entity.Collaborator, *repository.PaginationMeta, error) {
+	// Call repo
+	invitations, meta, err := u.repo.GetPendingInvitations(userID, limit, cursor)
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	// Since repo returns *repository.PaginationMeta, check if casting or direct return works.
+	// Logic above signature changed to *repository.PaginationMeta.
+	// So direct return should work.
+	
+	return invitations, meta, nil
+}
+
+func (u *showcaseUsecase) InviteCollaborators(ctx context.Context, showcaseID uuid.UUID, usernames []string, actorUserID uuid.UUID) ([]string, error) {
+	// 1. Get Showcase & Verify Owner
+	showcase, err := u.repo.GetByID(showcaseID)
+	if err != nil {
+		return nil, err
+	}
+	if showcase == nil {
+		return nil, errors.New("showcase not found")
+	}
+
+	// Verify Owner
+	// Need to check collaborators. Repo preloaded "Collaborators" inside GetByID?
+	// Let's check GetByID implementation. Assuming yes, or separate fetch.
+	// Step 4571 view showed GetByID Preloads.
+	isOwner := false
+	for _, c := range showcase.Collaborators {
+		if c.UserID == actorUserID && c.Role == entity.CollaborationRoleOwner {
+			isOwner = true
+			break
+		}
+	}
+	if !isOwner {
+		return nil, errors.New("forbidden: only owner can invite")
+	}
+
+	// 2. Resolve Usernames
+	usersMap, err := u.userClient.GetUsersByUsernames(usernames)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolving users: %w", err)
+	}
+
+	// 3. Prepare List & Check Duplicates
+	// Need existing collaborators to avoid re-inviting or inviting existing members
+	// Using showcase.Collaborators is enough if it contains all members.
+	existingMembers := make(map[uuid.UUID]bool)
+	for _, c := range showcase.Collaborators {
+		existingMembers[c.UserID] = true // Includes pending etc? Yes.
+	}
+
+	var newCollaborators []entity.Collaborator
+	var invitedUsernames []string
+
+	for _, username := range usernames {
+		user, found := usersMap[username]
+		if !found {
+			return nil, fmt.Errorf("user not found: %s", username)
+		}
+
+		if existingMembers[user.ID] {
+			// Skip or Error? Docs: "Validasi gagal (misal ... sudah diundang)".
+			// Assuming Error for strictness, or Skip for idempotency.
+			// Let's return Error if any user is duplicate? Or just skip?
+			// Docs 400 suggested "Validasi gagal".
+			return nil, fmt.Errorf("user %s is already a collaborator or invited", username)
+		}
+
+		// Prepare Struct
+		newCol := entity.Collaborator{
+			ShowcaseID: showcaseID,
+			UserID:     user.ID,
+			Role:       entity.CollaborationRoleCollaborator,
+			Status:     entity.CollaborationStatusPending,
+			ExpiredAt:  time.Now().Add(7 * 24 * time.Hour), // 7 days
+		}
+		newCollaborators = append(newCollaborators, newCol)
+		invitedUsernames = append(invitedUsernames, username)
+	}
+
+	if len(newCollaborators) == 0 {
+		return []string{}, nil // Nothing to add
+	}
+
+	// 4. Save
+	if err := u.repo.AddCollaborators(newCollaborators); err != nil {
+		return nil, err
+	}
+
+	return invitedUsernames, nil
+}
+
+func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID, response string) error {
+	// 1. Validate Input
+	if response != entity.CollaborationStatusAccepted && response != entity.CollaborationStatusRejected {
+		return errors.New("invalid response value. must be ACCEPTED or REJECTED")
+	}
+
+	// 2. Get Collaborator
+	invitation, err := u.repo.GetCollaboratorByID(id)
+	if err != nil {
+		return err
+	}
+	// Gorm returns error if not found? No, my GetCollaboratorByID returns err. 
+	// But previously I said "returns error if not found" in comment.
+	// Actually `db.First` returns ErrRecordNotFound.
+	// So err implies not found or db error.
+	
+	// 3. Validate Logic
+	if invitation.UserID != actorUserID {
+		return errors.New("forbidden: this invitation is not for you")
+	}
+
+	if invitation.Status != entity.CollaborationStatusPending {
+		return errors.New("invitation is no longer pending")
+	}
+
+	// 4. Update
+	return u.repo.UpdateCollaboratorStatus(id, response)
 }
 
 func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*entity.Showcase, error) {

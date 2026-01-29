@@ -8,6 +8,7 @@ router.use(verifyInternalKey);
 
 // Define Routes
 router.post('/users/bulk', internalController.getBulkUsers);
+router.post('/users/lookup', internalController.getBulkUsersByUsername);
 router.get('/users/:id/followers', internalController.getUserFollowers);
 
 module.exports = router;

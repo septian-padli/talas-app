@@ -30,7 +30,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
     * DILARANG menggunakan Integer/Auto-increment.
 2.  **Split Database (Isolation):**
     * **DB A (User):** Tables `users`, `user_credentials`, `refresh_tokens`, `follows`, `notifications`.
-    * **DB B (Content):** Tables `projects`, `project_media`, `categories`, `comments`, `project_likes`, `comment_likes`, `bookmarks`, `collaborators`.
+    * **DB B (Content):** Tables `showcases`, `showcase_media`, `categories`, `comments`, `showcase_likes`, `comment_likes`, `bookmarks`, `collaborators`.
 3.  **The "Ghost FK" Rule:**
     * Di **Content DB**, kolom `user_id` disimpan sebagai `UUID` biasa + `INDEX`.
     * **TIDAK BOLEH** ada constraint `REFERENCES users(id)` di Content DB karena tabel `users` tidak ada di sana.
@@ -135,9 +135,11 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
     * Owner **TIDAK BISA leave**.
     * Diarahkan untuk **Archive** atau **Delete** showcase.
 
-### B. Archive Feature
-* Archive **HANYA tersedia** untuk Sole Owner.
-* Showcase yang di-archive tidak muncul di feed/search, tapi masih bisa diakses via direct link oleh owner.
+### B. Archive Feature (Soft Delete)
+* Endpoint: `DELETE /showcases/:id`.
+* Mekanisme: **Soft Delete** (`deleted_at` terisi). Data tidak hilang dari DB, tapi tidak muncul di list/feed publik.
+* Asset Media (Cloudinary): **TIDAK** dihapus saat soft delete (untuk memungkinkan restore).
+* Hanya **Owner** yang bisa melakukan aksi ini.
 
 ---
 
@@ -150,10 +152,10 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 4. Jika API error → **Rollback** ke state sebelumnya + tampilkan Toast error.
 
 ### B. Backend API (Content Service)
-1. Cek tabel `project_likes`:
+1. Cek tabel `showcase_likes`:
     * Belum ada → `INSERT` (Like).
     * Sudah ada → `DELETE` (Unlike/Toggle).
-2. Gunakan **Unique Constraint** `(user_id, project_id)` untuk mencegah double-insert.
+2. Gunakan **Unique Constraint** `(user_id, showcase_id)` untuk mencegah double-insert.
 3. Publish event ke RabbitMQ:
     * Exchange: `talas.events`
     * Routing Key: `project.liked` atau `project.unliked`
@@ -161,7 +163,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 4. Response: `{ "is_liked": true/false }` (tanpa count, agar < 50ms).
 
 ### C. Worker (Async Side Effects)
-1. **Update Counter:** `UPDATE projects SET likes_count = likes_count +/- 1`.
+1. **Update Counter:** `UPDATE showcases SET likes_count = likes_count +/- 1`.
 2. **Update Redis Trending:** (Lihat Section 9).
 3. **Sync Elasticsearch:** Update field `likes_count` di dokumen project.
 4. **Send Notification:** Ke Author + semua Collaborators yang `ACCEPTED`.
@@ -170,7 +172,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 ## 9. Trending Feed (Rolling 7 Days Window)
 
-### Strategy: Daily Buckets + ZUNIONSTORE
+### Strategy: Daily Buckets + ZUNIONSTORE - (TODO: Verify Implementation)
 
 ### A. Write Flow (Worker - saat project.liked)
 ```
@@ -188,14 +190,19 @@ EXPIRE trending:{YYYY-MM-DD} 691200  # 8 hari dalam detik
 
 ---
 
-## 11. Comment System Strategy (Flattened Replies)
+## 11. Comment System Strategy (Recursive Tree + Tombstoning)
 
 ### Logic:
-* **Max Visual Nesting:** 3 Level (0, 1, 2).
-* **Deep Replies (> Level 3):**
-    * Render sejajar dengan parent terakhir (Flat).
-    * Response API menyertakan field `reply_to: { username }`.
-    * UI menampilkan: "**@username** [isi komentar]".
+* **Storage:** Parent-Child relationship (`parent_id`).
+* **Retrieval (Backend):** 
+    * Mengambil semua komentar (termasuk Soft Deleted).
+    * Membangun **Tree Structure** penuh secara rekursif.
+    * **Tombstoning Logic (Pruning):**
+        * Jika komentar `deleted` DAN punya anak (replies) yang aktif -> Konten diganti `"[Comment deleted]"` (Tombstone).
+        * Jika komentar `deleted` DAN tidak punya anak aktif -> Dihapus dari response (Pruned).
+* **Edit Tracking:**
+    * Field `is_edited` (boolean) menandakan jika komentar (atau showcase) pernah diedit.
+* **Frontend:** Menerima struktur tree JSON nested, merender sesuai kedalaman (indentasi).
 
 ---
 
