@@ -149,8 +149,14 @@ const toggleFollow = async (req, res) => {
   const followerId = req.user.id;
   const followingId = req.params.id;
 
+  // LOG: Info Action Started
+  req.log.info({ followerId, followingId }, 'Toggle follow action started');
+
   // 1. Validasi Dasar
   if (followerId === followingId) {
+    // LOG: Warn Self Follow
+    req.log.warn({ followerId }, 'Self-follow attempt detected');
+    
     return res.status(400).json({
       code: 400,
       success: false,
@@ -159,17 +165,12 @@ const toggleFollow = async (req, res) => {
     });
   }
 
-  // DEBUG: Check IDs
-  // console.log(`[ToggleFollow] Debugging...`);
-  // console.log(`[ToggleFollow] Follower ID (Me): ${followerId}`);
-  // console.log(`[ToggleFollow] Following ID (Target): ${followingId}`);
-
   // Check if both users actually exist before transaction to isolate the error
   const checkFollower = await prisma.user.findUnique({ where: { id: followerId } });
   const checkFollowing = await prisma.user.findUnique({ where: { id: followingId } });
 
   if (!checkFollower) {
-    console.error(`[ToggleFollow] Error: Follower (Me) with ID ${followerId} does NOT exist in DB.`);
+    req.log.error({ followerId }, 'Follower user not found in DB (Integrity Error)');
     return res.status(404).json({
       code: 404,
       success: false,
@@ -179,7 +180,9 @@ const toggleFollow = async (req, res) => {
   }
 
   if (!checkFollowing) {
-    console.error(`[ToggleFollow] Error: Following (Target) with ID ${followingId} does NOT exist in DB.`);
+    // LOG: Error Target Not Found
+    req.log.error({ followingId }, 'Follow target user not found');
+    
     return res.status(404).json({
       code: 404,
       success: false,
@@ -261,8 +264,15 @@ const toggleFollow = async (req, res) => {
       target: { id: followingId }
     };
     
-    // Publish ke routing key: user.followed atau user.unfollowed
     publishEvent(`user.${result.status.toLowerCase()}`, eventData);
+
+    // LOG: Info Success
+    req.log.info({ 
+        followerId, 
+        followingId, 
+        action: result.status, 
+        isFollowing: result.isFollowing 
+    }, `User ${result.status.toLowerCase()} successfully`);
 
     res.json({
       code: 200,
@@ -277,6 +287,7 @@ const toggleFollow = async (req, res) => {
   } catch (error) {
     // Handling Foreign Key Constraint (User Target tidak ditemukan)
     if (error.code === 'P2003') {
+      req.log.error({ err: error, followingId }, 'Toggle Follow Failed: Foreign Key Constraint');
       return res.status(404).json({
         code: 404,
         success: false,
@@ -285,7 +296,7 @@ const toggleFollow = async (req, res) => {
       });
     }
 
-    console.error('ToggleFollow Error:', error);
+    req.log.error({ err: error }, 'Toggle Follow Fatal Error');
     res.status(500).json({
       code: 500,
       success: false,
@@ -510,6 +521,9 @@ const getUserFollowing = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
+    
+    // LOG: Start Profile Update
+    req.log.info({ userId }, 'Profile update process started');
 
     // 1. Validasi Input
     const validation = updateProfileSchema.safeParse(req.body);
@@ -518,6 +532,9 @@ const updateUserProfile = async (req, res) => {
         field: err.path.join('.'), // Join path for nested objects (e.g. socialLinks.0.link)
         message: err.message
       }));
+
+      // LOG: Error Validation
+      req.log.error({ userId, errors: errorDetails, body: req.body }, 'Profile update validation failed');
 
       return res.status(400).json({
         code: 400,
@@ -528,6 +545,12 @@ const updateUserProfile = async (req, res) => {
     }
 
     const { name, bio, jobTitle, avatarUrl, socialLinks } = validation.data;
+    const bodyKeys = Object.keys(validation.data || {});
+
+    // LOG: Warn if empty update
+    if (bodyKeys.length === 0) {
+       req.log.warn({ userId }, 'Profile update warning: No data provided in body');
+    }
 
     // 2. Transaction Update
     // Kita gunakan transaction untuk update User info & Replace Social Links (Flush & Fill strategy)
@@ -596,6 +619,10 @@ const updateUserProfile = async (req, res) => {
       }
     });
 
+    // LOG: Info Success
+    const updatedFields = bodyKeys;
+    req.log.info({ userId, updatedFields }, 'Profile updated successfully');
+
     // Map Response
     const responseData = {
       user: {
@@ -623,7 +650,7 @@ const updateUserProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('UpdateProfile Error:', error);
+    req.log.error({ err: error, userId: req.user?.id }, 'Profile Update Fatal Error');
     res.status(500).json({
       code: 500,
       success: false,

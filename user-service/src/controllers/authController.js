@@ -25,6 +25,8 @@ const register = async (req, res) => {
     }
 
     const { username, email, password, name } = validation.data;
+    
+    req.log.info({ email }, 'Register process started');
 
     // 2. Cek Duplikasi (Email / Username)
     const existingUser = await prisma.user.findFirst({
@@ -71,6 +73,8 @@ const register = async (req, res) => {
     });
 
     // 5. Response Sukses (Sesuai API Contract)
+    req.log.info({ userId: newUser.id }, 'User registered successfully');
+
     res.status(201).json({
       code: 201,
       success: true,
@@ -81,7 +85,7 @@ const register = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Register Error:', error);
+    req.log.error({ err: error }, 'Register failed');
     res.status(500).json({
       code: 500,
       success: false,
@@ -121,10 +125,15 @@ const login = async (req, res) => {
     }
 
     const { email, password } = validation.data;
+    
+    // LOG: Percobaan Login
+    req.log.info({ email }, 'Login attempt');
 
     // 2. Cari User by Email
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      // LOG: Login Gagal (User not found)
+      req.log.warn({ email }, 'Login failed: User not found');
       return res.status(401).json({
         code: 401,
         success: false,
@@ -136,6 +145,8 @@ const login = async (req, res) => {
     // 3. Cek Password
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
+      // LOG: Login Gagal (Wrong password)
+      req.log.warn({ email }, 'Login failed: Invalid password');
       return res.status(401).json({
         code: 401,
         success: false,
@@ -177,6 +188,8 @@ const login = async (req, res) => {
     });
 
     // 7. Response JSON (Sesuai API Contract)
+    // LOG: Login Sukses
+    req.log.info({ userId: user.id }, 'Login successful');
     res.json({
       code: 200,
       success: true,
@@ -193,7 +206,7 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login Error:', error);
+    req.log.error({ err: error }, 'Login Error');
     res.status(500).json({
       code: 500,
       success: false,
@@ -211,6 +224,7 @@ const refresh = async (req, res) => {
     // 1. Ambil Refresh Token dari Cookie
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
+      req.log.error('Refresh failed: No token provided');
       return res.status(401).json({
         code: 401,
         success: false,
@@ -222,6 +236,7 @@ const refresh = async (req, res) => {
     // 2. Verify Token (Signature check)
     const decoded = verifyToken(refreshToken);
     if (!decoded) {
+      req.log.error('Refresh failed: Invalid token signature');
       return res.status(403).json({
         code: 403,
         success: false,
@@ -237,6 +252,7 @@ const refresh = async (req, res) => {
     });
 
     if (!savedToken) {
+      req.log.error({ userId: decoded.userId }, 'Refresh failed: Token reused or revoked');
       return res.status(403).json({
         code: 403,
         success: false,
@@ -249,6 +265,7 @@ const refresh = async (req, res) => {
     if (new Date() > savedToken.expiresAt) {
       // Hapus token expired
       await prisma.refreshToken.delete({ where: { id: savedToken.id } });
+      req.log.error({ userId: savedToken.userId }, 'Refresh failed: Token expired');
       return res.status(403).json({
         code: 403,
         success: false,
@@ -267,6 +284,7 @@ const refresh = async (req, res) => {
       maxAge: 15 * 60 * 1000 // 15 min
     });
 
+    req.log.info({ userId: savedToken.userId }, 'Token refreshed successfully');
     res.json({
       code: 200,
       success: true,
@@ -275,7 +293,7 @@ const refresh = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Refresh Error:', error);
+    req.log.error({ err: error }, 'Refresh Error');
     res.status(500).json({
       code: 500,
       success: false,
@@ -286,7 +304,7 @@ const refresh = async (req, res) => {
 };
 
 // ----------------------------------------------------
-// LOGOUT
+// GET ME
 // ----------------------------------------------------
 const getMe = async (req, res) => {
   try {
@@ -301,8 +319,9 @@ const getMe = async (req, res) => {
         user: user
       }
     });
+
   } catch (error) {
-    console.error('GetMe Error:', error);
+    req.log.error({ err: error }, 'GetMe Error');
     res.status(500).json({
       code: 500,
       success: false,
@@ -325,7 +344,9 @@ const logout = async (req, res) => {
     if (refreshToken) {
       await prisma.refreshToken.delete({
         where: { token: refreshToken }
-      }).catch(() => {});
+      }).catch(err => {
+         req.log.error({ err }, 'Logout: Failed to delete token from DB');
+      });
     }
 
     // Clear Cookies dengan opsi yang SAMA saat login (Penting!)
@@ -337,6 +358,7 @@ const logout = async (req, res) => {
     res.clearCookie('accessToken', cookieOptions);
     res.clearCookie('refreshToken', cookieOptions);
 
+    req.log.info('Session ended (User logged out)');
     res.json({
       code: 200,
       success: true,
@@ -345,7 +367,7 @@ const logout = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Logout Error:', error);
+    req.log.error({ err: error }, 'Logout Error');
     res.status(500).json({
       code: 500,
       success: false,

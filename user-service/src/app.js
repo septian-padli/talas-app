@@ -10,6 +10,10 @@ const PORT = process.env.PORT || 3001;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+const loggingMiddleware = require('./middlewares/loggingMiddleware');
+app.use(loggingMiddleware);
+
 app.use(cors({
     origin: 'http://localhost:3000', // URL Frontend nanti
     credentials: true // Izinkan Cookie lewat
