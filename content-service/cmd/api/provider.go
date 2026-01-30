@@ -3,9 +3,10 @@ package main
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/septianpadli/talas/content-service/internal/handler"
+	internalMiddleware "github.com/septianpadli/talas/content-service/internal/middleware"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -24,8 +25,9 @@ func NewFiberApp(
 	})
 
 	// Default Middlewares
-	app.Use(logger.New())
 	app.Use(recover.New())
+	app.Use(requestid.New())
+	app.Use(internalMiddleware.NewRequestLogger(log))
 
 	// CORS
 	app.Use(cors.New(cors.Config{

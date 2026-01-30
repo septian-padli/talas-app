@@ -146,7 +146,7 @@ func setupIntegrationApp() (*fiber.App, *gorm.DB) {
 	uc := usecase.NewShowcaseUsecase(repo, mockUserClient, mockUploader, cfg, log)
 
 	// 6. Handler
-	h := handler.NewShowcaseHandler(uc)
+	h := handler.NewShowcaseHandler(uc, log)
 
 	// 7. Middleware
 	auth := middleware.NewAuthMiddleware(cfg)

@@ -134,6 +134,11 @@ services:
         condition: service_started
     networks:
       - talas_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m" # Maksimal 1 file log 10MB
+        max-file: "3" # Simpan maksimal 3 file terakhir (Rolling)
 
   # ----------------------------------------------------------------
   # 8. CONTENT SERVICE (Go - Port 3002)
@@ -166,6 +171,11 @@ services:
         condition: service_started
     networks:
       - talas_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m" # Maksimal 1 file log 10MB
+        max-file: "3" # Simpan maksimal 3 file terakhir (Rolling)
 
 # Definisi Volume (Agar data tidak hilang saat container mati)
 volumes:
