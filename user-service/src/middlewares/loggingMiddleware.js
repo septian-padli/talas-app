@@ -1,12 +1,12 @@
 const pinoHttp = require('pino-http');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const logger = require('../utils/logger'); // Use our custom configured logger instance
 
 const loggingMiddleware = pinoHttp({
   logger: logger,
   genReqId: function (req) {
     if (req.headers['x-request-id']) return req.headers['x-request-id'];
-    return uuidv4();
+    return crypto.randomUUID();
   },
   // Custom serializers if needed, but pino-http defaults are usually good
   serializers: {

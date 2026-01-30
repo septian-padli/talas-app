@@ -4,8 +4,9 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"dev": "nodemon src/app.js"
+		"test": "jest",
+		"test:integration": "dotenv -e .env.test -- jest -i --testPathPatterns=tests/integration",
+		"dev": "nodemon src/server.js"
 	},
 	"keywords": [],
 	"author": "",
@@ -28,8 +29,11 @@
 	},
 	"devDependencies": {
 		"@faker-js/faker": "^9.9.0",
+		"dotenv-cli": "^11.0.0",
+		"jest": "^30.2.0",
 		"nodemon": "^3.1.11",
-		"prisma": "^5.10.2"
+		"prisma": "^5.10.2",
+		"supertest": "^7.2.2"
 	},
 	"prisma": {
 		"seed": "node prisma/seed.js"

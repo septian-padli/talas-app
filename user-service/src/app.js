@@ -4,7 +4,6 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // 1. Middlewares
 app.use(express.json());
@@ -41,7 +40,5 @@ app.get('/api/auth/init-testing', (req, res) => {
     });
 });
 
-// 3. Start Server
-app.listen(PORT, () => {
-    console.log(`🚀 User Service running on port ${PORT}`);
-});
+// Export app for testing (Supertest)
+module.exports = app;
