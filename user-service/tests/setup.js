@@ -5,6 +5,12 @@
 const { execSync } = require('child_process');
 const prisma = require('../src/utils/prisma');
 
+// Mock RabbitMQ to prevent actual connection during tests
+jest.mock('../src/utils/rabbitmq', () => ({
+  connectRabbitMQ: jest.fn(),
+  publishEvent: jest.fn(),
+}));
+
 // List of all tables to truncate (order matters due to foreign keys)
 const TABLES_TO_TRUNCATE = [
   'social_links',

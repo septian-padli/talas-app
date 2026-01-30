@@ -1,6 +1,8 @@
 const prisma = require('../utils/prisma');
 const { hashPassword } = require('../utils/password');
 const { registerSchema } = require('../validations/authValidation');
+const { publishEvent } = require('../utils/rabbitmq');
+const { randomUUID } = require('crypto');
 
 /**
  * Register User Baru
@@ -74,6 +76,28 @@ const register = async (req, res) => {
 
     // 5. Response Sukses (Sesuai API Contract)
     req.log.info({ userId: newUser.id }, 'User registered successfully');
+
+
+
+    // 6. Publish Event (Async - Non Blocking)
+    try {
+      const eventPayload = {
+        event_id: randomUUID(),
+        event_type: 'user.created',
+        data: {
+          user_id: newUser.id,
+          email: newUser.email,
+          username: newUser.username,
+          name: newUser.name
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      await publishEvent('user.created', eventPayload);
+    } catch (mqError) {
+      // Log error but do NOT fail the registration process
+      req.log.error({ err: mqError }, 'Failed to publish user.created event');
+    }
 
     res.status(201).json({
       code: 201,

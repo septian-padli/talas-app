@@ -6,7 +6,12 @@
 require('dotenv').config();
 const app = require('./app');
 
+const { connectRabbitMQ } = require('./utils/rabbitmq');
+
 const PORT = process.env.PORT || 3001;
+
+// Initialize RabbitMQ connection
+connectRabbitMQ();
 
 app.listen(PORT, () => {
     console.log(`🚀 User Service running on port ${PORT}`);

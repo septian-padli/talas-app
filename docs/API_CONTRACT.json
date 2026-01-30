@@ -681,6 +681,97 @@
 				}
 			}
 		},
+		"/users/{username}": {
+			"get": {
+				"tags": ["Users"],
+				"summary": "Get public profile by username",
+				"description": "Mendapatkan profil publik user berdasarkan username. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response HANYA berisi data non-sensitif (tanpa email dan is_verified).",
+				"operationId": "getPublicProfile",
+				"parameters": [
+					{
+						"name": "username",
+						"in": "path",
+						"required": true,
+						"description": "Username user yang ingin dilihat profilnya",
+						"schema": {
+							"type": "string",
+							"example": "johndoe"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Profil publik berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PublicProfileResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"user": {
+											"id": "550e8400-e29b-41d4-a716-446655440000",
+											"username": "johndoe",
+											"name": "John Doe",
+											"bio": "Full-stack developer passionate about clean code",
+											"avatar_url": "https://res.cloudinary.com/talas/image/upload/v1234567890/avatars/johndoe.jpg",
+											"followers_count": 120,
+											"following_count": 85,
+											"is_following": false
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 404,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "username",
+											"message": "User tidak ditemukan"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/users/me": {
 			"get": {
 				"tags": ["Users"],
@@ -866,97 +957,7 @@
 				}
 			}
 		},
-		"/users/{username}": {
-			"get": {
-				"tags": ["Users"],
-				"summary": "Get public profile by username",
-				"description": "Mendapatkan profil publik user berdasarkan username. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response HANYA berisi data non-sensitif (tanpa email dan is_verified).",
-				"operationId": "getPublicProfile",
-				"parameters": [
-					{
-						"name": "username",
-						"in": "path",
-						"required": true,
-						"description": "Username user yang ingin dilihat profilnya",
-						"schema": {
-							"type": "string",
-							"example": "johndoe"
-						}
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Profil publik berhasil diambil",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/PublicProfileResponse"
-								},
-								"example": {
-									"code": 200,
-									"success": true,
-									"data": {
-										"user": {
-											"id": "550e8400-e29b-41d4-a716-446655440000",
-											"username": "johndoe",
-											"name": "John Doe",
-											"bio": "Full-stack developer passionate about clean code",
-											"avatar_url": "https://res.cloudinary.com/talas/image/upload/v1234567890/avatars/johndoe.jpg",
-											"followers_count": 120,
-											"following_count": 85,
-											"is_following": false
-										}
-									},
-									"errors": null
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "User tidak ditemukan",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 404,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "username",
-											"message": "User tidak ditemukan"
-										}
-									]
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 500,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "server",
-											"message": "Terjadi kesalahan pada server"
-										}
-									]
-								}
-							}
-						}
-					}
-				}
-			}
-		},
+
 		"/users/{id}/follow": {
 			"post": {
 				"tags": ["Users"],

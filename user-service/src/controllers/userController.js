@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma');
 const { publishEvent } = require('../utils/rabbitmq');
 const { updateProfileSchema } = require('../validations/userValidation');
+const { randomUUID } = require('crypto');
 
 
 const getMyProfile = async (req, res) => {
@@ -206,65 +207,89 @@ const toggleFollow = async (req, res) => {
       let status = '';
       let isFollowing = false;
 
-      // Langkah 2 (WRITE): Execute updates
+      // Langkah 2 (WRITE): Execute updates (Sequential for reliability)
       if (existingFollow) {
         // UNFOLLOW
         status = 'UNFOLLOWED';
         isFollowing = false;
 
-        await Promise.all([
-          tx.follow.delete({
-            where: { id: existingFollow.id }
-          }),
-          tx.user.update({
-            where: { id: followerId },
-            data: { followingCount: { decrement: 1 } }
-          }),
-          tx.user.update({
-            where: { id: followingId },
-            data: { followersCount: { decrement: 1 } }
-          })
-        ]);
+        await tx.follow.delete({
+          where: { id: existingFollow.id }
+        });
+        
+        await tx.user.update({
+          where: { id: followerId },
+          data: { followingCount: { decrement: 1 } }
+        });
+        
+        await tx.user.update({
+          where: { id: followingId },
+          data: { followersCount: { decrement: 1 } }
+        });
       } else {
         // FOLLOW
         status = 'FOLLOWED';
         isFollowing = true;
 
-        await Promise.all([
-          tx.follow.create({
-            data: {
-              followerId,
-              followingId
-            }
-          }),
-          tx.user.update({
-            where: { id: followerId },
-            data: { followingCount: { increment: 1 } }
-          }),
-          tx.user.update({
-            where: { id: followingId },
-            data: { followersCount: { increment: 1 } }
-          })
-        ]);
+        await tx.follow.create({
+          data: {
+            followerId,
+            followingId
+          }
+        });
+        
+        await tx.user.update({
+          where: { id: followerId },
+          data: { followingCount: { increment: 1 } }
+        });
+        
+        await tx.user.update({
+          where: { id: followingId },
+          data: { followersCount: { increment: 1 } }
+        });
       }
 
       return { status, isFollowing };
     });
 
-    // RabbitMQ Publish (Fire and Forget)
-    const eventData = {
-      event: result.status,
-      timestamp: new Date().toISOString(),
-      actor: {
-        id: req.user.id,
-        username: req.user.username,
-        name: req.user.name,
-        avatar: req.user.avatarUrl
-      },
-      target: { id: followingId }
-    };
-    
-    publishEvent(`user.${result.status.toLowerCase()}`, eventData);
+    // 3. RabbitMQ Publish (Async - Non Blocking)
+    try {
+      let eventPayload;
+      let routingKey;
+
+      if (result.status === 'FOLLOWED') {
+        routingKey = 'user.followed';
+        eventPayload = {
+          event_id: randomUUID(),
+          event_type: 'user.followed',
+          timestamp: new Date().toISOString(),
+          data: {
+            follower_id: followerId,
+            followed_id: followingId,
+            follower_info: {
+              username: checkFollower.username,
+              name: checkFollower.name,
+              avatar_url: checkFollower.avatarUrl
+            }
+          }
+        };
+      } else {
+        routingKey = 'user.unfollowed';
+        eventPayload = {
+          event_id: randomUUID(),
+          event_type: 'user.unfollowed',
+          timestamp: new Date().toISOString(),
+          data: {
+            follower_id: followerId,
+            followed_id: followingId
+          }
+        };
+      }
+
+      await publishEvent(routingKey, eventPayload);
+    } catch (mqError) {
+      req.log.error({ err: mqError }, `Failed to publish ${result.status.toLowerCase()} event`);
+    }
 
     // LOG: Info Success
     req.log.info({ 
@@ -544,8 +569,15 @@ const updateUserProfile = async (req, res) => {
       });
     }
 
+
     const { name, bio, jobTitle, avatarUrl, socialLinks } = validation.data;
     const bodyKeys = Object.keys(validation.data || {});
+
+    // 1.5 Ambil data lama sebelum update untuk event RabbitMQ
+    const oldUserData = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { socialLinks: true }
+    });
 
     // LOG: Warn if empty update
     if (bodyKeys.length === 0) {
@@ -589,26 +621,42 @@ const updateUserProfile = async (req, res) => {
       return updatedUser;
     });
 
-    // 3. RabbitMQ Publish (Jika Identitas Visual Berubah)
-    // Cek apakah identity penting berubah
-    const isIdentityChanged = (name && name !== req.user.name) || 
-                              (jobTitle && jobTitle !== req.user.jobTitle) || 
-                              (avatarUrl && avatarUrl !== req.user.avatarUrl);
-
-    if (isIdentityChanged) {
+    // 3. RabbitMQ Publish (user.updated)
+    try {
       const eventData = {
-        event: 'PROFILE_UPDATED',
+        event_id: randomUUID(),
+        event_type: 'user.updated',
         timestamp: new Date().toISOString(),
         data: {
-          id: result.id,
-          username: result.username, // Immutable
-          name: result.name,
-          jobTitle: result.jobTitle,
-          avatar: result.avatarUrl
+          user_id: userId,
+          old_data: {
+            name: oldUserData.name,
+            bio: oldUserData.bio,
+            job_title: oldUserData.jobTitle,
+            avatar_url: oldUserData.avatarUrl,
+            social_links: oldUserData.socialLinks.map(sl => ({
+              social: sl.social,
+              link: sl.link,
+              username: sl.username
+            }))
+          },
+          new_data: {
+            name: name !== undefined ? name : oldUserData.name,
+            bio: bio !== undefined ? bio : oldUserData.bio,
+            job_title: jobTitle !== undefined ? jobTitle : oldUserData.jobTitle,
+            avatar_url: avatarUrl !== undefined ? avatarUrl : oldUserData.avatarUrl,
+            social_links: socialLinks ? socialLinks : oldUserData.socialLinks.map(sl => ({
+              social: sl.social,
+              link: sl.link,
+              username: sl.username
+            }))
+          }
         }
       };
       
-      publishEvent('user.profile.updated', eventData);
+      await publishEvent('user.updated', eventData);
+    } catch (mqError) {
+      req.log.error({ err: mqError }, 'Failed to publish user.updated event');
     }
 
     // 4. Fetch Complete Data (with Social Links) untuk Response

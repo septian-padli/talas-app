@@ -124,9 +124,19 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 ---
 
-## 7. Collaborator Rules (Edge Cases)
+## 7. Testing Strategy & Infrastructure
+### A. Integration Testing (User Service)
+* **Framework:** Jest + Supertest.
+* **Database Strategy:** 
+    * Menggunakan database terisolasi `talas_db_test` (Dockerized Postgres).
+    * `tests/setup.js`: Otomatis sinkronisasi schema (`db push`) dan truncate table sebelum setiap tes.
+* **Scope:** 
+    * **Auth Module:** Register, Login, Logout, Refresh Token, Me.
+    * **User Module:** Public Profile, Private Profile, Follow/Unfollow, Update Profile.
+* **Execution:** `npm run test:integration` (Load `.env.test`).
+* **Coverage:** 52 Test Cases (Positive, Negative, Edge Cases).
 
-### A. Leave & Ownership Transfer
+## 8. Collaborator Rules (Edge Cases)
 * Collaborator bisa **leave sendiri** dari project.
 * Owner **TIDAK BISA** kick/remove collaborator lain.
 * Jika owner leave dan ada collaborator lain:
@@ -143,7 +153,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 ---
 
-## 8. Like/Unlike Flow (Event-Driven)
+## 9. Like/Unlike Flow (Event-Driven)
 
 ### A. Frontend (Optimistic UI)
 1. User klik tombol Like/Unlike.
@@ -170,7 +180,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 ---
 
-## 9. Trending Feed (Rolling 7 Days Window)
+## 10. Trending Feed (Rolling 7 Days Window)
 
 ### Strategy: Daily Buckets + ZUNIONSTORE - (TODO: Verify Implementation)
 
@@ -206,7 +216,7 @@ EXPIRE trending:{YYYY-MM-DD} 691200  # 8 hari dalam detik
 
 ---
 
-## 10. Notification Batching (Smart Aggregation)
+## 12. Notification Batching (Smart Aggregation)
 
 ### Logic di Worker (saat menerima event Like):
 1. Cek DB Notifikasi: Ada notifikasi tipe `LIKE` untuk `project_id` ini dengan status `UNREAD`?
