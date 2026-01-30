@@ -142,8 +142,14 @@ func seedCategories(db *gorm.DB) {
 	}
 }
 
-// setupIntegrationApp initializes the app with Real DB but Mocked External Services
+// setupIntegrationApp initializes the app (Backward Compatibility)
 func setupIntegrationApp() (*fiber.App, *gorm.DB) {
+	app, db, _ := setupIntegrationAppWithMock()
+	return app, db
+}
+
+// setupIntegrationAppWithMock initializes the app with Real DB but Mocked External Services
+func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	// 1. Config & Logger
 	cfg := config.LoadConfig()
 	cfg.DBName = "talas_content_test" // Ensure config used by others also points to test DB
@@ -199,6 +205,7 @@ func setupIntegrationApp() (*fiber.App, *gorm.DB) {
 	protected.Patch("/collaborations/:id/response", h.RespondInvitation)
 	
 	protected.Post("/showcases/:id/like", h.ToggleLike)
+	protected.Post("/showcases/:id/bookmark", h.ToggleBookmark)
 	protected.Post("/comments/:id/like", h.ToggleCommentLike)
 	
 	protected.Post("/showcases/:id/comments", h.CreateComment)
@@ -207,5 +214,5 @@ func setupIntegrationApp() (*fiber.App, *gorm.DB) {
 	protected.Delete("/comments/:id", h.DeleteComment)
 	// Add other routes as needed for tests
 
-	return app, db
+	return app, db, mockEventPublisher
 }

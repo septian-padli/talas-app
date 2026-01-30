@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
@@ -14,7 +15,7 @@ import (
 
 func TestDeleteComment_SuccessTombstone(t *testing.T) {
 	// 1. Setup
-	app, db := setupIntegrationApp()
+	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Data
 	userA := uuid.New() // Owner of Parent
@@ -92,6 +93,22 @@ func TestDeleteComment_SuccessTombstone(t *testing.T) {
 	err = db.Where("id = ?", childID).First(&childDB).Error
 	assert.NoError(t, err)
 	assert.False(t, childDB.DeletedAt.Valid, "Child should NOT be deleted")
+
+	// 8. Verify RabbitMQ Event
+	time.Sleep(100 * time.Millisecond) // Wait for async publish
+	
+	if len(mockPub.Events) == 0 {
+		t.Fatal("Event should be published")
+	}
+	lastEvent := mockPub.Events[len(mockPub.Events)-1]
+	assert.Equal(t, "comment.deleted", lastEvent["routingKey"])
+	
+	eventData, ok := lastEvent["data"].(map[string]interface{})
+	assert.True(t, ok)
+	
+	assert.Equal(t, parentID, eventData["comment_id"])
+	assert.Equal(t, showcaseID, eventData["showcase_id"])
+	assert.Equal(t, userA, eventData["user_id"])
 }
 
 func TestDeleteComment_Forbidden(t *testing.T) {

@@ -17,7 +17,7 @@ import (
 
 func TestUpdateShowcase_Success(t *testing.T) {
 	// 1. Setup
-	app, db := setupIntegrationApp()
+	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Data
 	userA := uuid.New()
@@ -66,6 +66,20 @@ func TestUpdateShowcase_Success(t *testing.T) {
 	assert.Equal(t, "New Title", showcaseDB.Title)
 	// Check updated_at is recent (within last minute)
 	assert.True(t, showcaseDB.UpdatedAt.After(time.Now().Add(-1*time.Minute)))
+
+	// 9. Verify RabbitMQ Event
+	time.Sleep(50 * time.Millisecond) // Wait for async publish
+	
+	assert.NotEmpty(t, mockPub.Events, "Event should be published")
+	lastEvent := mockPub.Events[len(mockPub.Events)-1]
+	assert.Equal(t, "showcase.updated", lastEvent["routingKey"])
+	
+	// eventData IS the payload
+	eventData, ok := lastEvent["data"].(map[string]interface{})
+	assert.True(t, ok)
+	
+	assert.Equal(t, showcaseID, eventData["id"])
+	assert.Equal(t, "New Title", eventData["title"])
 }
 
 func TestUpdateShowcase_Forbidden(t *testing.T) {

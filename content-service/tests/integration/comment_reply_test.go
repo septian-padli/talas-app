@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
@@ -16,7 +17,7 @@ import (
 
 func TestReplyComment_Success(t *testing.T) {
 	// 1. Setup
-	app, db := setupIntegrationApp()
+	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Data
 	userA := uuid.New() // Author of Root
@@ -89,6 +90,23 @@ func TestReplyComment_Success(t *testing.T) {
 	assert.Equal(t, showcaseID, replyDB.ShowcaseID)
 	assert.NotNil(t, replyDB.ParentID)
 	assert.Equal(t, rootCommentID, *replyDB.ParentID)
+
+	// 7. Verify RabbitMQ Event
+	time.Sleep(50 * time.Millisecond)
+	
+	assert.NotEmpty(t, mockPub.Events, "Event should be published")
+	lastEvent := mockPub.Events[len(mockPub.Events)-1]
+	assert.Equal(t, "comment.replied", lastEvent["routingKey"])
+	
+	eventData, ok := lastEvent["data"].(map[string]interface{})
+	assert.True(t, ok)
+	
+	assert.Equal(t, replyDB.ID, eventData["reply_id"])
+	assert.Equal(t, rootCommentID, eventData["parent_id"])
+	assert.Equal(t, showcaseID, eventData["showcase_id"])
+	assert.Equal(t, userB, eventData["actor_id"])
+	assert.Equal(t, userA, eventData["target_user_id"]) // Parent Author
+	assert.Equal(t, userA, eventData["showcase_owner_id"]) // Showcase Owner
 }
 
 func TestReplyComment_FailedNotFound(t *testing.T) {

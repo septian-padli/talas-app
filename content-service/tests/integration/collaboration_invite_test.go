@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
@@ -16,7 +17,7 @@ import (
 
 func TestInviteCollaborator_Success(t *testing.T) {
 	// 1. Setup App & DB
-	app, db := setupIntegrationApp()
+	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Prepare Data: User A (Owner) & User B (Invitee)
 	userA := uuid.New()
@@ -76,6 +77,26 @@ func TestInviteCollaborator_Success(t *testing.T) {
 	err = db.Where("showcase_id = ? AND role = ?", showcase.ID, entity.CollaborationRoleCollaborator).First(&newCol).Error
 	assert.NoError(t, err)
 	assert.Equal(t, entity.CollaborationStatusPending, newCol.Status)
+
+	// 8. Verify RabbitMQ Event
+	time.Sleep(100 * time.Millisecond)
+	
+	assert.NotEmpty(t, mockPub.Events, "Event should be published")
+	lastEvent := mockPub.Events[len(mockPub.Events)-1]
+	assert.Equal(t, "collaborator.invited", lastEvent["routingKey"])
+	
+	eventData, ok := lastEvent["data"].(map[string]interface{})
+	assert.True(t, ok)
+	
+	assert.Equal(t, newCol.ID, eventData["invitation_id"])
+	assert.Equal(t, showcase.ID, eventData["showcase_id"])
+	assert.Equal(t, "Project Alpha", eventData["showcase_title"])
+	assert.Equal(t, userA, eventData["inviter_id"])
+	// Inviter Username checks might depend on MockUserClient implementation.
+	// Since standard mock returns "user_test", we can check that or whatever userA resolves to.
+	// We can trust it is string.
+	assert.NotEmpty(t, eventData["inviter_username"])
+	assert.Equal(t, newCol.UserID, eventData["target_user_id"])
 }
 
 func TestInviteCollaborator_Forbidden(t *testing.T) {

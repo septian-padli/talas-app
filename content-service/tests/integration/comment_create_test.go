@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
@@ -16,7 +17,7 @@ import (
 
 func TestCreateComment_SuccessRoot(t *testing.T) {
 	// 1. Setup
-	app, db := setupIntegrationApp()
+	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Data
 	userA := uuid.New()
@@ -35,7 +36,7 @@ func TestCreateComment_SuccessRoot(t *testing.T) {
 		Collaborators: []entity.Collaborator{
 			{
 				Base:   entity.Base{ID: uuid.New()},
-				UserID: uuid.New(),
+				UserID: userA, // Owner is User A
 				Role:   entity.CollaborationRoleOwner,
 				Status: entity.CollaborationStatusAccepted,
 			},
@@ -81,6 +82,21 @@ func TestCreateComment_SuccessRoot(t *testing.T) {
 	err = db.Where("showcase_id = ? AND user_id = ? AND body = ?", showcaseID, userA, "Project yang bagus").First(&commentDB).Error
 	assert.NoError(t, err)
 	assert.Nil(t, commentDB.ParentID)
+
+	// 8. Verify RabbitMQ Event
+	time.Sleep(50 * time.Millisecond)
+	
+	assert.NotEmpty(t, mockPub.Events, "Event should be published")
+	lastEvent := mockPub.Events[len(mockPub.Events)-1]
+	assert.Equal(t, "comment.created", lastEvent["routingKey"])
+	
+	eventData, ok := lastEvent["data"].(map[string]interface{})
+	assert.True(t, ok)
+	
+	assert.Equal(t, commentDB.ID, eventData["comment_id"]) // Check ID from DB
+	assert.Equal(t, showcaseID, eventData["showcase_id"])
+	assert.Equal(t, userA, eventData["actor_id"])
+	assert.Equal(t, userA, eventData["target_user_id"]) // Owner is same as actor here
 }
 
 func TestCreateComment_FailedShowcaseNotFound(t *testing.T) {

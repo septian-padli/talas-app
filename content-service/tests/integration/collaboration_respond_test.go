@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
@@ -16,7 +17,7 @@ import (
 
 func TestRespondInvitation_Success(t *testing.T) {
 	// 1. Setup
-	app, db := setupIntegrationApp()
+	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Data: User A (Owner), User B (Invitee)
 	userA := uuid.New()
@@ -83,6 +84,24 @@ func TestRespondInvitation_Success(t *testing.T) {
 	err = db.Where("id = ?", invitationID).First(&invitation).Error
 	assert.NoError(t, err)
 	assert.Equal(t, entity.CollaborationStatusAccepted, invitation.Status)
+
+	// 9. Verify RabbitMQ Event
+	time.Sleep(100 * time.Millisecond)
+	
+	assert.NotEmpty(t, mockPub.Events, "Event should be published")
+	lastEvent := mockPub.Events[len(mockPub.Events)-1]
+	assert.Equal(t, "collaborator.responded", lastEvent["routingKey"])
+	
+	eventData, ok := lastEvent["data"].(map[string]interface{})
+	assert.True(t, ok)
+	
+	assert.Equal(t, invitationID, eventData["invitation_id"])
+	assert.Equal(t, showcaseID, eventData["showcase_id"])
+	assert.Equal(t, "Project Respond Success", eventData["showcase_title"])
+	assert.Equal(t, "ACCEPTED", eventData["response_status"])
+	assert.Equal(t, userB, eventData["responder_id"])
+	assert.NotEmpty(t, eventData["responder_username"]) // Trust Mock
+	assert.Equal(t, userA, eventData["target_user_id"]) // Showcase Owner
 }
 
 func TestRespondInvitation_Forbidden(t *testing.T) {

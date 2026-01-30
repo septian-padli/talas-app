@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
@@ -16,7 +17,7 @@ import (
 
 func TestCreateShowcase_Success(t *testing.T) {
 	// 1. Setup App & DB
-	app, db := setupIntegrationApp()
+	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Get Valid Category ID
 	var category entity.Category
@@ -86,6 +87,21 @@ func TestCreateShowcase_Success(t *testing.T) {
 	assert.Len(t, showcase.Collaborators, 1)
 	assert.Equal(t, userID, showcase.Collaborators[0].UserID.String())
 	assert.Equal(t, entity.CollaborationRoleOwner, showcase.Collaborators[0].Role)
+
+	// Check RabbitMQ Event (Async)
+	time.Sleep(50 * time.Millisecond) // Wait for goroutine
+	
+	assert.NotEmpty(t, mockPub.Events, "Event should be published")
+	lastEvent := mockPub.Events[len(mockPub.Events)-1]
+	assert.Equal(t, "showcase.created", lastEvent["routingKey"])
+	
+	// eventData IS the payload (Raw Map)
+	eventData, ok := lastEvent["data"].(map[string]interface{})
+	assert.True(t, ok, "Payload should be map")
+	
+	// showcase.ID is uuid.UUID.
+	assert.Equal(t, showcase.ID, eventData["id"])
+	assert.Equal(t, "Integration Test Project", eventData["title"])
 }
 
 func TestCreateShowcase_ValidationError(t *testing.T) {

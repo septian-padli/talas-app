@@ -253,6 +253,22 @@ func (u *showcaseUsecase) UpdateShowcase(ctx context.Context, id uuid.UUID, inpu
 			u.log.Errorf("Failed to update showcase %s: %v", id, err)
 			return nil, errors.New("failed to update showcase")
 		}
+
+		// 5. Publish Event (Async, Fail-safe)
+		go func() {
+			eventData := map[string]interface{}{
+				"id":         showcase.ID,
+				"title":      showcase.Title,
+				"slug":       showcase.Slug,
+				"updated_at": showcase.UpdatedAt,
+				"user_id":    userID,
+			}
+			if err := u.eventPublisher.Publish(context.Background(), "showcase.updated", eventData); err != nil {
+				u.log.Errorf("Failed to publish showcase.updated event: %v", err)
+			} else {
+				u.log.Debugf("Published showcase.updated event for %s", showcase.ID)
+			}
+		}()
 	}
 	
 	return showcase, nil
@@ -269,12 +285,42 @@ func (u *showcaseUsecase) ToggleLike(ctx context.Context, userID uuid.UUID, show
 		return false, errors.New("showcase not found")
 	}
 
+	// Extract Owner ID for notification
+	var ownerID uuid.UUID
+	for _, col := range showcase.Collaborators {
+		if col.Role == entity.CollaborationRoleOwner {
+			ownerID = col.UserID
+			break
+		}
+	}
+
 	// 2. Toggle in Repo
 	isLiked, err := u.repo.ToggleLike(userID, showcaseID)
 	if err != nil {
 		u.log.Errorf("Failed to toggle like: %v", err)
 		return false, errors.New("failed to toggle like")
 	}
+
+	// 3. Publish Event (Async, Fail-safe)
+	go func() {
+		routingKey := "showcase.unliked"
+		if isLiked {
+			routingKey = "showcase.liked"
+		}
+
+		eventData := map[string]interface{}{
+			"showcase_id":    showcaseID,
+			"actor_id":       userID,
+			"target_user_id": ownerID,
+		}
+
+		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+			u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+		} else {
+			u.log.Debugf("Published %s event for showcase %s", routingKey, showcaseID)
+		}
+	}()
+
 	return isLiked, nil
 }
 
@@ -294,6 +340,26 @@ func (u *showcaseUsecase) ToggleBookmark(ctx context.Context, userID uuid.UUID, 
 		u.log.Errorf("Failed to toggle bookmark: %v", err)
 		return false, errors.New("failed to toggle bookmark")
 	}
+
+	// 3. Publish Event (Async, Fail-safe)
+	go func() {
+		routingKey := "showcase.unbookmarked"
+		if isBookmarked {
+			routingKey = "showcase.bookmarked"
+		}
+
+		eventData := map[string]interface{}{
+			"showcase_id": showcaseID,
+			"actor_id":    userID,
+		}
+
+		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+			u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+		} else {
+			u.log.Debugf("Published %s event for showcase %s", routingKey, showcaseID)
+		}
+	}()
+
 	return isBookmarked, nil
 }
 
@@ -359,8 +425,6 @@ func (u *showcaseUsecase) CreateComment(ctx context.Context, showcaseID uuid.UUI
 	}
 
 	// 5. Populate Author Info
-	// Fetch both Author and Parent Author (if reply) in one go if possible, or separately.
-	// Only Author needed for response.
 	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
 	if err == nil {
 		if userDetail, ok := usersMap[userID]; ok {
@@ -374,6 +438,68 @@ func (u *showcaseUsecase) CreateComment(ctx context.Context, showcaseID uuid.UUI
 	} else {
 		u.log.Warnf("Failed to fetch comment author info: %v", err)
 	}
+
+	// 6. Publish Event (Async, Fail-safe)
+	// Need Showcase Owner ID
+	var showcaseOwnerID uuid.UUID
+	for _, col := range showcase.Collaborators {
+		if col.Role == entity.CollaborationRoleOwner {
+			showcaseOwnerID = col.UserID
+			break
+		}
+	}
+
+	go func() {
+		// Determine Event Type and Payload
+		var routingKey string
+		var eventData map[string]interface{}
+		
+		if comment.ParentID != nil {
+			// It is a REPLY
+			routingKey = "comment.replied"
+			
+			// We need Parent Author ID. We fetched ParentComment in Step 3.
+			// But variables in Step 3 are scoped. We need to fetch Parent again or restructure.
+			// Re-fetching parent for event safety or use closure if refactoring.
+			// Since Step 3 logic is inside `if`, we can't easily access `parentComment` here unless we declare it outside.
+			// Let's re-fetch briefly or better, refactor Step 3 to bubble up `parentComment`.
+			// Since I am editing a chunk, I can't easily change the scope of Step 3 variables without a larger chunk.
+			// I will fetch parent again inside this goroutine or check if I can modify Step 3 scope.
+			// Modifying Step 3 scope requires replacing lines 389-419 which is large.
+			// Let's use repo to get parent author ID inside goroutine for simplicity/safety against scope issues.
+			
+			parent, err := u.repo.GetCommentByID(*comment.ParentID)
+			if err == nil && parent != nil {
+				eventData = map[string]interface{}{
+					"reply_id":          comment.ID,
+					"parent_id":         *comment.ParentID,
+					"showcase_id":       showcaseID,
+					"actor_id":          userID,
+					"target_user_id":    parent.UserID, // Parent Author
+					"showcase_owner_id": showcaseOwnerID,
+					"content":           input.Content,
+				}
+			}
+		} else {
+			// It is a DIRECT COMMENT
+			routingKey = "comment.created"
+			eventData = map[string]interface{}{
+				"comment_id":     comment.ID,
+				"showcase_id":    showcaseID,
+				"content":        input.Content,
+				"actor_id":       userID,
+				"target_user_id": showcaseOwnerID, // Showcase Author
+			}
+		}
+
+		if eventData != nil {
+			if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+				u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+			} else {
+				u.log.Debugf("Published %s event for comment %s", routingKey, comment.ID)
+			}
+		}
+	}()
 
 	return comment, nil
 }
@@ -584,6 +710,22 @@ func (u *showcaseUsecase) DeleteComment(ctx context.Context, id uuid.UUID, userI
 		return errors.New("failed to delete comment")
 	}
 
+	// 4. Publish Event (Async, Fail-safe)
+	go func() {
+		routingKey := "comment.deleted"
+		eventData := map[string]interface{}{
+			"comment_id":     id,
+			"showcase_id":    comment.ShowcaseID,
+			"user_id":        comment.UserID,
+		}
+
+		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+			u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+		} else {
+			u.log.Debugf("Published %s event for comment %s", routingKey, id)
+		}
+	}()
+
 	return nil
 }
 
@@ -603,6 +745,27 @@ func (u *showcaseUsecase) ToggleCommentLike(ctx context.Context, userID uuid.UUI
 		u.log.Errorf("Failed to toggle like on comment %s: %v", commentID, err)
 		return false, 0, errors.New("failed to toggle like")
 	}
+
+	// 3. Publish Event (Async, Fail-safe)
+	go func() {
+		routingKey := "comment.unliked"
+		if isLiked {
+			routingKey = "comment.liked"
+		}
+
+		eventData := map[string]interface{}{
+			"comment_id":     commentID,
+			"showcase_id":    comment.ShowcaseID,
+			"actor_id":       userID,
+			"target_user_id": comment.UserID,
+		}
+
+		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+			u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+		} else {
+			u.log.Debugf("Published %s event for comment %s", routingKey, commentID)
+		}
+	}()
 
 	return isLiked, likesCount, nil
 }
@@ -674,58 +837,89 @@ func (u *showcaseUsecase) RemoveCollaborator(ctx context.Context, showcaseID uui
 
 	// 3. Logic Branching
 	isSelfAction := (targetUserID == actorUserID)
+	var finalOwnerID uuid.UUID
+	
+	// Identify current owner
+	for _, c := range showcase.Collaborators {
+		if c.Role == entity.CollaborationRoleOwner {
+			finalOwnerID = c.UserID
+			break
+		}
+	}
 
 	// Scenario A: LEAVE (Self Action)
 	if isSelfAction {
 		// If NOT owner -> Just leave
 		if actorCol.Role != entity.CollaborationRoleOwner {
-			return u.repo.DeleteCollaborator(showcaseID, actorUserID)
-		}
+			if err := u.repo.DeleteCollaborator(showcaseID, actorUserID); err != nil {
+				return err
+			}
+		} else {
+			// If OWNER -> Check successors
+			var successors []entity.Collaborator
+			for _, c := range showcase.Collaborators {
+				if c.UserID != actorUserID && c.Status == entity.CollaborationStatusAccepted {
+					successors = append(successors, c)
+				}
+			}
 
-		// If OWNER -> Check successors
-		// Count other ACCEPTED collaborators
-		var successors []entity.Collaborator
-		for _, c := range showcase.Collaborators {
-			if c.UserID != actorUserID && c.Status == entity.CollaborationStatusAccepted {
-				successors = append(successors, c)
+			if len(successors) == 0 {
+				return errors.New("forbidden: sole owner cannot leave. please delete the showcase instead")
+			}
+
+			// Find Oldest Successor
+			oldest := successors[0]
+			for _, s := range successors {
+				if s.CreatedAt.Before(oldest.CreatedAt) {
+					oldest = s
+				}
+			}
+
+			// Transfer Ownership
+			if err := u.repo.UpdateCollaboratorRole(showcaseID, oldest.UserID, entity.CollaborationRoleOwner); err != nil {
+				return err
+			}
+			finalOwnerID = oldest.UserID // Owner changed
+
+			// Delete Self
+			if err := u.repo.DeleteCollaborator(showcaseID, actorUserID); err != nil {
+				return err
 			}
 		}
-
-		if len(successors) == 0 {
-			return errors.New("forbidden: sole owner cannot leave. please delete the showcase instead")
+	} else {
+		// Scenario B: KICK (Actor != Target)
+		if actorCol.Role != entity.CollaborationRoleOwner {
+			return errors.New("forbidden: only owner can remove members")
+		}
+		if targetCol.Role == entity.CollaborationRoleOwner {
+			return errors.New("forbidden: cannot kick another owner")
 		}
 
-		// Find Oldest Successor (Created At ASC)
-		// Assuming collaborators are not strictly sorted by created_at in preload, let's sort or find min
-		oldest := successors[0] // pointer copy from slice
-		for _, s := range successors {
-			if s.CreatedAt.Before(oldest.CreatedAt) {
-				oldest = s
-			}
-		}
-
-		// Transfer Ownership & Leave
-		// 1. Promote Successor
-		if err := u.repo.UpdateCollaboratorRole(showcaseID, oldest.UserID, entity.CollaborationRoleOwner); err != nil {
+		if err := u.repo.DeleteCollaborator(showcaseID, targetUserID); err != nil {
 			return err
 		}
-		// 2. Delete Self
-		return u.repo.DeleteCollaborator(showcaseID, actorUserID)
 	}
 
-	// Scenario B: KICK (Actor != Target)
-	// Only Owner can kick
-	if actorCol.Role != entity.CollaborationRoleOwner {
-		return errors.New("forbidden: only owner can remove members")
-	}
-	
-	// Owner cannot kick another Owner (if multiple owners exist in future, but for now strict)
-	// Or if transferring process.
-	if targetCol.Role == entity.CollaborationRoleOwner {
-		return errors.New("forbidden: cannot kick another owner")
-	}
+	// 4. Publish Event (Async, Fail-safe)
+	go func() {
+		routingKey := "collaborator.removed"
+		eventData := map[string]interface{}{
+			"showcase_id":       showcaseID,
+			"showcase_title":    showcase.Title,
+			"actor_id":          actorUserID,
+			"target_user_id":    targetUserID,
+			"is_self_removal":   isSelfAction,
+			"showcase_owner_id": finalOwnerID,
+		}
 
-	return u.repo.DeleteCollaborator(showcaseID, targetUserID)
+		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+			u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+		} else {
+			u.log.Debugf("Published %s event for user %s", routingKey, targetUserID)
+		}
+	}()
+
+	return nil
 }
 
 func (u *showcaseUsecase) GetCollaborators(ctx context.Context, showcaseID uuid.UUID, userID uuid.UUID) ([]entity.Collaborator, error) {
@@ -867,6 +1061,9 @@ func (u *showcaseUsecase) InviteCollaborators(ctx context.Context, showcaseID uu
 			Status:     entity.CollaborationStatusPending,
 			ExpiredAt:  time.Now().Add(7 * 24 * time.Hour), // 7 days
 		}
+		// Explicitly generate ID for event usage
+		newCol.ID = uuid.New()
+		
 		newCollaborators = append(newCollaborators, newCol)
 		invitedUsernames = append(invitedUsernames, username)
 	}
@@ -879,6 +1076,38 @@ func (u *showcaseUsecase) InviteCollaborators(ctx context.Context, showcaseID uu
 	if err := u.repo.AddCollaborators(newCollaborators); err != nil {
 		return nil, err
 	}
+
+	// 5. Publish Events (Async, Loop)
+	go func() {
+		// Fetch Inviter Info
+		inviterUsername := ""
+		inviterMap, err := u.userClient.GetUsersBulk([]uuid.UUID{actorUserID})
+		if err == nil {
+			if inviter, ok := inviterMap[actorUserID]; ok {
+				inviterUsername = inviter.Username
+			}
+		} else {
+			u.log.Warnf("Failed to fetch inviter info for event: %v", err)
+		}
+
+		for _, col := range newCollaborators {
+			routingKey := "collaborator.invited"
+			eventData := map[string]interface{}{
+				"invitation_id":    col.ID,
+				"showcase_id":      showcaseID,
+				"showcase_title":   showcase.Title,
+				"inviter_id":       actorUserID,
+				"inviter_username": inviterUsername,
+				"target_user_id":   col.UserID,
+			}
+
+			if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+				u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+			} else {
+				u.log.Debugf("Published %s event for user %s", routingKey, col.UserID)
+			}
+		}
+	}()
 
 	return invitedUsernames, nil
 }
@@ -909,7 +1138,58 @@ func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, a
 	}
 
 	// 4. Update
-	return u.repo.UpdateCollaboratorStatus(id, response)
+	if err := u.repo.UpdateCollaboratorStatus(id, response); err != nil {
+		return err
+	}
+
+	// 5. Publish Event (Async, Fail-safe)
+	// Need Showcase Title, Owner ID, Responder Username
+	go func() {
+		// Fetch Showcase for Title & Owner
+		showcase, err := u.repo.GetByID(invitation.ShowcaseID)
+		if err != nil || showcase == nil {
+			u.log.Warnf("Failed to fetch showcase for RespondInvitation event: %v", err)
+			return
+		}
+
+		var ownerID uuid.UUID
+		for _, c := range showcase.Collaborators {
+			if c.Role == entity.CollaborationRoleOwner {
+				ownerID = c.UserID
+				break
+			}
+		}
+
+		// Fetch Responder Username
+		responderUsername := ""
+		usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{actorUserID})
+		if err == nil {
+			if user, ok := usersMap[actorUserID]; ok {
+				responderUsername = user.Username
+			}
+		} else {
+			u.log.Warnf("Failed to fetch responder info: %v", err)
+		}
+
+		routingKey := "collaborator.responded"
+		eventData := map[string]interface{}{
+			"invitation_id":      id,
+			"showcase_id":        invitation.ShowcaseID,
+			"showcase_title":     showcase.Title,
+			"response_status":    response,
+			"responder_id":       actorUserID,
+			"responder_username": responderUsername,
+			"target_user_id":     ownerID,
+		}
+
+		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+			u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+		} else {
+			u.log.Debugf("Published %s event for invitation %s", routingKey, id)
+		}
+	}()
+
+	return nil
 }
 
 func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*entity.Showcase, error) {

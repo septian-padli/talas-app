@@ -14,23 +14,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestToggleCommentLike_Success(t *testing.T) {
+func TestToggleBookmark_Bookmark(t *testing.T) {
 	// 1. Setup
 	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Data
 	userA := uuid.New()
 	showcaseID := uuid.New()
-	commentID := uuid.New()
 
-	// 3. Seed Showcase & Comment
+	// 3. Seed Showcase
 	var category entity.Category
 	db.First(&category)
 
 	showcase := entity.Showcase{
 		Base:       entity.Base{ID: showcaseID},
-		Title:      "Showcase for Comment Like",
-		Slug:       "showcase-comment-like-" + uuid.New().String(),
+		Title:      "Project to Bookmark",
+		Slug:       "project-to-bookmark-" + uuid.New().String(),
 		Content:    "Content",
 		CategoryID: category.ID,
 		Collaborators: []entity.Collaborator{
@@ -42,26 +41,16 @@ func TestToggleCommentLike_Success(t *testing.T) {
 			},
 		},
 	}
-	err := db.Create(&showcase).Error
-	assert.NoError(t, err)
+	db.Create(&showcase)
 
-	comment := entity.Comment{
-		Base:       entity.Base{ID: commentID},
-		ShowcaseID: showcaseID,
-		UserID:     uuid.New(), // Comment Author (Target User)
-		Body:       "Great stuff!",
-	}
-	err = db.Create(&comment).Error
-	assert.NoError(t, err)
+	// Ensure NO existing bookmark
+	db.Where("user_id = ? AND showcase_id = ?", userA, showcaseID).Delete(&entity.Bookmark{})
 
-	// Ensure NO existing like
-	db.Where("user_id = ? AND comment_id = ?", userA, commentID).Delete(&entity.CommentLike{})
-
-	// 4. Token for User A (Liker)
+	// 4. Token for User A
 	token, _ := helper.GenerateTestToken(userA.String())
 
 	// 5. Execute Request
-	req := httptest.NewRequest("POST", fmt.Sprintf("/api/comments/%s/like", commentID), nil)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/showcases/%s/bookmark", showcaseID), nil)
 	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 
 	resp, err := app.Test(req, -1)
@@ -74,74 +63,69 @@ func TestToggleCommentLike_Success(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&response)
 
 	assert.Equal(t, true, response["success"])
-	
-	// Check data payload: {"liked": true} 
 	data := response["data"].(map[string]interface{})
-	assert.Equal(t, true, data["liked"])
-	// assert.Equal(t, float64(1), data["likes_count"]) // float64 because json unmarshal numbers
+	assert.Equal(t, true, data["is_bookmarked"])
 
 	// Check DB
-	var likeCount int64
-	db.Model(&entity.CommentLike{}).Where("user_id = ? AND comment_id = ?", userA, commentID).Count(&likeCount)
-	assert.Equal(t, int64(1), likeCount)
+	var bookmarkCount int64
+	db.Model(&entity.Bookmark{}).Where("user_id = ? AND showcase_id = ?", userA, showcaseID).Count(&bookmarkCount)
+	assert.Equal(t, int64(1), bookmarkCount)
 
 	// 7. Verify RabbitMQ Event
 	time.Sleep(50 * time.Millisecond)
 	
 	assert.NotEmpty(t, mockPub.Events, "Event should be published")
 	lastEvent := mockPub.Events[len(mockPub.Events)-1]
-	assert.Equal(t, "comment.liked", lastEvent["routingKey"])
+	assert.Equal(t, "showcase.bookmarked", lastEvent["routingKey"])
 	
 	eventData, ok := lastEvent["data"].(map[string]interface{})
 	assert.True(t, ok)
 	
-	assert.Equal(t, commentID, eventData["comment_id"])
 	assert.Equal(t, showcaseID, eventData["showcase_id"])
 	assert.Equal(t, userA, eventData["actor_id"])
-	assert.Equal(t, comment.UserID, eventData["target_user_id"])
 }
 
-func TestToggleCommentLike_Unlike(t *testing.T) {
+func TestToggleBookmark_Unbookmark(t *testing.T) {
 	// 1. Setup
 	app, db, mockPub := setupIntegrationAppWithMock()
 
 	// 2. Data
 	userA := uuid.New()
 	showcaseID := uuid.New()
-	commentID := uuid.New()
 
-	// 3. Seed Showcase & Comment with Like
+	// 3. Seed Showcase with Existing Bookmark
 	var category entity.Category
 	db.First(&category)
 
 	showcase := entity.Showcase{
 		Base:       entity.Base{ID: showcaseID},
-		Title:      "Showcase for Comment Unlike",
-		Slug:       "showcase-comment-unlike-" + uuid.New().String(),
+		Title:      "Project to Unbookmark",
+		Slug:       "project-to-unbookmark-" + uuid.New().String(),
 		Content:    "Content",
 		CategoryID: category.ID,
 		Collaborators: []entity.Collaborator{
-			{UserID: uuid.New(), Role: entity.CollaborationRoleOwner, Status: entity.CollaborationStatusAccepted},
+			{
+				Base:   entity.Base{ID: uuid.New()},
+				UserID: uuid.New(),
+				Role:   entity.CollaborationRoleOwner,
+				Status: entity.CollaborationStatusAccepted,
+			},
 		},
 	}
 	db.Create(&showcase)
 
-	comment := entity.Comment{
-		Base:       entity.Base{ID: commentID},
+	// Create existing bookmark
+	bookmark := entity.Bookmark{
+		UserID:     userA,
 		ShowcaseID: showcaseID,
-		UserID:     uuid.New(),
-		Body:       "Liked comment",
 	}
-	db.Create(&comment)
-
-	// Create existing like
-	db.Create(&entity.CommentLike{UserID: userA, CommentID: commentID})
+	db.Create(&bookmark)
 
 	// 4. Token for User A
 	token, _ := helper.GenerateTestToken(userA.String())
 
-	// 5. Execute Request
-	req := httptest.NewRequest("POST", fmt.Sprintf("/api/comments/%s/like", commentID), nil)
+	// 5. Execute Request (Toggle to Unbookmark)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/showcases/%s/bookmark", showcaseID), nil)
 	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 
 	resp, err := app.Test(req, -1)
@@ -153,43 +137,25 @@ func TestToggleCommentLike_Unlike(t *testing.T) {
 	var response map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&response)
 
+	assert.Equal(t, true, response["success"])
 	data := response["data"].(map[string]interface{})
-	assert.Equal(t, false, data["liked"])
+	assert.Equal(t, false, data["is_bookmarked"]) // Should be unbookmarked
+
+	// Check DB (Bookmark should be removed)
+	var bookmarkCount int64
+	db.Model(&entity.Bookmark{}).Where("user_id = ? AND showcase_id = ?", userA, showcaseID).Count(&bookmarkCount)
+	assert.Equal(t, int64(0), bookmarkCount)
 
 	// 7. Verify RabbitMQ Event
 	time.Sleep(50 * time.Millisecond)
 	
 	assert.NotEmpty(t, mockPub.Events, "Event should be published")
 	lastEvent := mockPub.Events[len(mockPub.Events)-1]
-	assert.Equal(t, "comment.unliked", lastEvent["routingKey"])
+	assert.Equal(t, "showcase.unbookmarked", lastEvent["routingKey"])
 	
 	eventData, ok := lastEvent["data"].(map[string]interface{})
 	assert.True(t, ok)
 	
-	assert.Equal(t, commentID, eventData["comment_id"])
 	assert.Equal(t, showcaseID, eventData["showcase_id"])
 	assert.Equal(t, userA, eventData["actor_id"])
-	assert.Equal(t, comment.UserID, eventData["target_user_id"])
-}
-
-func TestToggleCommentLike_NotFound(t *testing.T) {
-	// 1. Setup
-	app, _ := setupIntegrationApp()
-
-	// 2. Data
-	userA := uuid.New()
-	ghostID := uuid.New()
-
-	// 3. Token
-	token, _ := helper.GenerateTestToken(userA.String())
-
-	// 4. Execute
-	req := httptest.NewRequest("POST", fmt.Sprintf("/api/comments/%s/like", ghostID), nil)
-	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
-
-	resp, err := app.Test(req, -1)
-	assert.NoError(t, err)
-
-	// 5. Assertions
-	assert.Equal(t, 404, resp.StatusCode)
 }
