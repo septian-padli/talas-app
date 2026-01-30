@@ -15,6 +15,7 @@ import (
 	"github.com/septianpadli/talas/content-service/pkg/logger"
 	"github.com/septianpadli/talas/content-service/pkg/media"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
+	"github.com/septianpadli/talas/content-service/pkg/rabbitmq"
 )
 
 // Ini adalah fungsi yang akan kita panggil di main.go
@@ -39,6 +40,9 @@ func InitializeApp() (*fiber.App, error) {
 
 		// Clients
 		clients.NewUserClient,
+
+		// RabbitMQ
+		rabbitmq.NewRabbitMQPublisher,
 
 		// Repository
 		repository.NewShowcaseRepository,

@@ -17,6 +17,7 @@ import (
 	"github.com/septianpadli/talas/content-service/pkg/logger"
 	"github.com/septianpadli/talas/content-service/pkg/media"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
+	"github.com/septianpadli/talas/content-service/pkg/rabbitmq"
 )
 
 // Injectors from wire.go:
@@ -33,7 +34,8 @@ func InitializeApp() (*fiber.App, error) {
 	if err != nil {
 		return nil, err
 	}
-	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, userClient, cloudinaryUploader, configConfig, logrusLogger)
+	eventPublisher := rabbitmq.NewRabbitMQPublisher(configConfig, logrusLogger)
+	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, userClient, cloudinaryUploader, eventPublisher, configConfig, logrusLogger)
 	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase, logrusLogger)
 	authMiddleware := middleware.NewAuthMiddleware(configConfig)
 	app := NewFiberApp(db, showcaseHandler, authMiddleware, logrusLogger)

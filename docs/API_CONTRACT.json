@@ -1106,6 +1106,302 @@
 				}
 			}
 		},
+		"/showcases/me": {
+			"get": {
+				"tags": ["Showcases"],
+				"summary": "Get my showcases (Owner)",
+				"description": "Mendapatkan daftar showcase milik user yang sedang login. **Requires Cookie Session (JWT)**. Endpoint ini memungkinkan owner melihat project yang statusnya **Archived**.",
+				"operationId": "getMyShowcases",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"description": "Cursor untuk pagination",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": { "type": "integer", "default": 10 }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List showcase berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/FeedResponse" }
+							}
+						}
+					},
+					"401": { "$ref": "#/components/responses/UnauthorizedError" }
+				}
+			}
+		},
+		"/showcases/{slug}": {
+			"get": {
+				"tags": ["Showcases"],
+				"summary": "Get showcase by slug or id",
+				"description": "Mendapatkan detail showcase berdasarkan slug atau UUID. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response menyertakan data author dan collaborators.",
+				"operationId": "getShowcaseBySlugOrId",
+				"parameters": [
+					{
+						"name": "slug",
+						"in": "path",
+						"required": true,
+						"description": "Slug unik showcase atau UUID",
+						"schema": {
+							"type": "string",
+							"example": "building-a-modern-dashboard-with-nextjs"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Showcase ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ShowcaseDetailResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"showcase": {
+											"id": "550e8400-e29b-41d4-a716-446655440002",
+											"title": "Building a Modern Dashboard with Next.js",
+											"slug": "building-a-modern-dashboard-with-nextjs",
+											"content": "In this project, I built a responsive admin dashboard...",
+											"is_archived": false,
+											"tag": ["nextjs", "react", "dashboard", "tailwindcss"],
+											"count_like": 42,
+											"count_comment": 8,
+											"created_at": "2026-01-27T04:30:00Z",
+											"updated_at": "2026-01-27T04:30:00Z",
+											"is_liked": false,
+											"is_bookmarked": false,
+											"category": {
+												"id": "550e8400-e29b-41d4-a716-446655440001",
+												"title": "Web Development",
+												"slug": "web-development"
+											},
+											"collaborators": [
+												{
+													"id": "collab-uuid-1",
+													"role": "OWNER",
+													"status": "ACCEPTED",
+													"user": {
+														"id": "550e8400-e29b-41d4-a716-446655440000",
+														"username": "johndoe",
+														"name": "John Doe",
+														"avatar_url": "https://res.cloudinary.com/talas/avatar.jpg"
+													}
+												},
+												{
+													"id": "550e8400-e29b-41d4-a716-446655440010",
+													"role": "COLLABORATOR",
+													"status": "ACCEPTED",
+													"user": {
+														"id": "550e8400-e29b-41d4-a716-446655440020",
+														"username": "janedoe",
+														"name": "Jane Doe",
+														"avatar_url": "https://res.cloudinary.com/talas/avatar2.jpg"
+													}
+												}
+											],
+											"media": [
+												{
+													"id": "550e8400-e29b-41d4-a716-446655440003",
+													"url": "https://res.cloudinary.com/talas/image/upload/v1234567890/showcases/dashboard-1.jpg",
+													"type": "image",
+													"alt": "Dashboard overview",
+													"order": 1
+												}
+											]
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Showcase tidak ditemukan atau sudah diarsipkan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 404,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "slug",
+											"message": "Showcase tidak ditemukan"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/showcases/user/{id}": {
+			"get": {
+				"tags": ["Showcases"],
+				"summary": "Get user showcases",
+				"description": "Mendapatkan daftar showcase milik user tertentu. **Public Access (Auth Optional)**. Jika login, status like/bookmark akan disesuaikan. Sort berdasarkan terbaru (latest first).",
+				"operationId": "getUserShowcases",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID user pemilik showcase",
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"description": "Cursor pagination",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Jumlah item per halaman (default: 10)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50,
+							"default": 10,
+							"example": 10
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Daftar showcase berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FeedResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"showcases": [
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440020",
+												"title": "My Portfolio v2",
+												"slug": "my-portfolio-v2",
+												"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover5.jpg",
+												"content": "Updated portfolio with new projects.",
+												"likes_count": 45,
+												"comments_count": 5,
+												"collaborators": [
+													{
+														"id": "collab-uuid-5",
+														"role": "OWNER",
+														"status": "ACCEPTED",
+														"user": {
+															"id": "uuid-targetuser",
+															"username": "targetuser",
+															"name": "Target User",
+															"avatar_url": "https://res.cloudinary.com/talas/avatar/user5.jpg"
+														}
+													}
+												],
+												"is_liked": null,
+												"is_bookmarked": null
+											}
+										],
+										"pagination": {
+											"next_cursor": "eyJpZCI...",
+											"has_next": true
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 404,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "id",
+											"message": "User tidak ditemukan"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+
 		"/showcases": {
 			"post": {
 				"tags": ["Showcases"],
@@ -1254,179 +1550,6 @@
 										{
 											"field": "auth",
 											"message": "Token tidak valid atau sudah expired"
-										}
-									]
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 500,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "server",
-											"message": "Terjadi kesalahan pada server"
-										}
-									]
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/showcases/me": {
-			"get": {
-				"tags": ["Showcases"],
-				"summary": "Get my showcases (Owner)",
-				"description": "Mendapatkan daftar showcase milik user yang sedang login. **Requires Cookie Session (JWT)**. Endpoint ini memungkinkan owner melihat project yang statusnya **Archived**.",
-				"operationId": "getMyShowcases",
-				"security": [
-					{
-						"cookieAuth": []
-					}
-				],
-				"parameters": [
-					{
-						"name": "cursor",
-						"in": "query",
-						"required": false,
-						"description": "Cursor untuk pagination",
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"name": "limit",
-						"in": "query",
-						"schema": { "type": "integer", "default": 10 }
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "List showcase berhasil diambil",
-						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/FeedResponse" }
-							}
-						}
-					},
-					"401": { "$ref": "#/components/responses/UnauthorizedError" }
-				}
-			}
-		},
-		"/showcases/{slug}": {
-			"get": {
-				"tags": ["Showcases"],
-				"summary": "Get showcase by slug or id",
-				"description": "Mendapatkan detail showcase berdasarkan slug atau UUID. **Endpoint ini PUBLIC** (tidak perlu autentikasi). Response menyertakan data author dan collaborators.",
-				"operationId": "getShowcaseBySlugOrId",
-				"parameters": [
-					{
-						"name": "slug",
-						"in": "path",
-						"required": true,
-						"description": "Slug unik showcase atau UUID",
-						"schema": {
-							"type": "string",
-							"example": "building-a-modern-dashboard-with-nextjs"
-						}
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Showcase ditemukan",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ShowcaseDetailResponse"
-								},
-								"example": {
-									"code": 200,
-									"success": true,
-									"data": {
-										"showcase": {
-											"id": "550e8400-e29b-41d4-a716-446655440002",
-											"title": "Building a Modern Dashboard with Next.js",
-											"slug": "building-a-modern-dashboard-with-nextjs",
-											"content": "In this project, I built a responsive admin dashboard...",
-											"is_archived": false,
-											"tag": ["nextjs", "react", "dashboard", "tailwindcss"],
-											"count_like": 42,
-											"count_comment": 8,
-											"created_at": "2026-01-27T04:30:00Z",
-											"updated_at": "2026-01-27T04:30:00Z",
-											"is_liked": false,
-											"is_bookmarked": false,
-											"category": {
-												"id": "550e8400-e29b-41d4-a716-446655440001",
-												"title": "Web Development",
-												"slug": "web-development"
-											},
-											"collaborators": [
-												{
-													"id": "collab-uuid-1",
-													"role": "OWNER",
-													"status": "ACCEPTED",
-													"user": {
-														"id": "550e8400-e29b-41d4-a716-446655440000",
-														"username": "johndoe",
-														"name": "John Doe",
-														"avatar_url": "https://res.cloudinary.com/talas/avatar.jpg"
-													}
-												},
-												{
-													"id": "550e8400-e29b-41d4-a716-446655440010",
-													"role": "COLLABORATOR",
-													"status": "ACCEPTED",
-													"user": {
-														"id": "550e8400-e29b-41d4-a716-446655440020",
-														"username": "janedoe",
-														"name": "Jane Doe",
-														"avatar_url": "https://res.cloudinary.com/talas/avatar2.jpg"
-													}
-												}
-											],
-											"media": [
-												{
-													"id": "550e8400-e29b-41d4-a716-446655440003",
-													"url": "https://res.cloudinary.com/talas/image/upload/v1234567890/showcases/dashboard-1.jpg",
-													"type": "image",
-													"alt": "Dashboard overview",
-													"order": 1
-												}
-											]
-										}
-									},
-									"errors": null
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "Showcase tidak ditemukan atau sudah diarsipkan",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 404,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "slug",
-											"message": "Showcase tidak ditemukan"
 										}
 									]
 								}
@@ -3719,128 +3842,6 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/showcases/user/{id}": {
-			"get": {
-				"tags": ["Showcases"],
-				"summary": "Get user showcases",
-				"description": "Mendapatkan daftar showcase milik user tertentu. **Public Access (Auth Optional)**. Jika login, status like/bookmark akan disesuaikan. Sort berdasarkan terbaru (latest first).",
-				"operationId": "getUserShowcases",
-				"parameters": [
-					{
-						"name": "id",
-						"in": "path",
-						"required": true,
-						"description": "UUID user pemilik showcase",
-						"schema": {
-							"type": "string",
-							"format": "uuid"
-						}
-					},
-					{
-						"name": "cursor",
-						"in": "query",
-						"required": false,
-						"description": "Cursor pagination",
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"name": "limit",
-						"in": "query",
-						"required": false,
-						"description": "Jumlah item per halaman (default: 10)",
-						"schema": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": 50,
-							"default": 10,
-							"example": 10
-						}
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Daftar showcase berhasil diambil",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/FeedResponse"
-								},
-								"example": {
-									"code": 200,
-									"success": true,
-									"data": {
-										"showcases": [
-											{
-												"id": "550e8400-e29b-41d4-a716-446655440020",
-												"title": "My Portfolio v2",
-												"slug": "my-portfolio-v2",
-												"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover5.jpg",
-												"content": "Updated portfolio with new projects.",
-												"likes_count": 45,
-												"comments_count": 5,
-												"collaborators": [
-													{
-														"id": "collab-uuid-5",
-														"role": "OWNER",
-														"status": "ACCEPTED",
-														"user": {
-															"id": "uuid-targetuser",
-															"username": "targetuser",
-															"name": "Target User",
-															"avatar_url": "https://res.cloudinary.com/talas/avatar/user5.jpg"
-														}
-													}
-												],
-												"is_liked": null,
-												"is_bookmarked": null
-											}
-										],
-										"pagination": {
-											"next_cursor": "eyJpZCI...",
-											"has_next": true
-										}
-									},
-									"errors": null
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "User tidak ditemukan",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 404,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "id",
-											"message": "User tidak ditemukan"
-										}
-									]
 								}
 							}
 						}

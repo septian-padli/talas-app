@@ -27,8 +27,9 @@ type Config struct {
 	JWTSecret string
 
 	// Services
-	UserServiceURL       string
+	UserServiceURL        string
 	InternalServiceSecret string
+	RabbitMQURL           string
 }
 
 func LoadConfig() *Config {
@@ -59,6 +60,7 @@ func LoadConfig() *Config {
 		// Services
 		UserServiceURL:        getEnv("USER_SERVICE_URL", "http://localhost:3001"),
 		InternalServiceSecret: getEnv("INTERNAL_SERVICE_SECRET", ""),
+		RabbitMQURL:           getEnv("RABBITMQ_URL", "amqp://user:password@localhost:5672"),
 	}
 }
 

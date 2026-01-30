@@ -59,6 +59,23 @@ func (m *MockUserClient) GetUsersByUsernames(usernames []string) (map[string]cli
 	return result, nil
 }
 
+// MockEventPublisher is a mock implementation of rabbitmq.EventPublisher
+type MockEventPublisher struct {
+	Events []map[string]interface{}
+}
+
+func (m *MockEventPublisher) Publish(ctx context.Context, routingKey string, data interface{}) error {
+	m.Events = append(m.Events, map[string]interface{}{
+		"routingKey": routingKey,
+		"data":       data,
+	})
+	return nil
+}
+
+func (m *MockEventPublisher) Close() error {
+	return nil
+}
+
 // --- SETUP HELPERS ---
 
 var testDB *gorm.DB
@@ -141,9 +158,10 @@ func setupIntegrationApp() (*fiber.App, *gorm.DB) {
 	// 4. Mocks
 	mockUploader := &MockMediaUploader{}
 	mockUserClient := &MockUserClient{}
+	mockEventPublisher := &MockEventPublisher{}
 
 	// 5. Usecase (Injected with Mocks)
-	uc := usecase.NewShowcaseUsecase(repo, mockUserClient, mockUploader, cfg, log)
+	uc := usecase.NewShowcaseUsecase(repo, mockUserClient, mockUploader, mockEventPublisher, cfg, log)
 
 	// 6. Handler
 	h := handler.NewShowcaseHandler(uc, log)

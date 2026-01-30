@@ -15,6 +15,7 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/repository"
 	"github.com/septianpadli/talas/content-service/pkg/clients"
 	"github.com/septianpadli/talas/content-service/pkg/media"
+	"github.com/septianpadli/talas/content-service/pkg/rabbitmq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -42,22 +43,24 @@ type ShowcaseUsecase interface {
 }
 
 type showcaseUsecase struct {
-	repo          repository.ShowcaseRepository
-	userClient    clients.UserClient
-	mediaUploader media.MediaUploader
-	cfg           *config.Config
-	log           *logrus.Logger
-	validate      *validator.Validate
+	repo           repository.ShowcaseRepository
+	userClient     clients.UserClient
+	mediaUploader  media.MediaUploader
+	eventPublisher rabbitmq.EventPublisher
+	cfg            *config.Config
+	log            *logrus.Logger
+	validate       *validator.Validate
 }
 
-func NewShowcaseUsecase(repo repository.ShowcaseRepository, userClient clients.UserClient, mediaUploader media.MediaUploader, cfg *config.Config, log *logrus.Logger) ShowcaseUsecase {
+func NewShowcaseUsecase(repo repository.ShowcaseRepository, userClient clients.UserClient, mediaUploader media.MediaUploader, eventPublisher rabbitmq.EventPublisher, cfg *config.Config, log *logrus.Logger) ShowcaseUsecase {
 	return &showcaseUsecase{
-		repo:          repo,
-		userClient:    userClient,
-		mediaUploader: mediaUploader,
-		cfg:           cfg,
-		log:           log,
-		validate:      validator.New(),
+		repo:           repo,
+		userClient:     userClient,
+		mediaUploader:  mediaUploader,
+		eventPublisher: eventPublisher,
+		cfg:            cfg,
+		log:            log,
+		validate:       validator.New(),
 	}
 }
 
@@ -138,6 +141,21 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		u.log.Errorf("Failed to create showcase: %v", err)
 		return nil, errors.New("failed to save showcase")
 	}
+
+	// 6. Publish Event (Async, Fail-safe)
+	go func() {
+		eventData := map[string]interface{}{
+			"id":      showcase.ID,
+			"title":   showcase.Title,
+			"slug":    showcase.Slug,
+			"user_id": userID,
+		}
+		if err := u.eventPublisher.Publish(context.Background(), "showcase.created", eventData); err != nil {
+			u.log.Errorf("Failed to publish showcase.created event: %v", err)
+		} else {
+			u.log.Debugf("Published showcase.created event for %s", showcase.ID)
+		}
+	}()
 
 	// Enrich with Author Data (which is the creator)
 	// Even though we just created it, for consistent response structure.
