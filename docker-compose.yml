@@ -76,15 +76,28 @@ services:
   # 5. SEARCH ENGINE (Elasticsearch - Port 9200)
   # ----------------------------------------------------------------
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
     container_name: talas_elastic
     environment:
       - discovery.type=single-node
+      - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     ports:
       - "9200:9200"
     volumes:
-      - es_data:/usr/share/elasticsearch/data
+      - elastic_data:/usr/share/elasticsearch/data
+    networks:
+      - talas_network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.3
+    container_name: talas_kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
     networks:
       - talas_network
 
@@ -182,7 +195,7 @@ volumes:
   pg_data_user:
   pg_data_content:
   redis_data:
-  es_data:
+  elastic_data:
 
 # Definisi Network (Jalan raya khusus container)
 networks:

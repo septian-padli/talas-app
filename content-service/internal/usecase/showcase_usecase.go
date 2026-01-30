@@ -119,11 +119,11 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 
 	// Create Showcase without UserID, but with Creator as Collaborator (OWNER)
 	creatorCollaborator := entity.Collaborator{
+		Base:   entity.Base{ID: uuid.New()}, // Generate ID manually to ensure it's in response
 		Role:   entity.CollaborationRoleOwner,
 		Status: entity.CollaborationStatusAccepted,
 		UserID: userID,
 	}
-	// Need to set ID manually for base? Base has BeforeCreate, so it's fine.
 
 	showcase := &entity.Showcase{
 		Title:       input.Title,
@@ -142,13 +142,19 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		return nil, errors.New("failed to save showcase")
 	}
 
-	// 6. Publish Event (Async, Fail-safe)
+	// 6. Publish Event (Async, Fail-safe) - Send full data for ES indexing
 	go func() {
 		eventData := map[string]interface{}{
-			"id":      showcase.ID,
-			"title":   showcase.Title,
-			"slug":    showcase.Slug,
-			"user_id": userID,
+			"id":          showcase.ID,
+			"title":       showcase.Title,
+			"slug":        showcase.Slug,
+			"content":     showcase.Content,
+			"category_id": showcase.CategoryID,
+			"owner_id":    userID,
+			"like_count":  showcase.LikesCount,
+			"view_count":  showcase.ViewsCount,
+			"created_at":  showcase.CreatedAt,
+			"updated_at":  showcase.UpdatedAt,
 		}
 		if err := u.eventPublisher.Publish(context.Background(), "showcase.created", eventData); err != nil {
 			u.log.Errorf("Failed to publish showcase.created event: %v", err)
@@ -164,14 +170,7 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		if creatorData, found := usersMap[userID]; found {
 			showcase.EnrichedCollaborators = []entity.EnrichedCollaborator{
 				{
-					ID:     uuid.Nil, // Has no DB ID yet or doesn't matter for response? Wait, db collaborator has no ID yet? The entity created has Collaborators list.
-					// Actually we just inserted it. We can get ID from creatorCollaborator?
-					// Or just leave ID nil/random. The UI needs User ID mostly.
-					// But wait, response contract says collaborator has ID.
-					// Since we just created it, we rely on GORM? GORM populates IDs after Create if passed by pointer.
-					// But `creatorCollaborator` was passed by value in slice.
-					// It's safer to just return User data. API contract says ID is UUID.
-					// Let's assume ID is generated.
+					ID:     creatorCollaborator.ID, // Use the generated UUID
 					Role:   entity.CollaborationRoleOwner,
 					Status: entity.CollaborationStatusAccepted,
 					User: &entity.User{
