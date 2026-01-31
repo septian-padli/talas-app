@@ -148,6 +148,7 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 			"id":          showcase.ID,
 			"title":       showcase.Title,
 			"slug":        showcase.Slug,
+			"tags":        showcase.Tags,
 			"content":     showcase.Content,
 			"category_id": showcase.CategoryID,
 			"owner_id":    userID,
@@ -256,11 +257,17 @@ func (u *showcaseUsecase) UpdateShowcase(ctx context.Context, id uuid.UUID, inpu
 		// 5. Publish Event (Async, Fail-safe)
 		go func() {
 			eventData := map[string]interface{}{
-				"id":         showcase.ID,
-				"title":      showcase.Title,
-				"slug":       showcase.Slug,
-				"updated_at": showcase.UpdatedAt,
-				"user_id":    userID,
+				"id":          showcase.ID,
+				"title":       showcase.Title,
+				"slug":        showcase.Slug,
+				"content":     showcase.Content,
+				"tags":        showcase.Tags,
+				"category_id": showcase.CategoryID,
+				"owner_id":    userID,
+				"like_count":  showcase.LikesCount,
+				"view_count":  showcase.ViewsCount,
+				"created_at":  showcase.CreatedAt,
+				"updated_at":  showcase.UpdatedAt,
 			}
 			if err := u.eventPublisher.Publish(context.Background(), "showcase.updated", eventData); err != nil {
 				u.log.Errorf("Failed to publish showcase.updated event: %v", err)
@@ -797,6 +804,18 @@ func (u *showcaseUsecase) DeleteShowcase(ctx context.Context, id uuid.UUID, user
 		return errors.New("failed to delete showcase")
 	}
 
+	// 4. Publish Event (Async, Fail-safe)
+	go func() {
+		eventData := map[string]interface{}{
+			"id": id,
+		}
+		if err := u.eventPublisher.Publish(context.Background(), "showcase.deleted", eventData); err != nil {
+			u.log.Errorf("Failed to publish showcase.deleted event: %v", err)
+		} else {
+			u.log.Debugf("Published showcase.deleted event for %s", id)
+		}
+	}()
+
 	return nil
 }
 
@@ -1142,51 +1161,54 @@ func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, a
 	}
 
 	// 5. Publish Event (Async, Fail-safe)
-	// Need Showcase Title, Owner ID, Responder Username
-	go func() {
-		// Fetch Showcase for Title & Owner
-		showcase, err := u.repo.GetByID(invitation.ShowcaseID)
-		if err != nil || showcase == nil {
-			u.log.Warnf("Failed to fetch showcase for RespondInvitation event: %v", err)
-			return
-		}
-
-		var ownerID uuid.UUID
-		for _, c := range showcase.Collaborators {
-			if c.Role == entity.CollaborationRoleOwner {
-				ownerID = c.UserID
-				break
+	// ONLY if Accepted
+	if response == entity.CollaborationStatusAccepted {
+		// Need Showcase Title, Owner ID, Responder Username
+		go func() {
+			// Fetch Showcase for Title & Owner
+			showcase, err := u.repo.GetByID(invitation.ShowcaseID)
+			if err != nil || showcase == nil {
+				u.log.Warnf("Failed to fetch showcase for RespondInvitation event: %v", err)
+				return
 			}
-		}
 
-		// Fetch Responder Username
-		responderUsername := ""
-		usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{actorUserID})
-		if err == nil {
-			if user, ok := usersMap[actorUserID]; ok {
-				responderUsername = user.Username
+			var ownerID uuid.UUID
+			for _, c := range showcase.Collaborators {
+				if c.Role == entity.CollaborationRoleOwner {
+					ownerID = c.UserID
+					break
+				}
 			}
-		} else {
-			u.log.Warnf("Failed to fetch responder info: %v", err)
-		}
 
-		routingKey := "collaborator.responded"
-		eventData := map[string]interface{}{
-			"invitation_id":      id,
-			"showcase_id":        invitation.ShowcaseID,
-			"showcase_title":     showcase.Title,
-			"response_status":    response,
-			"responder_id":       actorUserID,
-			"responder_username": responderUsername,
-			"target_user_id":     ownerID,
-		}
+			// Fetch Responder Username
+			responderUsername := ""
+			usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{actorUserID})
+			if err == nil {
+				if user, ok := usersMap[actorUserID]; ok {
+					responderUsername = user.Username
+				}
+			} else {
+				u.log.Warnf("Failed to fetch responder info: %v", err)
+			}
 
-		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
-			u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
-		} else {
-			u.log.Debugf("Published %s event for invitation %s", routingKey, id)
-		}
-	}()
+			routingKey := "collaborator.responded"
+			eventData := map[string]interface{}{
+				"invitation_id":      id,
+				"showcase_id":        invitation.ShowcaseID,
+				"showcase_title":     showcase.Title,
+				"response_status":    response,
+				"responder_id":       actorUserID,
+				"responder_username": responderUsername,
+				"target_user_id":     ownerID,
+			}
+
+			if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
+				u.log.Errorf("Failed to publish %s event: %v", routingKey, err)
+			} else {
+				u.log.Debugf("Published %s event for invitation %s", routingKey, id)
+			}
+		}()
+	}
 
 	return nil
 }

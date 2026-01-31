@@ -73,6 +73,8 @@ func (c *ShowcaseConsumer) Setup() error {
 		"showcase.created",
 		"showcase.updated",
 		"showcase.deleted",
+		"collaborator.responded",
+		"collaborator.removed",
 	}
 	for _, key := range routingKeys {
 		err = c.channel.QueueBind(QueueName, key, ExchangeName, false, nil)
@@ -126,6 +128,10 @@ func (c *ShowcaseConsumer) handleMessage(msg amqp.Delivery) {
 		c.handleIndex(msg)
 	case "showcase.deleted":
 		c.handleDelete(msg)
+	case "collaborator.responded":
+		c.handleAddCollaborator(msg)
+	case "collaborator.removed":
+		c.handleRemoveCollaborator(msg)
 	default:
 		c.log.Warnf("Unknown routing key: %s", msg.RoutingKey)
 		msg.Ack(false) // Ack unknown messages to prevent queue buildup
@@ -219,5 +225,109 @@ func (c *ShowcaseConsumer) handleDelete(msg amqp.Delivery) {
 	}
 
 	c.log.Infof("Successfully deleted showcase: %s", idStr)
+	msg.Ack(false)
+}
+
+// handleAddCollaborator processes collaborator.responded events
+func (c *ShowcaseConsumer) handleAddCollaborator(msg amqp.Delivery) {
+	// 1. Parse Event Envelope
+	var envelope domain.EventEnvelope
+	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
+		c.log.Errorf("Failed to unmarshal event envelope: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	// 2. Extract Data
+	dataBytes, err := json.Marshal(envelope.Data)
+	if err != nil {
+		c.log.Errorf("Failed to re-marshal data field: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	var eventData domain.CollaboratorEventData
+	if err := json.Unmarshal(dataBytes, &eventData); err != nil {
+		c.log.Errorf("Failed to unmarshal collaborator event data: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	// 3. Check Status (Only ACCEPTED)
+	if eventData.ResponseStatus != "ACCEPTED" {
+		c.log.Infof("Ignoring collaborator response status: %s", eventData.ResponseStatus)
+		msg.Ack(false)
+		return
+	}
+
+	// 4. Validate IDs
+	if eventData.ShowcaseID == "" || eventData.ResponderID == "" {
+		c.log.Error("ShowcaseID or ResponderID is empty")
+		msg.Ack(false)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// 5. Call Repository
+	collaborator := domain.Collaborator{
+		ID:       eventData.ResponderID,
+		Username: eventData.ResponderUsername,
+	}
+
+	if err := c.repo.AddCollaborator(ctx, eventData.ShowcaseID, collaborator); err != nil {
+		c.log.Errorf("Failed to add collaborator to showcase %s: %v", eventData.ShowcaseID, err)
+		msg.Nack(false, true)
+		return
+	}
+
+	c.log.Infof("Successfully added collaborator %s to showcase %s", eventData.ResponderID, eventData.ShowcaseID)
+	msg.Ack(false)
+}
+
+// handleRemoveCollaborator processes collaborator.removed events
+func (c *ShowcaseConsumer) handleRemoveCollaborator(msg amqp.Delivery) {
+	// 1. Parse Event Envelope
+	var envelope domain.EventEnvelope
+	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
+		c.log.Errorf("Failed to unmarshal event envelope: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	// 2. Extract Data
+	dataBytes, err := json.Marshal(envelope.Data)
+	if err != nil {
+		c.log.Errorf("Failed to re-marshal data field: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	var eventData domain.CollaboratorRemoveData
+	if err := json.Unmarshal(dataBytes, &eventData); err != nil {
+		c.log.Errorf("Failed to unmarshal collaborator remove data: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	// 3. Validate IDs
+	if eventData.ShowcaseID == "" || eventData.TargetUserID == "" {
+		c.log.Error("ShowcaseID or TargetUserID is empty")
+		msg.Ack(false)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// 4. Call Repository
+	if err := c.repo.RemoveCollaborator(ctx, eventData.ShowcaseID, eventData.TargetUserID); err != nil {
+		c.log.Errorf("Failed to remove collaborator from showcase %s: %v", eventData.ShowcaseID, err)
+		msg.Nack(false, true)
+		return
+	}
+
+	c.log.Infof("Successfully removed collaborator %s from showcase %s", eventData.TargetUserID, eventData.ShowcaseID)
 	msg.Ack(false)
 }

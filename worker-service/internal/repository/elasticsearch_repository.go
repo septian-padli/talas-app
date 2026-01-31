@@ -16,6 +16,8 @@ import (
 type ElasticsearchRepository interface {
 	IndexShowcase(ctx context.Context, showcase *domain.Showcase) error
 	DeleteShowcase(ctx context.Context, id string) error
+	AddCollaborator(ctx context.Context, showcaseID string, collaborator domain.Collaborator) error
+	RemoveCollaborator(ctx context.Context, showcaseID string, userID string) error
 }
 
 // elasticsearchRepository implements ElasticsearchRepository
@@ -77,5 +79,97 @@ func (r *elasticsearchRepository) DeleteShowcase(ctx context.Context, id string)
 	}
 
 	r.log.Infof("Deleted showcase %s from %s", id, r.indexName)
+	return nil
+}
+
+// AddCollaborator adds a collaborator to the showcase document using a script
+// AddCollaborator adds a collaborator to the showcase document using a script
+func (r *elasticsearchRepository) AddCollaborator(ctx context.Context, showcaseID string, collaborator domain.Collaborator) error {
+	script := `
+		if (ctx._source.collaborators == null) { ctx._source.collaborators = new ArrayList(); }
+		boolean exists = false;
+		for (item in ctx._source.collaborators) { if (item.id == params.collab.id) { exists = true; } }
+		if (!exists) { ctx._source.collaborators.add(params.collab); }
+	`
+
+	requestBody := map[string]interface{}{
+		"script": map[string]interface{}{
+			"source": script,
+			"lang":   "painless",
+			"params": map[string]interface{}{
+				"collab": map[string]interface{}{
+					"id":       collaborator.ID,
+					"username": collaborator.Username,
+				},
+			},
+		},
+	}
+
+	data, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal add collab script: %w", err)
+	}
+
+	res, err := r.client.Update(
+		r.indexName,
+		showcaseID,
+		bytes.NewReader(data),
+		r.client.Update.WithContext(ctx),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to add collaborator: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("ES update error: %s", res.String())
+	}
+
+	r.log.Infof("Added collaborator %s to showcase %s", collaborator.ID, showcaseID)
+	return nil
+}
+
+// RemoveCollaborator removes a collaborator from the showcase document using a script
+// RemoveCollaborator removes a collaborator from the showcase document using a script
+func (r *elasticsearchRepository) RemoveCollaborator(ctx context.Context, showcaseID string, userID string) error {
+	script := `
+		if (ctx._source.collaborators != null) {
+			ctx._source.collaborators.removeIf(item -> item.id == params.user_id);
+		}
+	`
+
+	requestBody := map[string]interface{}{
+		"script": map[string]interface{}{
+			"source": script,
+			"lang":   "painless",
+			"params": map[string]interface{}{
+				"user_id": userID,
+			},
+		},
+	}
+
+	data, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal remove collab script: %w", err)
+	}
+
+	res, err := r.client.Update(
+		r.indexName,
+		showcaseID,
+		bytes.NewReader(data),
+		r.client.Update.WithContext(ctx),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to remove collaborator: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("ES update error: %s", res.String())
+	}
+
+	r.log.Infof("Removed collaborator %s from showcase %s", userID, showcaseID)
 	return nil
 }
