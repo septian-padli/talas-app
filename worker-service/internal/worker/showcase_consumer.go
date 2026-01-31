@@ -270,10 +270,12 @@ func (c *ShowcaseConsumer) handleAddCollaborator(msg amqp.Delivery) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// 5. Call Repository
 	collaborator := domain.Collaborator{
-		ID:       eventData.ResponderID,
+		ID:       eventData.InvitationID, // Use Invitation/Collaboration ID as primary ID
+		UserID:   eventData.ResponderID,  // Store User ID separately
 		Username: eventData.ResponderUsername,
+		FullName: eventData.ResponderFullName,
+		AvatarURL: eventData.ResponderAvatarURL,
 	}
 
 	if err := c.repo.AddCollaborator(ctx, eventData.ShowcaseID, collaborator); err != nil {

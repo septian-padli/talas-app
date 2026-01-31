@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -40,10 +41,14 @@ type ShowcaseUsecase interface {
 	GetPendingInvitations(ctx context.Context, userID uuid.UUID, limit int, cursor string) ([]entity.Collaborator, *repository.PaginationMeta, error)
 	InviteCollaborators(ctx context.Context, showcaseID uuid.UUID, usernames []string, actorUserID uuid.UUID) ([]string, error)
 	RespondInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID, response string) error
+	
+	// Search
+	SearchShowcases(ctx context.Context, query string, page int, limit int) (map[string]interface{}, error)
 }
 
 type showcaseUsecase struct {
 	repo           repository.ShowcaseRepository
+	searchRepo     repository.SearchRepository
 	userClient     clients.UserClient
 	mediaUploader  media.MediaUploader
 	eventPublisher rabbitmq.EventPublisher
@@ -52,9 +57,10 @@ type showcaseUsecase struct {
 	validate       *validator.Validate
 }
 
-func NewShowcaseUsecase(repo repository.ShowcaseRepository, userClient clients.UserClient, mediaUploader media.MediaUploader, eventPublisher rabbitmq.EventPublisher, cfg *config.Config, log *logrus.Logger) ShowcaseUsecase {
+func NewShowcaseUsecase(repo repository.ShowcaseRepository, searchRepo repository.SearchRepository, userClient clients.UserClient, mediaUploader media.MediaUploader, eventPublisher rabbitmq.EventPublisher, cfg *config.Config, log *logrus.Logger) ShowcaseUsecase {
 	return &showcaseUsecase{
 		repo:           repo,
+		searchRepo:     searchRepo,
 		userClient:     userClient,
 		mediaUploader:  mediaUploader,
 		eventPublisher: eventPublisher,
@@ -125,6 +131,7 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		UserID: userID,
 	}
 
+
 	showcase := &entity.Showcase{
 		Title:       input.Title,
 		Slug:        slug,
@@ -133,10 +140,43 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		Tags:        strings.Split(input.Tags, ","),
 		Media:       mediaList,
 		Collaborators: []entity.Collaborator{creatorCollaborator},
+		LikesCount: 0,
+		ViewsCount: 0,
+	}
+	// showcase := &entity.Showcase{	
+	// 	Title:       input.Title,
+	// 	Slug:        slug,
+	// 	Content:     input.Content,
+	// 	CategoryID:  categoryID,
+	// 	Tags:        strings.Split(input.Tags, ","),
+	// 	Media:       mediaList,
+	// 	Collaborators: []entity.Collaborator{creatorCollaborator},
+	// 	LikesCount: 0,
+	// 	ViewsCount: 0,
+	// }
+
+	// 5. Enrich with Author Data (Fetch before saving/publishing to ensure data availability)
+	// We need this for the event payload to be rich
+	var creatorName, creatorUsername string
+	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
+	if err == nil {
+		if creatorData, found := usersMap[userID]; found {
+			creatorName = creatorData.Name
+			creatorUsername = creatorData.Username
+		}
+	} else {
+		u.log.Warnf("Failed to fetch author data for showcase creation: %v", err)
 	}
 
-	// 5. Save to DB
-	err := u.repo.Create(showcase)
+	// Fallback if user service fails (should ideally retry or fail, but for now fallback)
+	if creatorUsername == "" { creatorUsername = "unknown" }
+	if creatorName == "" { creatorName = "Unknown User" }
+	creatorAvatar := ""
+	if creatorData, ok := usersMap[userID]; ok {
+		creatorAvatar = creatorData.AvatarURL
+	}
+
+	err = u.repo.Create(showcase)
 	if err != nil {
 		u.log.Errorf("Failed to create showcase: %v", err)
 		return nil, errors.New("failed to save showcase")
@@ -151,7 +191,13 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 			"tags":        showcase.Tags,
 			"content":     showcase.Content,
 			"category_id": showcase.CategoryID,
-			"owner_id":    userID,
+			"owner": map[string]interface{}{
+				"id":        userID,
+				"username":  creatorUsername,
+				"full_name": creatorName,
+				"avatar_url": creatorAvatar,
+			},
+			"collaborators": []map[string]interface{}{}, // Owner is separate, initially empty collaborators
 			"like_count":  showcase.LikesCount,
 			"view_count":  showcase.ViewsCount,
 			"created_at":  showcase.CreatedAt,
@@ -164,25 +210,26 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		}
 	}()
 
-	// Enrich with Author Data (which is the creator)
-	// Even though we just created it, for consistent response structure.
-	usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{userID})
-	if err == nil {
-		if creatorData, found := usersMap[userID]; found {
-			showcase.EnrichedCollaborators = []entity.EnrichedCollaborator{
-				{
-					ID:     creatorCollaborator.ID, // Use the generated UUID
-					Role:   entity.CollaborationRoleOwner,
-					Status: entity.CollaborationStatusAccepted,
-					User: &entity.User{
-						ID:        userID,
-						Name:      creatorData.Name,
-						Username:  creatorData.Username,
-						AvatarURL: creatorData.AvatarURL,
-					},
-				},
-			}
-		}
+	// Enrich with Author Data (Already fetched above)
+	showcase.EnrichedCollaborators = []entity.EnrichedCollaborator{
+		{
+			ID:     creatorCollaborator.ID,
+			Role:   entity.CollaborationRoleOwner,
+			Status: entity.CollaborationStatusAccepted,
+			User: &entity.User{
+				ID:        userID,
+				Name:      creatorName,
+				Username:  creatorUsername,
+			},
+		},
+	}
+	
+	// For now, let's keep it simple. The previous code re-fetched.
+	// We can reuse the fetched data if we extract variable scope.
+	// But to avoid large diff, we can just use the variables we have.
+	// Only AvatarURL is missing from local vars.
+	if creatorData, found := usersMap[userID]; found {
+		showcase.EnrichedCollaborators[0].User.AvatarURL = creatorData.AvatarURL
 	}
 
 	return showcase, nil
@@ -468,11 +515,7 @@ func (u *showcaseUsecase) CreateComment(ctx context.Context, showcaseID uuid.UUI
 			// But variables in Step 3 are scoped. We need to fetch Parent again or restructure.
 			// Re-fetching parent for event safety or use closure if refactoring.
 			// Since Step 3 logic is inside `if`, we can't easily access `parentComment` here unless we declare it outside.
-			// Let's re-fetch briefly or better, refactor Step 3 to bubble up `parentComment`.
-			// Since I am editing a chunk, I can't easily change the scope of Step 3 variables without a larger chunk.
 			// I will fetch parent again inside this goroutine or check if I can modify Step 3 scope.
-			// Modifying Step 3 scope requires replacing lines 389-419 which is large.
-			// Let's use repo to get parent author ID inside goroutine for simplicity/safety against scope issues.
 			
 			parent, err := u.repo.GetCommentByID(*comment.ParentID)
 			if err == nil && parent != nil {
@@ -1180,12 +1223,16 @@ func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, a
 				}
 			}
 
-			// Fetch Responder Username
+			// Fetch Responder Username & Full Name
 			responderUsername := ""
+			responderFullName := ""
+			responderAvatar := ""
 			usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{actorUserID})
 			if err == nil {
 				if user, ok := usersMap[actorUserID]; ok {
 					responderUsername = user.Username
+					responderFullName = user.Name
+					responderAvatar = user.AvatarURL
 				}
 			} else {
 				u.log.Warnf("Failed to fetch responder info: %v", err)
@@ -1193,13 +1240,15 @@ func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, a
 
 			routingKey := "collaborator.responded"
 			eventData := map[string]interface{}{
-				"invitation_id":      id,
-				"showcase_id":        invitation.ShowcaseID,
-				"showcase_title":     showcase.Title,
-				"response_status":    response,
-				"responder_id":       actorUserID,
-				"responder_username": responderUsername,
-				"target_user_id":     ownerID,
+				"invitation_id":       id,
+				"showcase_id":         invitation.ShowcaseID,
+				"showcase_title":      showcase.Title,
+				"response_status":     response,
+				"responder_id":        actorUserID,
+				"responder_username":  responderUsername,
+				"responder_full_name": responderFullName,
+				"responder_avatar_url": responderAvatar,
+				"target_user_id":      ownerID,
 			}
 
 			if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
@@ -1395,4 +1444,44 @@ func (u *showcaseUsecase) GetMyShowcases(ctx context.Context, userID uuid.UUID, 
 	}
 
 	return response, nil
+}
+
+func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, page int, limit int) (map[string]interface{}, error) {
+	showcases, total, err := u.searchRepo.SearchShowcases(ctx, query, page, limit)
+	if err != nil {
+		u.log.Errorf("Failed to search showcases: %v", err)
+		return nil, err
+	}
+
+	// Transform Response: Flatten Collaborators to list of Users
+	var transformedData []map[string]interface{}
+	for _, s := range showcases {
+		// Convert to map to preserve all fields
+		var item map[string]interface{}
+		// Efficient enough for paginated view
+		if b, err := json.Marshal(s); err == nil {
+			_ = json.Unmarshal(b, &item)
+		}
+
+		// Extract Users from Collaborators
+		users := make([]*entity.User, 0, len(s.EnrichedCollaborators))
+		for _, ec := range s.EnrichedCollaborators {
+			if ec.User != nil {
+				users = append(users, ec.User)
+			}
+		}
+
+		// Overwrite "collaborators" with list of Users
+		item["collaborators"] = users
+		transformedData = append(transformedData, item)
+	}
+
+	return map[string]interface{}{
+		"data": transformedData,
+		"meta": map[string]interface{}{
+			"total": total,
+			"page":  page,
+			"limit": limit,
+		},
+	}, nil
 }

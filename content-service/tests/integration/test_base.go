@@ -76,6 +76,14 @@ func (m *MockEventPublisher) Close() error {
 	return nil
 }
 
+// MockSearchRepository is a mock implementation of repository.SearchRepository
+type MockSearchRepository struct{}
+
+func (m *MockSearchRepository) SearchShowcases(ctx context.Context, query string, page int, limit int) ([]entity.Showcase, int64, error) {
+	// Return empty result for now
+	return []entity.Showcase{}, 0, nil
+}
+
 // --- SETUP HELPERS ---
 
 var testDB *gorm.DB
@@ -165,9 +173,10 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	mockUploader := &MockMediaUploader{}
 	mockUserClient := &MockUserClient{}
 	mockEventPublisher := &MockEventPublisher{}
+	mockSearchRepo := &MockSearchRepository{}
 
 	// 5. Usecase (Injected with Mocks)
-	uc := usecase.NewShowcaseUsecase(repo, mockUserClient, mockUploader, mockEventPublisher, cfg, log)
+	uc := usecase.NewShowcaseUsecase(repo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, cfg, log)
 
 	// 6. Handler
 	h := handler.NewShowcaseHandler(uc, log)

@@ -42,6 +42,7 @@ func NewFiberApp(
 	api.Get("/showcases/me", authMiddleware.Protect, showcaseHandler.GetMyShowcases)
 
 	// Public Routes
+	api.Get("/search", showcaseHandler.SearchShowcases)
 	api.Get("/showcases/:slug", showcaseHandler.GetShowcaseBySlug)
 	api.Get("/showcases/user/:id", showcaseHandler.GetShowcasesByUser)
 	api.Get("/showcases/:id/comments", showcaseHandler.GetShowcaseComments)

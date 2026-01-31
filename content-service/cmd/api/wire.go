@@ -12,6 +12,7 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/usecase"
 	"github.com/septianpadli/talas/content-service/pkg/clients"
 	"github.com/septianpadli/talas/content-service/pkg/database"
+	"github.com/septianpadli/talas/content-service/pkg/infrastructure"
 	"github.com/septianpadli/talas/content-service/pkg/logger"
 	"github.com/septianpadli/talas/content-service/pkg/media"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
@@ -24,6 +25,9 @@ func InitializeApp() (*fiber.App, error) {
 	wire.Build(
 		// Config
 		config.LoadConfig,
+
+		// Infrastructure
+		infrastructure.NewElasticsearchClient,
 
 		// Logger
 		logger.NewLogger,
@@ -46,6 +50,7 @@ func InitializeApp() (*fiber.App, error) {
 
 		// Repository
 		repository.NewShowcaseRepository,
+		repository.NewSearchRepository,
 
 		// Usecase
 		usecase.NewShowcaseUsecase,

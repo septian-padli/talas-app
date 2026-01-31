@@ -98,8 +98,11 @@ func (r *elasticsearchRepository) AddCollaborator(ctx context.Context, showcaseI
 			"lang":   "painless",
 			"params": map[string]interface{}{
 				"collab": map[string]interface{}{
-					"id":       collaborator.ID,
-					"username": collaborator.Username,
+					"id":        collaborator.ID,
+					"user_id":   collaborator.UserID,
+					"username":  collaborator.Username,
+					"full_name": collaborator.FullName,
+					"avatar_url": collaborator.AvatarURL,
 				},
 			},
 		},
@@ -135,7 +138,7 @@ func (r *elasticsearchRepository) AddCollaborator(ctx context.Context, showcaseI
 func (r *elasticsearchRepository) RemoveCollaborator(ctx context.Context, showcaseID string, userID string) error {
 	script := `
 		if (ctx._source.collaborators != null) {
-			ctx._source.collaborators.removeIf(item -> item.id == params.user_id);
+			ctx._source.collaborators.removeIf(item -> item.user_id == params.user_id);
 		}
 	`
 

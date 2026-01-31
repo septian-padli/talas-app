@@ -9,7 +9,18 @@ import (
 // Collaborator represents a user in a showcase
 type Collaborator struct {
 	ID       string `json:"id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
+	FullName string `json:"full_name"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+// UserSimple represents basic user info
+type UserSimple struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	FullName string `json:"full_name"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 // EventEnvelope is the wrapper format from content-service events
@@ -26,6 +37,7 @@ type ShowcaseEventData struct {
 	Title  string    `json:"title"`
 	Slug   string    `json:"slug"`
 	UserID uuid.UUID `json:"user_id"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 // CollaboratorEventData represents the payload for collaborator.responded
@@ -36,6 +48,8 @@ type CollaboratorEventData struct {
 	ResponseStatus    string `json:"response_status"`
 	ResponderID       string `json:"responder_id"`
 	ResponderUsername string `json:"responder_username"`
+	ResponderFullName string `json:"responder_full_name"`
+	ResponderAvatarURL string `json:"responder_avatar_url"`
 	TargetUserID      string `json:"target_user_id"`
 }
 
@@ -58,9 +72,8 @@ type Showcase struct {
 	Content     string    `json:"content,omitempty"`
 	Thumbnail   string    `json:"thumbnail,omitempty"`
 	CategoryID  uuid.UUID `json:"category_id,omitempty"`
-	OwnerID     uuid.UUID `json:"owner_id,omitempty"`
-	OwnerName     string         `json:"owner_name,omitempty"`
-	Collaborators []Collaborator `json:"collaborators,omitempty"`
+	Owner       UserSimple           `json:"owner,omitempty"`
+	Collaborators []Collaborator     `json:"collaborators,omitempty"`
 	LikeCount     int            `json:"like_count"`
 	ViewCount     int            `json:"view_count"`
 	CreatedAt     time.Time      `json:"created_at,omitempty"`
