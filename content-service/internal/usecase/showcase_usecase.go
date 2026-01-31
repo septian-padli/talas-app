@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/septianpadli/talas/content-service/internal/config"
 	"github.com/septianpadli/talas/content-service/internal/entity"
 	"github.com/septianpadli/talas/content-service/internal/repository"
@@ -44,7 +45,8 @@ type ShowcaseUsecase interface {
 	RespondInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID, response string) error
 
 	// Search
-	SearchShowcases(ctx context.Context, query string, limit int, cursor string) (map[string]interface{}, error)
+	SearchShowcases(ctx context.Context, query string, limit int, cursor string, categorySlugs string, sortBy string) (map[string]interface{}, error)
+	GetTrendingFeeds(ctx context.Context, limit int, cursor string) (map[string]interface{}, error)
 }
 
 type showcaseUsecase struct {
@@ -53,18 +55,29 @@ type showcaseUsecase struct {
 	userClient     clients.UserClient
 	mediaUploader  media.MediaUploader
 	eventPublisher rabbitmq.EventPublisher
+	redisClient    *redis.Client
 	cfg            *config.Config
 	log            *logrus.Logger
 	validate       *validator.Validate
 }
 
-func NewShowcaseUsecase(repo repository.ShowcaseRepository, searchRepo repository.SearchRepository, userClient clients.UserClient, mediaUploader media.MediaUploader, eventPublisher rabbitmq.EventPublisher, cfg *config.Config, log *logrus.Logger) ShowcaseUsecase {
+func NewShowcaseUsecase(
+	repo repository.ShowcaseRepository,
+	searchRepo repository.SearchRepository,
+	userClient clients.UserClient,
+	mediaUploader media.MediaUploader,
+	eventPublisher rabbitmq.EventPublisher,
+	redisClient *redis.Client,
+	cfg *config.Config,
+	log *logrus.Logger,
+) ShowcaseUsecase {
 	return &showcaseUsecase{
 		repo:           repo,
 		searchRepo:     searchRepo,
 		userClient:     userClient,
 		mediaUploader:  mediaUploader,
 		eventPublisher: eventPublisher,
+		redisClient:    redisClient,
 		cfg:            cfg,
 		log:            log,
 		validate:       validator.New(),
@@ -1314,6 +1327,37 @@ func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*
 		}
 	}
 
+	// 3. Increment View Count (Fire & Forget)
+	// Only if showcase is found
+	go func() {
+		// Increment DB
+		if err := u.repo.IncrementViewCount(showcase.ID); err != nil {
+			u.log.Warnf("Failed to increment view count for showcase %s: %v", showcase.ID, err)
+		}
+
+		// Find Owner ID for notification/analytics
+		var ownerID uuid.UUID
+		for _, col := range showcase.Collaborators {
+			if col.Role == entity.CollaborationRoleOwner {
+				ownerID = col.UserID
+				break
+			}
+		}
+
+		// Publish Event for Search Sync / Analytics
+		eventData := map[string]interface{}{
+			"showcase_id": showcase.ID,
+			"viewer_id":   nil, // Anonymous for now, or from context if auth available?
+			// Context here is tricky if we user ID.
+			// For now, let's just send showcase_id and owner.
+			"target_user_id": ownerID,
+		}
+
+		if err := u.eventPublisher.Publish(context.Background(), "showcase.viewed", eventData); err != nil {
+			u.log.Errorf("Failed to publish showcase.viewed event: %v", err)
+		}
+	}()
+
 	return showcase, nil
 }
 
@@ -1474,8 +1518,25 @@ type searchShowcaseResponse struct {
 	Collaborators []searchUserResponse `json:"collaborators"`
 }
 
-func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, limit int, cursor string) (map[string]interface{}, error) {
-	// 1. Decode Cursor
+func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, limit int, cursor string, categorySlugs string, sortBy string) (map[string]interface{}, error) {
+	// 1. Resolve Category Slugs to IDs
+	var categoryIDs []uuid.UUID
+	if categorySlugs != "" {
+		slugs := strings.Split(categorySlugs, ",")
+		// Clean spacing just in case
+		for i := range slugs {
+			slugs[i] = strings.TrimSpace(slugs[i])
+		}
+
+		var err error
+		categoryIDs, err = u.repo.GetCategoryIDsBySlugs(slugs)
+		if err != nil {
+			u.log.Warnf("Failed to resolve category slugs: %v", err)
+			return nil, err
+		}
+	}
+
+	// 2. Decode Cursor
 	var cursorSlice []interface{}
 	var err error
 	if cursor != "" {
@@ -1485,7 +1546,13 @@ func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, lim
 		}
 	}
 
-	showcases, lastSortValues, err := u.searchRepo.SearchShowcases(ctx, query, limit, cursorSlice)
+	// 3. Construct Filter
+	filter := repository.SearchFilter{
+		CategoryIDs: categoryIDs,
+		SortBy:      sortBy,
+	}
+
+	showcases, lastSortValues, err := u.searchRepo.SearchShowcases(ctx, query, limit, cursorSlice, filter)
 	if err != nil {
 		u.log.Errorf("Failed to search showcases: %v", err)
 		return nil, err
@@ -1562,6 +1629,119 @@ func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, lim
 			"limit":       limit,
 		},
 	}, nil
+}
+
+func (u *showcaseUsecase) GetTrendingFeeds(ctx context.Context, limit int, cursor string) (map[string]interface{}, error) {
+	// 1. Determine Page/Offset from Cursor
+	page := 1
+	if cursor != "" {
+		decodedBytes, err := base64.StdEncoding.DecodeString(cursor)
+		if err == nil {
+			var p int
+			if _, err := fmt.Sscanf(string(decodedBytes), "page:%d", &p); err == nil && p > 0 {
+				page = p
+			}
+		}
+	}
+
+	offset := (page - 1) * limit
+	cacheKey := fmt.Sprintf("feeds:trending:%d:%d", page, limit)
+
+	// 2. Check Redis Cache
+	val, err := u.redisClient.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(val), &result); err == nil {
+			u.log.Infof("Cache Hit for Trending Feeds: %s", cacheKey)
+			return result, nil
+		}
+	} else if err != redis.Nil {
+		u.log.Warnf("Redis Get Error: %v", err)
+	}
+
+	// 3. Get from Repository (Elasticsearch)
+	showcases, err := u.searchRepo.GetTrendingShowcases(ctx, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Map to DTO
+	var responseDTOs []map[string]interface{}
+	for _, s := range showcases {
+		var owner interface{}
+		var collaborators []interface{}
+
+		for _, col := range s.EnrichedCollaborators {
+			var avatar string
+			if col.User != nil {
+				avatar = col.User.AvatarURL
+			}
+
+			u := map[string]interface{}{
+				"id":         col.User.ID,
+				"username":   col.User.Username,
+				"full_name":  col.User.Name,
+				"avatar_url": avatar,
+			}
+
+			if col.Role == "OWNER" {
+				owner = u
+			} else {
+				collaborators = append(collaborators, u)
+			}
+		}
+
+		if collaborators == nil {
+			collaborators = []interface{}{}
+		}
+
+		dto := map[string]interface{}{
+			"id":            s.ID,
+			"slug":          s.Slug,
+			"title":         s.Title,
+			"content":       s.Content,
+			"tags":          s.Tags,
+			"like_count":    s.LikesCount,
+			"view_count":    s.ViewsCount,
+			"comment_count": s.CommentsCount,
+			"owner":         owner,
+			"collaborators": collaborators,
+			"created_at":    s.CreatedAt,
+		}
+		responseDTOs = append(responseDTOs, dto)
+	}
+
+	if responseDTOs == nil {
+		responseDTOs = []map[string]interface{}{}
+	}
+
+	// 5. Construct Result & Next Cursor
+	nextPage := page + 1
+	nextCursor := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("page:%d", nextPage)))
+
+	hasMore := len(showcases) == limit
+	if !hasMore {
+		nextCursor = ""
+	}
+
+	result := map[string]interface{}{
+		"data": responseDTOs,
+		"meta": map[string]interface{}{
+			"next_cursor": nextCursor,
+			"has_more":    hasMore,
+			"limit":       limit,
+		},
+	}
+
+	// 6. Set Redis Cache (TTL 10m)
+	cacheData, err := json.Marshal(result)
+	if err == nil {
+		if err := u.redisClient.Set(ctx, cacheKey, cacheData, 10*time.Minute).Err(); err != nil {
+			u.log.Warnf("Redis Set Error: %v", err)
+		}
+	}
+
+	return result, nil
 }
 
 // Helper: Decode Cursor (Base64 -> JSON)

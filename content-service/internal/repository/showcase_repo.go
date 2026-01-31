@@ -34,6 +34,8 @@ type ShowcaseRepository interface {
 	GetPendingInvitations(userID uuid.UUID, limit int, cursor string) ([]entity.Collaborator, *PaginationMeta, error)
 	AddCollaborators(collaborators []entity.Collaborator) error
 	UpdateCollaboratorStatus(id uuid.UUID, status string) error
+	GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error)
+	IncrementViewCount(id uuid.UUID) error
 }
 
 type paginationCursor struct {
@@ -151,7 +153,7 @@ func (r *showcaseRepository) ToggleLike(userID uuid.UUID, showcaseID uuid.UUID) 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// Use Limit(1).Find() instead of First() to avoid "record not found" log error
 		result := tx.Where("user_id = ? AND showcase_id = ?", userID, showcaseID).Limit(1).Find(&like)
-		
+
 		if result.Error != nil {
 			return result.Error
 		}
@@ -193,7 +195,7 @@ func (r *showcaseRepository) ToggleBookmark(userID uuid.UUID, showcaseID uuid.UU
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		result := tx.Where("user_id = ? AND showcase_id = ?", userID, showcaseID).Limit(1).Find(&bookmark)
-		
+
 		if result.Error != nil {
 			return result.Error
 		}
@@ -317,7 +319,7 @@ func (r *showcaseRepository) ToggleCommentLike(userID uuid.UUID, commentID uuid.
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// Check if like exists
 		result := tx.Where("user_id = ? AND comment_id = ?", userID, commentID).Limit(1).Find(&like)
-		
+
 		if result.Error != nil {
 			return result.Error
 		}
@@ -383,7 +385,7 @@ func (r *showcaseRepository) GetCollaboratorsByShowcaseID(showcaseID uuid.UUID) 
 
 func (r *showcaseRepository) GetCollaboratorByID(id uuid.UUID) (*entity.Collaborator, error) {
 	var col entity.Collaborator
-	// Preload Showcase? Not needed if we use GetByID separately or if logic is separate. 
+	// Preload Showcase? Not needed if we use GetByID separately or if logic is separate.
 	// But actually, checking strict equality of owner is easier if we fetch showcase separately in usecase.
 	err := r.db.Where("id = ?", id).First(&col).Error
 	if err != nil {
@@ -439,6 +441,16 @@ func (r *showcaseRepository) AddCollaborators(collaborators []entity.Collaborato
 
 func (r *showcaseRepository) UpdateCollaboratorStatus(id uuid.UUID, status string) error {
 	return r.db.Model(&entity.Collaborator{}).Where("id = ?", id).Update("status", status).Error
+}
+
+func (r *showcaseRepository) GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := r.db.Model(&entity.Category{}).Where("slug IN ?", slugs).Pluck("id", &ids).Error
+	return ids, err
+}
+
+func (r *showcaseRepository) IncrementViewCount(id uuid.UUID) error {
+	return r.db.Model(&entity.Showcase{}).Where("id = ?", id).UpdateColumn("views_count", gorm.Expr("views_count + ?", 1)).Error
 }
 
 func encodeCursor(t time.Time) string {

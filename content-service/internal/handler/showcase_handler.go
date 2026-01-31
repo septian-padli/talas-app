@@ -181,6 +181,19 @@ func (h *ShowcaseHandler) GetMyShowcases(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, 200, "My showcases retrieved", result)
 }
 
+func (h *ShowcaseHandler) GetTrendingFeeds(c *fiber.Ctx) error {
+	limit := c.QueryInt("limit", 10)
+	cursor := c.Query("cursor")
+
+	result, err := h.usecase.GetTrendingFeeds(c.Context(), limit, cursor)
+	if err != nil {
+		h.log.Errorf("GetTrendingFeeds Error: %v", err)
+		return utils.ErrorResponse(c, 500, "Failed to fetch trending feeds", nil)
+	}
+
+	return utils.SuccessResponse(c, 200, "Trending feeds retrieved", result)
+}
+
 func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
@@ -1263,9 +1276,11 @@ func (h *ShowcaseHandler) DeleteInvitation(c *fiber.Ctx) error {
 func (h *ShowcaseHandler) SearchShowcases(c *fiber.Ctx) error {
 	query := c.Query("q")
 	limit := c.QueryInt("limit", 10)
-	cursor := c.Query("cursor") // Get cursor from params
+	cursor := c.Query("cursor")
+	categorySlugs := c.Query("category") // Comma separated
+	sortBy := c.Query("sort")            // latest, popular, relevance
 
-	result, err := h.usecase.SearchShowcases(c.Context(), query, limit, cursor)
+	result, err := h.usecase.SearchShowcases(c.Context(), query, limit, cursor, categorySlugs, sortBy)
 	if err != nil {
 		if err.Error() == "invalid cursor format" {
 			return utils.ErrorResponse(c, 400, "Invalid cursor format", nil)

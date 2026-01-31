@@ -5,6 +5,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
+	"github.com/redis/go-redis/v9"
 	"github.com/septianpadli/talas/content-service/internal/handler"
 	internalMiddleware "github.com/septianpadli/talas/content-service/internal/middleware"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
@@ -15,9 +16,10 @@ import (
 // NewFiberApp provider to create fiber app instance
 // Now depends on ShowcaseHandler AND Logger
 func NewFiberApp(
-	db *gorm.DB, 
-	showcaseHandler *handler.ShowcaseHandler, 
-	authMiddleware *middleware.AuthMiddleware, 
+	db *gorm.DB,
+	redisClient *redis.Client,
+	showcaseHandler *handler.ShowcaseHandler,
+	authMiddleware *middleware.AuthMiddleware,
 	log *logrus.Logger,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
@@ -43,6 +45,7 @@ func NewFiberApp(
 
 	// Public Routes
 	api.Get("/search", showcaseHandler.SearchShowcases)
+	api.Get("/feeds/trending", showcaseHandler.GetTrendingFeeds) // Trending Feeds
 	api.Get("/showcases/:slug", showcaseHandler.GetShowcaseBySlug)
 	api.Get("/showcases/user/:id", showcaseHandler.GetShowcasesByUser)
 	api.Get("/showcases/:id/comments", showcaseHandler.GetShowcaseComments)

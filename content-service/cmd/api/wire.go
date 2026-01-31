@@ -28,6 +28,7 @@ func InitializeApp() (*fiber.App, error) {
 
 		// Infrastructure
 		infrastructure.NewElasticsearchClient,
+		infrastructure.NewRedisClient,
 
 		// Logger
 		logger.NewLogger,
@@ -61,6 +62,6 @@ func InitializeApp() (*fiber.App, error) {
 		// App
 		NewFiberApp,
 	)
-	
+
 	return &fiber.App{}, nil
 }

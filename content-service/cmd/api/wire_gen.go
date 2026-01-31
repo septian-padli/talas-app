@@ -28,22 +28,26 @@ import (
 func InitializeApp() (*fiber.App, error) {
 	configConfig := config.LoadConfig()
 	db := database.ConnectDB(configConfig)
-	showcaseRepository := repository.NewShowcaseRepository(db)
-	client, err := infrastructure.NewElasticsearchClient(configConfig)
+	logrusLogger := logger.NewLogger()
+	client, err := infrastructure.NewRedisClient(configConfig, logrusLogger)
 	if err != nil {
 		return nil, err
 	}
-	logrusLogger := logger.NewLogger()
-	searchRepository := repository.NewSearchRepository(client, configConfig, logrusLogger)
+	showcaseRepository := repository.NewShowcaseRepository(db)
+	elasticsearchClient, err := infrastructure.NewElasticsearchClient(configConfig)
+	if err != nil {
+		return nil, err
+	}
+	searchRepository := repository.NewSearchRepository(elasticsearchClient, configConfig, logrusLogger)
 	userClient := clients.NewUserClient(configConfig, logrusLogger)
 	cloudinaryUploader, err := media.NewCloudinaryUploader(configConfig, logrusLogger)
 	if err != nil {
 		return nil, err
 	}
 	eventPublisher := rabbitmq.NewRabbitMQPublisher(configConfig, logrusLogger)
-	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, searchRepository, userClient, cloudinaryUploader, eventPublisher, configConfig, logrusLogger)
+	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, searchRepository, userClient, cloudinaryUploader, eventPublisher, client, configConfig, logrusLogger)
 	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase, logrusLogger)
 	authMiddleware := middleware.NewAuthMiddleware(configConfig)
-	app := NewFiberApp(db, showcaseHandler, authMiddleware, logrusLogger)
+	app := NewFiberApp(db, client, showcaseHandler, authMiddleware, logrusLogger)
 	return app, nil
 }

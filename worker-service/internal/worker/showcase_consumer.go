@@ -75,6 +75,11 @@ func (c *ShowcaseConsumer) Setup() error {
 		"showcase.deleted",
 		"collaborator.responded",
 		"collaborator.removed",
+		"showcase.liked",
+		"showcase.unliked",
+		"showcase.viewed",
+		"comment.created",
+		"comment.deleted",
 	}
 	for _, key := range routingKeys {
 		err = c.channel.QueueBind(QueueName, key, ExchangeName, false, nil)
@@ -132,6 +137,8 @@ func (c *ShowcaseConsumer) handleMessage(msg amqp.Delivery) {
 		c.handleAddCollaborator(msg)
 	case "collaborator.removed":
 		c.handleRemoveCollaborator(msg)
+	case "showcase.liked", "showcase.unliked", "showcase.viewed", "comment.created", "comment.deleted":
+		c.handleCountersUpdate(msg)
 	default:
 		c.log.Warnf("Unknown routing key: %s", msg.RoutingKey)
 		msg.Ack(false) // Ack unknown messages to prevent queue buildup
@@ -271,10 +278,10 @@ func (c *ShowcaseConsumer) handleAddCollaborator(msg amqp.Delivery) {
 	defer cancel()
 
 	collaborator := domain.Collaborator{
-		ID:       eventData.InvitationID, // Use Invitation/Collaboration ID as primary ID
-		UserID:   eventData.ResponderID,  // Store User ID separately
-		Username: eventData.ResponderUsername,
-		FullName: eventData.ResponderFullName,
+		ID:        eventData.InvitationID, // Use Invitation/Collaboration ID as primary ID
+		UserID:    eventData.ResponderID,  // Store User ID separately
+		Username:  eventData.ResponderUsername,
+		FullName:  eventData.ResponderFullName,
 		AvatarURL: eventData.ResponderAvatarURL,
 	}
 
@@ -331,5 +338,82 @@ func (c *ShowcaseConsumer) handleRemoveCollaborator(msg amqp.Delivery) {
 	}
 
 	c.log.Infof("Successfully removed collaborator %s from showcase %s", eventData.TargetUserID, eventData.ShowcaseID)
+	msg.Ack(false)
+}
+
+// handleCountersUpdate processes like/unlike/view events
+func (c *ShowcaseConsumer) handleCountersUpdate(msg amqp.Delivery) {
+	// 1. Parse Event Envelope
+	var envelope domain.EventEnvelope
+	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
+		c.log.Errorf("Failed to unmarshal event envelope: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	// 2. Extract Data (Generic Map)
+	dataBytes, err := json.Marshal(envelope.Data)
+	if err != nil {
+		c.log.Errorf("Failed to re-marshal data field: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	// We only need showcase_id from the data
+	var eventData struct {
+		ShowcaseID string `json:"showcase_id"`
+	}
+	if err := json.Unmarshal(dataBytes, &eventData); err != nil {
+		c.log.Errorf("Failed to unmarshal counter event data: %v", err)
+		msg.Ack(false)
+		return
+	}
+
+	if eventData.ShowcaseID == "" {
+		c.log.Error("ShowcaseID is empty in counter event")
+		msg.Ack(false)
+		return
+	}
+
+	// 3. Determine Deltas based on Routing Key
+	viewDelta := 0
+	likeDelta := 0
+	commentDelta := 0
+	isCommentEvent := false
+
+	switch msg.RoutingKey {
+	case "showcase.viewed":
+		viewDelta = 1
+	case "showcase.liked":
+		likeDelta = 1
+	case "showcase.unliked":
+		likeDelta = -1
+	case "comment.created":
+		commentDelta = 1
+		isCommentEvent = true
+	case "comment.deleted":
+		commentDelta = -1
+		isCommentEvent = true
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 4. Update Elasticsearch Atomically
+	var updateErr error
+	if isCommentEvent {
+		updateErr = c.repo.UpdateCommentCount(ctx, eventData.ShowcaseID, commentDelta)
+	} else {
+		updateErr = c.repo.UpdateShowcaseCounters(ctx, eventData.ShowcaseID, viewDelta, likeDelta)
+	}
+
+	if updateErr != nil {
+		c.log.Errorf("Failed to update counters for showcase %s: %v", eventData.ShowcaseID, updateErr)
+		// Retry logic (same as before)
+		msg.Ack(false)
+		return
+	}
+
+	c.log.Infof("Updated counters for showcase %s (View: %+d, Like: %+d, Comment: %+d)", eventData.ShowcaseID, viewDelta, likeDelta, commentDelta)
 	msg.Ack(false)
 }

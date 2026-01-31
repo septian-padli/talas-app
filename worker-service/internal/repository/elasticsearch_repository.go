@@ -18,6 +18,8 @@ type ElasticsearchRepository interface {
 	DeleteShowcase(ctx context.Context, id string) error
 	AddCollaborator(ctx context.Context, showcaseID string, collaborator domain.Collaborator) error
 	RemoveCollaborator(ctx context.Context, showcaseID string, userID string) error
+	UpdateShowcaseCounters(ctx context.Context, showcaseID string, viewDelta int, likeDelta int) error
+	UpdateCommentCount(ctx context.Context, showcaseID string, delta int) error
 	CreateIndexIfNotExists(ctx context.Context) error
 }
 
@@ -176,7 +178,94 @@ func (r *elasticsearchRepository) RemoveCollaborator(ctx context.Context, showca
 
 	r.log.Infof("Removed collaborator %s from showcase %s", userID, showcaseID)
 	return nil
-} // CreateIndexIfNotExists creates the index with explicit mapping if it doesn't exist
+}
+
+// UpdateShowcaseCounters atomically updates view and like counts
+func (r *elasticsearchRepository) UpdateShowcaseCounters(ctx context.Context, showcaseID string, viewDelta int, likeDelta int) error {
+	script := `
+		ctx._source.view_count += params.view_delta;
+		ctx._source.like_count += params.like_delta;
+	`
+
+	requestBody := map[string]interface{}{
+		"script": map[string]interface{}{
+			"source": script,
+			"lang":   "painless",
+			"params": map[string]interface{}{
+				"view_delta": viewDelta,
+				"like_delta": likeDelta,
+			},
+		},
+	}
+
+	data, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal counters script: %w", err)
+	}
+
+	res, err := r.client.Update(
+		r.indexName,
+		showcaseID,
+		bytes.NewReader(data),
+		r.client.Update.WithContext(ctx),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update counters: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		// Ignore 404 (document not found), as it might not be indexed yet or deleted
+		if res.StatusCode == 404 {
+			return nil
+		}
+		return fmt.Errorf("ES update counters error: %s", res.String())
+	}
+
+	return nil
+}
+
+// UpdateCommentCount atomically updates comment count
+func (r *elasticsearchRepository) UpdateCommentCount(ctx context.Context, showcaseID string, delta int) error {
+	script := `ctx._source.comment_count += params.delta;`
+
+	requestBody := map[string]interface{}{
+		"script": map[string]interface{}{
+			"source": script,
+			"lang":   "painless",
+			"params": map[string]interface{}{
+				"delta": delta,
+			},
+		},
+	}
+
+	data, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal comment count script: %w", err)
+	}
+
+	res, err := r.client.Update(
+		r.indexName,
+		showcaseID,
+		bytes.NewReader(data),
+		r.client.Update.WithContext(ctx),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update comment count: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		if res.StatusCode == 404 {
+			return nil
+		}
+		return fmt.Errorf("ES update comment count error: %s", res.String())
+	}
+
+	return nil
+}
 func (r *elasticsearchRepository) CreateIndexIfNotExists(ctx context.Context) error {
 	resOrErr, err := r.client.Indices.Exists([]string{r.indexName}, r.client.Indices.Exists.WithContext(ctx))
 	if err != nil {
@@ -219,7 +308,8 @@ func (r *elasticsearchRepository) CreateIndexIfNotExists(ctx context.Context) er
 						"full_name": { "type": "text" },
 						"avatar_url": { "type": "keyword" }
 					}
-				}
+				},
+				"comment_count": { "type": "integer" }
 			}
 		}
 	}`

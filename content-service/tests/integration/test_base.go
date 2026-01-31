@@ -79,9 +79,13 @@ func (m *MockEventPublisher) Close() error {
 // MockSearchRepository is a mock implementation of repository.SearchRepository
 type MockSearchRepository struct{}
 
-func (m *MockSearchRepository) SearchShowcases(ctx context.Context, query string, page int, limit int) ([]entity.Showcase, int64, error) {
+func (m *MockSearchRepository) SearchShowcases(ctx context.Context, query string, limit int, cursor []interface{}, filter repository.SearchFilter) ([]entity.Showcase, []interface{}, error) {
 	// Return empty result for now
-	return []entity.Showcase{}, 0, nil
+	return []entity.Showcase{}, nil, nil
+}
+
+func (m *MockSearchRepository) GetTrendingShowcases(ctx context.Context, limit int, offset int) ([]entity.Showcase, error) {
+	return []entity.Showcase{}, nil
 }
 
 // --- SETUP HELPERS ---
@@ -95,8 +99,8 @@ func setupTestDB() *gorm.DB {
 
 	cfg := config.LoadConfig()
 	// Override DB Name for testing
-	cfg.DBName = "talas_content_test" 
-	
+	cfg.DBName = "talas_content_test"
+
 	// Reconstruct DSN manually or use database package if we modify it.
 	// For now, let's just construct it here to allow custom GORM config
 	dsn := fmt.Sprintf(
@@ -117,7 +121,19 @@ func setupTestDB() *gorm.DB {
 	if err != nil {
 		panic("Failed to connect to test DB: " + err.Error())
 	}
-	
+
+	// Force Drop Tables (Clean Slate for Tests)
+	_ = db.Migrator().DropTable(
+		&entity.Category{},
+		&entity.Showcase{},
+		&entity.ShowcaseMedia{},
+		&entity.Comment{},
+		&entity.ShowcaseLike{},
+		&entity.CommentLike{},
+		&entity.Bookmark{},
+		&entity.Collaborator{},
+	)
+
 	// Auto Migrate (Copied directly to ensure test DB has tables)
 	err = db.AutoMigrate(
 		&entity.Category{},
@@ -176,7 +192,7 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	mockSearchRepo := &MockSearchRepository{}
 
 	// 5. Usecase (Injected with Mocks)
-	uc := usecase.NewShowcaseUsecase(repo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, cfg, log)
+	uc := usecase.NewShowcaseUsecase(repo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
 
 	// 6. Handler
 	h := handler.NewShowcaseHandler(uc, log)
@@ -198,7 +214,7 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 
 	// Register Routes manually (Copied from provider.go)
 	api := app.Group("/api")
-	
+
 	// Protected Group
 	protected := api.Group("/")
 	protected.Use(auth.Protect)
@@ -206,19 +222,19 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	protected.Post("/showcases", h.CreateShowcase)
 	protected.Patch("/showcases/:id", h.UpdateShowcase)
 	protected.Delete("/showcases/:id", h.DeleteShowcase)
-	
+
 	protected.Post("/showcases/:id/collaborators", h.InviteCollaborators)
 	protected.Delete("/showcases/:id/collaborators/:userId", h.RemoveCollaborator)
 	protected.Get("/showcases/:id/collaborators", h.GetCollaborators)
-	
+
 	protected.Patch("/collaborations/:id/response", h.RespondInvitation)
-	
+
 	protected.Post("/showcases/:id/like", h.ToggleLike)
 	protected.Post("/showcases/:id/bookmark", h.ToggleBookmark)
 	protected.Post("/comments/:id/like", h.ToggleCommentLike)
-	
+
 	protected.Post("/showcases/:id/comments", h.CreateComment)
-	
+
 	protected.Post("/comments/:id/reply", h.ReplyComment)
 	protected.Delete("/comments/:id", h.DeleteComment)
 	// Add other routes as needed for tests

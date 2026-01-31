@@ -19,9 +19,9 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 | **Worker Service** | Go | - | Background Jobs (Consumer RabbitMQ). |
 | **User DB** | PostgreSQL | `5432` | Data Users. |
 | **Content DB** | PostgreSQL | `5433` | Data Projects & Interactions. |
-| **Cache** | Redis | `6379` | Feed Timeline (ZSET), Session, Counters. |
-| **Search** | Elasticsearch | `9200` | Project Searching & Filtering. |
-| **Broker** | RabbitMQ | `5672` | Event Bus (Async Communication). |
+| **Cache** | Redis | `6379` | Feed Timeline, **Trending Feed Cache**, Session. |
+| **Search** | Elasticsearch | `9200` | Project Searching, Filtering, & **Trending Discovery**. |
+| **Broker** | RabbitMQ | `5672` | Event Bus (**showcase.***, **comment.***, **collaborator.***). |
 | **Storage** | Cloudinary | - | Media Storage (Direct Upload from Client). |
 
 ## 3. Critical Database Rules (The "Must-Follow")
@@ -74,7 +74,8 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
     * `DELETE /comments/:id` (Delete direct by ID).
 * **Discovery:**
     * `GET /feed` (Home Timeline via Redis).
-    * `GET /search` (Explore via Elastic).
+    * `GET /search` (Explore via Elastic - Keyword & Filters).
+    * `GET /feeds/trending` (Discovery via Elastic - Weighted Score).
 
 #### ⚙️ Internal API (Private - Docker Network Only)
 * Prefix `/internal/*`
@@ -99,23 +100,25 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 ### C. Event-Driven (RabbitMQ)
 * **Exchange:** `talas.events` (Topic).
 * **Routing Keys:**
-    * `project.created` -> Worker index ke Elastic + Fan-out ke Redis followers.
+    * `showcase.created` -> Worker index ke Elastic + Fan-out ke Redis followers.
+    * `showcase.liked`, `showcase.unliked`, `showcase.viewed` -> Worker update counters di Elastic (Atomic).
+    * `comment.created`, `comment.deleted` -> Worker update comment counters di Elastic (Atomic).
     * `collaborator.invited` -> Worker create Notification.
-    * `collaborator.responded` -> Worker create Notification to Owner.
+    * `collaborator.responded`, `collaborator.removed` -> Worker create Notification + Sync Elastic.
 
 ### D. Pagination Strategy (Cursor Based)
-* **Standard:** Semua endpoint `List` HARUS menggunakan **Cursor Pagination** untuk performa & konsistensi real-time.
+* **Mechanism:** Elasticsearch **Search After** (Stable Cursor).
+* **Tie-breaker:** Semua sort wajib diakhiri dengan field `id: asc` untuk stabilitas cursor.
 * **Request:** `?cursor=eyJ...&limit=10`.
 * **Response:**
     ```json
     "meta": {
-      "curr_cursor": "...",
       "next_cursor": "...",
-      "has_next": true,
+      "has_more": true,
       "limit": 10
     }
     ```
-* **Offset/Page** (`?page=1`) **DILARANG** digunakan (Deprecated).
+* **Offset/Page:** Diperbolehkan hanya untuk **Trending Feed** (Base64 Encoded Page Number).
 
 ## 6. Development Guidelines
 * **JSON Case:** Gunakan `snake_case` untuk response (`user_id`, `expired_at`).
@@ -180,23 +183,16 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 ---
 
-## 10. Trending Feed (Rolling 7 Days Window)
+### A. Implementation Flow (Elasticsearch + Redis)
+1. **Repository Layer (ES)**: Menggunakan `function_score` dengan `script_score`.
+   - **Formula**: `(Views * 1) + (Likes * 10) + (Comments * 30) + (Collaborators * 50)`.
+   - **Filter**: HANYA mengambil showcase yang dibuat dalam **7 hari terakhir** (`now-7d/d`).
+2. **Usecase Layer (Redis - Cache Aside)**:
+   - Check Redis (`feeds:trending:{page}:{limit}`).
+   - Jika Miss: Fetch dari ES -> Simpan ke Redis (TTL 10m) -> Return.
+   - Jika Hit: Langsung return data cache.
 
-### Strategy: Daily Buckets + ZUNIONSTORE - (TODO: Verify Implementation)
-
-### A. Write Flow (Worker - saat project.liked)
-```
-ZINCRBY trending:{YYYY-MM-DD} 1 {project_id}
-EXPIRE trending:{YYYY-MM-DD} 691200  # 8 hari dalam detik
-```
-
-### B. Read Flow (Content Service - GET /trending)
-1. Generate 7 key names: `trending:H-0` sampai `trending:H-6`.
-2. `ZUNIONSTORE trending:temp:{session_id} 7 key1 key2 ... key7`.
-3. `ZREVRANGE trending:temp:{session_id} 0 N` untuk ambil Top N.
-4. `EXPIRE trending:temp:{session_id} 10` atau langsung `DEL`.
-
-**Hasil:** Efek "Trending Minggu Ini" yang rolling, bukan reset paksa tiap Senin.
+**Benefit:** Algoritma trending yang dinamis namun tetap ringan berkat layer caching Redis.
 
 ---
 
