@@ -39,7 +39,7 @@ func InitializeWorker() (*WorkerApp, error) {
 	}
 	elasticsearchRepository := repository.NewElasticsearchRepository(client, configConfig, logger)
 	showcaseConsumer := worker.NewShowcaseConsumer(channel, elasticsearchRepository, logger)
-	workerApp := NewWorkerApp(configConfig, logger, connection, showcaseConsumer)
+	workerApp := NewWorkerApp(configConfig, logger, connection, showcaseConsumer, elasticsearchRepository)
 	return workerApp, nil
 }
 
@@ -51,6 +51,7 @@ type WorkerApp struct {
 	Logger   *logrus.Logger
 	MQConn   *amqp091.Connection
 	Consumer *worker.ShowcaseConsumer
+	ESRepo   repository.ElasticsearchRepository
 }
 
 // NewWorkerApp creates a new WorkerApp instance
@@ -59,12 +60,14 @@ func NewWorkerApp(
 	log *logrus.Logger,
 	conn *amqp091.Connection,
 	consumer *worker.ShowcaseConsumer,
+	esRepo repository.ElasticsearchRepository,
 ) *WorkerApp {
 	return &WorkerApp{
 		Config:   cfg,
 		Logger:   log,
 		MQConn:   conn,
 		Consumer: consumer,
+		ESRepo:   esRepo,
 	}
 }
 

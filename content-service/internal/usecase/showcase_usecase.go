@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -41,7 +40,7 @@ type ShowcaseUsecase interface {
 	GetPendingInvitations(ctx context.Context, userID uuid.UUID, limit int, cursor string) ([]entity.Collaborator, *repository.PaginationMeta, error)
 	InviteCollaborators(ctx context.Context, showcaseID uuid.UUID, usernames []string, actorUserID uuid.UUID) ([]string, error)
 	RespondInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID, response string) error
-	
+
 	// Search
 	SearchShowcases(ctx context.Context, query string, page int, limit int) (map[string]interface{}, error)
 }
@@ -102,7 +101,7 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Use u.mediaUploader
 		secureURL, err := u.mediaUploader.Upload(ctx, fileContent, file.Filename, "talas/showcases")
 		fileContent.Close() // Close immediately after upload
@@ -131,19 +130,18 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 		UserID: userID,
 	}
 
-
 	showcase := &entity.Showcase{
-		Title:       input.Title,
-		Slug:        slug,
-		Content:     input.Content,
-		CategoryID:  categoryID,
-		Tags:        strings.Split(input.Tags, ","),
-		Media:       mediaList,
+		Title:         input.Title,
+		Slug:          slug,
+		Content:       input.Content,
+		CategoryID:    categoryID,
+		Tags:          strings.Split(input.Tags, ","),
+		Media:         mediaList,
 		Collaborators: []entity.Collaborator{creatorCollaborator},
-		LikesCount: 0,
-		ViewsCount: 0,
+		LikesCount:    0,
+		ViewsCount:    0,
 	}
-	// showcase := &entity.Showcase{	
+	// showcase := &entity.Showcase{
 	// 	Title:       input.Title,
 	// 	Slug:        slug,
 	// 	Content:     input.Content,
@@ -169,8 +167,12 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 	}
 
 	// Fallback if user service fails (should ideally retry or fail, but for now fallback)
-	if creatorUsername == "" { creatorUsername = "unknown" }
-	if creatorName == "" { creatorName = "Unknown User" }
+	if creatorUsername == "" {
+		creatorUsername = "unknown"
+	}
+	if creatorName == "" {
+		creatorName = "Unknown User"
+	}
 	creatorAvatar := ""
 	if creatorData, ok := usersMap[userID]; ok {
 		creatorAvatar = creatorData.AvatarURL
@@ -192,16 +194,16 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 			"content":     showcase.Content,
 			"category_id": showcase.CategoryID,
 			"owner": map[string]interface{}{
-				"id":        userID,
-				"username":  creatorUsername,
-				"full_name": creatorName,
+				"id":         userID,
+				"username":   creatorUsername,
+				"full_name":  creatorName,
 				"avatar_url": creatorAvatar,
 			},
 			"collaborators": []map[string]interface{}{}, // Owner is separate, initially empty collaborators
-			"like_count":  showcase.LikesCount,
-			"view_count":  showcase.ViewsCount,
-			"created_at":  showcase.CreatedAt,
-			"updated_at":  showcase.UpdatedAt,
+			"like_count":    showcase.LikesCount,
+			"view_count":    showcase.ViewsCount,
+			"created_at":    showcase.CreatedAt,
+			"updated_at":    showcase.UpdatedAt,
 		}
 		if err := u.eventPublisher.Publish(context.Background(), "showcase.created", eventData); err != nil {
 			u.log.Errorf("Failed to publish showcase.created event: %v", err)
@@ -217,13 +219,13 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 			Role:   entity.CollaborationRoleOwner,
 			Status: entity.CollaborationStatusAccepted,
 			User: &entity.User{
-				ID:        userID,
-				Name:      creatorName,
-				Username:  creatorUsername,
+				ID:       userID,
+				Name:     creatorName,
+				Username: creatorUsername,
 			},
 		},
 	}
-	
+
 	// For now, let's keep it simple. The previous code re-fetched.
 	// We can reuse the fetched data if we extract variable scope.
 	// But to avoid large diff, we can just use the variables we have.
@@ -235,7 +237,6 @@ func (u *showcaseUsecase) CreateShowcase(ctx context.Context, input *entity.Crea
 	return showcase, nil
 }
 
-
 func (u *showcaseUsecase) UpdateShowcase(ctx context.Context, id uuid.UUID, input *entity.UpdateShowcaseRequest, userID uuid.UUID) (*entity.Showcase, error) {
 	// 1. Get Existing Showcase
 	showcase, err := u.repo.GetByID(id)
@@ -243,7 +244,7 @@ func (u *showcaseUsecase) UpdateShowcase(ctx context.Context, id uuid.UUID, inpu
 		return nil, err
 	}
 	// Note: First() returns error if not found, so err check covers it.
-	
+
 	// 2. Check Ownership (Must be OWNER)
 	isOwner := false
 	for _, col := range showcase.Collaborators {
@@ -323,10 +324,9 @@ func (u *showcaseUsecase) UpdateShowcase(ctx context.Context, id uuid.UUID, inpu
 			}
 		}()
 	}
-	
+
 	return showcase, nil
 }
-
 
 func (u *showcaseUsecase) ToggleLike(ctx context.Context, userID uuid.UUID, showcaseID uuid.UUID) (bool, error) {
 	// 1. Check if Showcase exists
@@ -459,7 +459,7 @@ func (u *showcaseUsecase) CreateComment(ctx context.Context, showcaseID uuid.UUI
 		}
 
 		comment.ParentID = &parentUUID
-		
+
 		// Fetch Parent Author Username for ReplyTo (Snapshot)
 		usersMap, err := u.userClient.GetUsersBulk([]uuid.UUID{parentComment.UserID})
 		if err == nil {
@@ -506,17 +506,17 @@ func (u *showcaseUsecase) CreateComment(ctx context.Context, showcaseID uuid.UUI
 		// Determine Event Type and Payload
 		var routingKey string
 		var eventData map[string]interface{}
-		
+
 		if comment.ParentID != nil {
 			// It is a REPLY
 			routingKey = "comment.replied"
-			
+
 			// We need Parent Author ID. We fetched ParentComment in Step 3.
 			// But variables in Step 3 are scoped. We need to fetch Parent again or restructure.
 			// Re-fetching parent for event safety or use closure if refactoring.
 			// Since Step 3 logic is inside `if`, we can't easily access `parentComment` here unless we declare it outside.
 			// I will fetch parent again inside this goroutine or check if I can modify Step 3 scope.
-			
+
 			parent, err := u.repo.GetCommentByID(*comment.ParentID)
 			if err == nil && parent != nil {
 				eventData = map[string]interface{}{
@@ -763,9 +763,9 @@ func (u *showcaseUsecase) DeleteComment(ctx context.Context, id uuid.UUID, userI
 	go func() {
 		routingKey := "comment.deleted"
 		eventData := map[string]interface{}{
-			"comment_id":     id,
-			"showcase_id":    comment.ShowcaseID,
-			"user_id":        comment.UserID,
+			"comment_id":  id,
+			"showcase_id": comment.ShowcaseID,
+			"user_id":     comment.UserID,
 		}
 
 		if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
@@ -875,7 +875,7 @@ func (u *showcaseUsecase) RemoveCollaborator(ctx context.Context, showcaseID uui
 	// 2. Find Logic Actors
 	var actorCol *entity.Collaborator
 	var targetCol *entity.Collaborator
-	
+
 	for i := range showcase.Collaborators {
 		if showcase.Collaborators[i].UserID == actorUserID {
 			actorCol = &showcase.Collaborators[i]
@@ -899,7 +899,7 @@ func (u *showcaseUsecase) RemoveCollaborator(ctx context.Context, showcaseID uui
 	// 3. Logic Branching
 	isSelfAction := (targetUserID == actorUserID)
 	var finalOwnerID uuid.UUID
-	
+
 	// Identify current owner
 	for _, c := range showcase.Collaborators {
 		if c.Role == entity.CollaborationRoleOwner {
@@ -1050,11 +1050,11 @@ func (u *showcaseUsecase) GetPendingInvitations(ctx context.Context, userID uuid
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	// Since repo returns *repository.PaginationMeta, check if casting or direct return works.
 	// Logic above signature changed to *repository.PaginationMeta.
 	// So direct return should work.
-	
+
 	return invitations, meta, nil
 }
 
@@ -1124,7 +1124,7 @@ func (u *showcaseUsecase) InviteCollaborators(ctx context.Context, showcaseID uu
 		}
 		// Explicitly generate ID for event usage
 		newCol.ID = uuid.New()
-		
+
 		newCollaborators = append(newCollaborators, newCol)
 		invitedUsernames = append(invitedUsernames, username)
 	}
@@ -1184,11 +1184,11 @@ func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, a
 	if err != nil {
 		return err
 	}
-	// Gorm returns error if not found? No, my GetCollaboratorByID returns err. 
+	// Gorm returns error if not found? No, my GetCollaboratorByID returns err.
 	// But previously I said "returns error if not found" in comment.
 	// Actually `db.First` returns ErrRecordNotFound.
 	// So err implies not found or db error.
-	
+
 	// 3. Validate Logic
 	if invitation.UserID != actorUserID {
 		return errors.New("forbidden: this invitation is not for you")
@@ -1240,15 +1240,15 @@ func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, a
 
 			routingKey := "collaborator.responded"
 			eventData := map[string]interface{}{
-				"invitation_id":       id,
-				"showcase_id":         invitation.ShowcaseID,
-				"showcase_title":      showcase.Title,
-				"response_status":     response,
-				"responder_id":        actorUserID,
-				"responder_username":  responderUsername,
-				"responder_full_name": responderFullName,
+				"invitation_id":        id,
+				"showcase_id":          invitation.ShowcaseID,
+				"showcase_title":       showcase.Title,
+				"response_status":      response,
+				"responder_id":         actorUserID,
+				"responder_username":   responderUsername,
+				"responder_full_name":  responderFullName,
 				"responder_avatar_url": responderAvatar,
-				"target_user_id":      ownerID,
+				"target_user_id":       ownerID,
 			}
 
 			if err := u.eventPublisher.Publish(context.Background(), routingKey, eventData); err != nil {
@@ -1273,7 +1273,7 @@ func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*
 	} else {
 		showcase, err = u.repo.GetBySlug(slug)
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -1311,7 +1311,7 @@ func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*
 			showcase.EnrichedCollaborators = enrichedCols
 		}
 	}
-	
+
 	return showcase, nil
 }
 
@@ -1341,12 +1341,12 @@ func (u *showcaseUsecase) GetShowcasesByUser(ctx context.Context, userIDStr stri
 			Username:  userDetail.Username,
 			AvatarURL: userDetail.AvatarURL,
 		}
-		
+
 		for i := range showcases {
 			// Since we called GetByUserID, we know 'userID' is at least a collaborator.
 			// Ideally we fetch actual role from DB (it's in 'Collaborators' relation if Preloaded).
 			// If Repo preloads Collaborators, we can find the specific role.
-			
+
 			var myRole = entity.CollaborationRoleOwner // Default assumption if not found (should not happen if data consistent)
 			var myStatus = entity.CollaborationStatusAccepted
 			var colID = uuid.Nil
@@ -1362,7 +1362,7 @@ func (u *showcaseUsecase) GetShowcasesByUser(ctx context.Context, userIDStr stri
 			}
 
 			// Assign Enriched Data specifically for the feed view
-			// Usually feed only shows "Author" (Owner). 
+			// Usually feed only shows "Author" (Owner).
 			// If we want to show all collaborators in feed, we'd need to fetch all UserIDs.
 			// For now, we only enrich the "Author" (the user whose feed we are viewing).
 			showcases[i].EnrichedCollaborators = []entity.EnrichedCollaborator{
@@ -1446,6 +1446,32 @@ func (u *showcaseUsecase) GetMyShowcases(ctx context.Context, userID uuid.UUID, 
 	return response, nil
 }
 
+type searchUserResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	Username  string    `json:"username"`
+	AvatarURL string    `json:"avatar_url"`
+}
+
+type searchShowcaseResponse struct {
+	ID            uuid.UUID            `json:"id"`
+	Title         string               `json:"title"`
+	Slug          string               `json:"slug"`
+	Content       string               `json:"content"`
+	Thumbnail     string               `json:"thumbnail,omitempty"`
+	CreatedAt     time.Time            `json:"created_at"`
+	UpdatedAt     time.Time            `json:"updated_at"`
+	DeletedAt     *time.Time           `json:"deleted_at"`
+	Tags          []string             `json:"tags"`
+	LikesCount    int                  `json:"likes_count"`
+	ViewsCount    int                  `json:"views_count"`
+	CommentsCount int                  `json:"comments_count"`
+	SharesCount   int                  `json:"shares_count"`
+	CategoryID    uuid.UUID            `json:"category_id"`
+	IsEdited      bool                 `json:"is_edited"`
+	Collaborators []searchUserResponse `json:"collaborators"`
+}
+
 func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, page int, limit int) (map[string]interface{}, error) {
 	showcases, total, err := u.searchRepo.SearchShowcases(ctx, query, page, limit)
 	if err != nil {
@@ -1453,26 +1479,47 @@ func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, pag
 		return nil, err
 	}
 
-	// Transform Response: Flatten Collaborators to list of Users
-	var transformedData []map[string]interface{}
+	// Transform Response: Direct Mapping (Zero Allocation Optimization)
+	transformedData := make([]searchShowcaseResponse, 0, len(showcases))
 	for _, s := range showcases {
-		// Convert to map to preserve all fields
-		var item map[string]interface{}
-		// Efficient enough for paginated view
-		if b, err := json.Marshal(s); err == nil {
-			_ = json.Unmarshal(b, &item)
-		}
-
 		// Extract Users from Collaborators
-		users := make([]*entity.User, 0, len(s.EnrichedCollaborators))
+		users := make([]searchUserResponse, 0, len(s.EnrichedCollaborators))
 		for _, ec := range s.EnrichedCollaborators {
 			if ec.User != nil {
-				users = append(users, ec.User)
+				users = append(users, searchUserResponse{
+					ID:        ec.User.ID,
+					Name:      ec.User.Name,
+					Username:  ec.User.Username,
+					AvatarURL: ec.User.AvatarURL,
+				})
 			}
 		}
 
-		// Overwrite "collaborators" with list of Users
-		item["collaborators"] = users
+		// Handle DeletedAt
+		var deletedAt *time.Time
+		if s.DeletedAt.Valid {
+			deletedAt = &s.DeletedAt.Time
+		}
+
+		// Direct Mapping to DTO
+		item := searchShowcaseResponse{
+			ID:      s.ID,
+			Title:   s.Title,
+			Slug:    s.Slug,
+			Content: s.Content,
+			// Thumbnail is removed from entity, likely handled by Media relation or separate logic
+			CreatedAt:     s.CreatedAt,
+			UpdatedAt:     s.UpdatedAt,
+			DeletedAt:     deletedAt,
+			Tags:          s.Tags,
+			LikesCount:    s.LikesCount,
+			ViewsCount:    s.ViewsCount,
+			CommentsCount: s.CommentsCount,
+			SharesCount:   s.SharesCount,
+			CategoryID:    s.CategoryID,
+			IsEdited:      s.IsEdited,
+			Collaborators: users,
+		}
 		transformedData = append(transformedData, item)
 	}
 

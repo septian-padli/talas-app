@@ -18,6 +18,7 @@ type ElasticsearchRepository interface {
 	DeleteShowcase(ctx context.Context, id string) error
 	AddCollaborator(ctx context.Context, showcaseID string, collaborator domain.Collaborator) error
 	RemoveCollaborator(ctx context.Context, showcaseID string, userID string) error
+	CreateIndexIfNotExists(ctx context.Context) error
 }
 
 // elasticsearchRepository implements ElasticsearchRepository
@@ -98,10 +99,10 @@ func (r *elasticsearchRepository) AddCollaborator(ctx context.Context, showcaseI
 			"lang":   "painless",
 			"params": map[string]interface{}{
 				"collab": map[string]interface{}{
-					"id":        collaborator.ID,
-					"user_id":   collaborator.UserID,
-					"username":  collaborator.Username,
-					"full_name": collaborator.FullName,
+					"id":         collaborator.ID,
+					"user_id":    collaborator.UserID,
+					"username":   collaborator.Username,
+					"full_name":  collaborator.FullName,
 					"avatar_url": collaborator.AvatarURL,
 				},
 			},
@@ -174,5 +175,69 @@ func (r *elasticsearchRepository) RemoveCollaborator(ctx context.Context, showca
 	}
 
 	r.log.Infof("Removed collaborator %s from showcase %s", userID, showcaseID)
+	return nil
+} // CreateIndexIfNotExists creates the index with explicit mapping if it doesn't exist
+func (r *elasticsearchRepository) CreateIndexIfNotExists(ctx context.Context) error {
+	resOrErr, err := r.client.Indices.Exists([]string{r.indexName}, r.client.Indices.Exists.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("failed to check index existence: %w", err)
+	}
+	defer resOrErr.Body.Close()
+
+	if resOrErr.StatusCode == 200 {
+		return nil
+	}
+
+	mapping := `
+	{
+		"mappings": {
+			"properties": {
+				"id": { "type": "keyword" },
+				"slug": { "type": "keyword" },
+				"title": { "type": "text" },
+				"content": { "type": "text" },
+				"category_id": { "type": "keyword" },
+				"tags": { "type": "keyword" },
+				"created_at": { "type": "date" },
+				"updated_at": { "type": "date" },
+				"like_count": { "type": "integer" },
+				"view_count": { "type": "integer" },
+				"owner": {
+					"properties": {
+						"id": { "type": "keyword" },
+						"user_id": { "type": "keyword" },
+						"username": { "type": "text" },
+						"full_name": { "type": "text" },
+						"avatar_url": { "type": "keyword" }
+					}
+				},
+				"collaborators": {
+					"properties": {
+						"id": { "type": "keyword" },
+						"user_id": { "type": "keyword" },
+						"username": { "type": "text" },
+						"full_name": { "type": "text" },
+						"avatar_url": { "type": "keyword" }
+					}
+				}
+			}
+		}
+	}`
+
+	res, err := r.client.Indices.Create(
+		r.indexName,
+		r.client.Indices.Create.WithBody(bytes.NewReader([]byte(mapping))),
+		r.client.Indices.Create.WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create index: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("ES create index error: %s", res.String())
+	}
+
+	r.log.Infof("Created index %s with explicit mapping", r.indexName)
 	return nil
 }

@@ -19,6 +19,11 @@ func main() {
 	log := app.Logger
 	log.Info("Worker Service starting...")
 
+	// 2. Ensure Index Mapping Exists
+	if err := app.ESRepo.CreateIndexIfNotExists(context.Background()); err != nil {
+		log.Fatalf("Failed to ensure index mapping: %v", err)
+	}
+
 	// 2. Setup Consumer Topology (Exchange, Queue, Bindings)
 	if err := app.Consumer.Setup(); err != nil {
 		log.Fatalf("Failed to setup consumer topology: %v", err)

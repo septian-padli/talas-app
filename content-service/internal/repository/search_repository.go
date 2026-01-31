@@ -25,7 +25,7 @@ type searchRepository struct {
 
 func NewSearchRepository(client *elasticsearch8.Client, cfg *config.Config, log *logrus.Logger) SearchRepository {
 	// Assuming index name is hardcoded or from config, but typically "showcases" based on worker service
-	indexName := "showcases" 
+	indexName := "showcases"
 	return &searchRepository{
 		client:    client,
 		indexName: indexName,
@@ -46,10 +46,36 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 		}
 	} else {
 		queryMap = map[string]interface{}{
-			"multi_match": map[string]interface{}{
-				"query":  query,
-				"fields": []string{"title^3", "content", "slug", "collaborators.username"},
-				"fuzziness": "AUTO",
+			"bool": map[string]interface{}{
+				"should": []interface{}{
+					// 1. Metadata Fields (High Priority, Fuzzy Enabled)
+					map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query": query,
+							"fields": []string{
+								"title^3",
+								"owner.username^2",
+								"owner.full_name^2",
+								"slug",
+								"collaborators.username",
+								"collaborators.full_name",
+								"tags^2",
+							},
+							"fuzziness": "AUTO",
+						},
+					},
+					// 2. Content Field (Lower Priority, Strict/No Fuzzy for Performance)
+					map[string]interface{}{
+						"match": map[string]interface{}{
+							"content": map[string]interface{}{
+								"query":     query,
+								"boost":     0.5,
+								"fuzziness": "0", // Disable fuzzy for long text
+							},
+						},
+					},
+				},
+				"minimum_should_match": 1,
 			},
 		}
 	}
@@ -87,25 +113,25 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 	// Parse Response
 	// 1. Define Intermediate Struct matching ES Document
 	type esCollaborator struct {
-		ID       string `json:"id"`
-		UserID   string `json:"user_id"`
-		Username string `json:"username"`
-		FullName string `json:"full_name"`
+		ID        string `json:"id"`
+		UserID    string `json:"user_id"`
+		Username  string `json:"username"`
+		FullName  string `json:"full_name"`
 		AvatarURL string `json:"avatar_url"`
 	}
 
 	type esOwner struct {
-		ID       string `json:"id"`
-		UserID   string `json:"user_id"`
-		Username string `json:"username"`
-		FullName string `json:"full_name"`
+		ID        string `json:"id"`
+		UserID    string `json:"user_id"`
+		Username  string `json:"username"`
+		FullName  string `json:"full_name"`
 		AvatarURL string `json:"avatar_url"`
 	}
 
 	type esShowcase struct {
-		entity.Showcase // Embed base fields for flat mapping (Title, Slug, etc)
-		Owner         esOwner          `json:"owner"`
-		Collaborators []esCollaborator `json:"collaborators"`
+		entity.Showcase                  // Embed base fields for flat mapping (Title, Slug, etc)
+		Owner           esOwner          `json:"owner"`
+		Collaborators   []esCollaborator `json:"collaborators"`
 	}
 
 	type esResponse struct {
@@ -137,7 +163,7 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 		// Add Owner as OWNER
 		if src.Owner.ID != "" {
 			ownerID, _ := uuid.Parse(src.Owner.ID)
-			
+
 			// Owner User ID Fallback
 			ownerUserIDStr := src.Owner.UserID
 			if ownerUserIDStr == "" {
@@ -150,9 +176,9 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 				Role:   "OWNER",
 				Status: "ACCEPTED",
 				User: &entity.User{
-					ID:       ownerUserID,
-					Username: src.Owner.Username,
-					Name:     src.Owner.FullName,
+					ID:        ownerUserID,
+					Username:  src.Owner.Username,
+					Name:      src.Owner.FullName,
 					AvatarURL: src.Owner.AvatarURL,
 				},
 			})
@@ -174,9 +200,9 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 				Role:   "COLLABORATOR", // Default role
 				Status: "ACCEPTED",     // Assumed accepted
 				User: &entity.User{
-					ID:       uID, // User ID
-					Username: c.Username,
-					Name:     c.FullName,
+					ID:        uID, // User ID
+					Username:  c.Username,
+					Name:      c.FullName,
 					AvatarURL: c.AvatarURL,
 				},
 			})
