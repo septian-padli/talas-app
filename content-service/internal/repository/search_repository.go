@@ -14,7 +14,7 @@ import (
 )
 
 type SearchRepository interface {
-	SearchShowcases(ctx context.Context, query string, page int, limit int) ([]entity.Showcase, int64, error)
+	SearchShowcases(ctx context.Context, query string, limit int, cursor []interface{}) ([]entity.Showcase, []interface{}, error)
 }
 
 type searchRepository struct {
@@ -33,12 +33,11 @@ func NewSearchRepository(client *elasticsearch8.Client, cfg *config.Config, log 
 	}
 }
 
-func (r *searchRepository) SearchShowcases(ctx context.Context, query string, page int, limit int) ([]entity.Showcase, int64, error) {
-	from := (page - 1) * limit
+func (r *searchRepository) SearchShowcases(ctx context.Context, query string, limit int, cursor []interface{}) ([]entity.Showcase, []interface{}, error) {
 	var buf bytes.Buffer
 
 	// Build Query
-	queryMap := map[string]interface{}{}
+	var queryMap map[string]interface{}
 
 	if query == "" {
 		queryMap = map[string]interface{}{
@@ -82,12 +81,20 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 
 	searchSource := map[string]interface{}{
 		"query": queryMap,
-		"from":  from,
 		"size":  limit,
+		"sort": []map[string]interface{}{
+			{"_score": "desc"},
+			{"id": "asc"}, // Tie-breaker for stable sorting
+		},
+	}
+
+	// Add Search After if cursor exists
+	if len(cursor) > 0 {
+		searchSource["search_after"] = cursor
 	}
 
 	if err := json.NewEncoder(&buf).Encode(searchSource); err != nil {
-		return nil, 0, fmt.Errorf("failed to encode search query: %w", err)
+		return nil, nil, fmt.Errorf("failed to encode search query: %w", err)
 	}
 
 	// Perform Search
@@ -98,16 +105,16 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 		r.client.Search.WithTrackTotalHits(true),
 	)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to perform search request: %w", err)
+		return nil, nil, fmt.Errorf("failed to perform search request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.IsError() {
 		var e map[string]interface{}
 		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
-			return nil, 0, fmt.Errorf("error parsing error response: %w", err)
+			return nil, nil, fmt.Errorf("error parsing error response: %w", err)
 		}
-		return nil, 0, fmt.Errorf("search error: %s", e["error"]) // Simplify error rep
+		return nil, nil, fmt.Errorf("search error: %s", e["error"]) // Simplify error rep
 	}
 
 	// Parse Response
@@ -140,19 +147,23 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 				Value int64 `json:"value"`
 			} `json:"total"`
 			Hits []struct {
-				Source esShowcase `json:"_source"`
+				Source esShowcase    `json:"_source"`
+				Sort   []interface{} `json:"sort"` // Capture sort values for next cursor
 			} `json:"hits"`
 		} `json:"hits"`
 	}
 
 	var rResponse esResponse
 	if err := json.NewDecoder(res.Body).Decode(&rResponse); err != nil {
-		return nil, 0, fmt.Errorf("failed to decode search response: %w", err)
+		return nil, nil, fmt.Errorf("failed to decode search response: %w", err)
 	}
 
 	showcases := make([]entity.Showcase, 0, len(rResponse.Hits.Hits))
+	var lastSortValues []interface{}
+
 	for _, hit := range rResponse.Hits.Hits {
 		src := hit.Source
+		lastSortValues = hit.Sort // Keep updating to the last one
 
 		// 2. Map to Domain Entity
 		finalShowcase := src.Showcase // Copy embedded fields
@@ -212,5 +223,5 @@ func (r *searchRepository) SearchShowcases(ctx context.Context, query string, pa
 		showcases = append(showcases, finalShowcase)
 	}
 
-	return showcases, rResponse.Hits.Total.Value, nil
+	return showcases, lastSortValues, nil
 }

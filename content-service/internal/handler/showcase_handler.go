@@ -83,7 +83,7 @@ func (h *ShowcaseHandler) CreateShowcase(c *fiber.Ctx) error {
 	result, err := h.usecase.CreateShowcase(c.Context(), &req, files, userID)
 	if err != nil {
 		errMsg := err.Error()
-		
+
 		// Log detailed error
 		h.log.WithFields(logrus.Fields{
 			"request_id": reqID,
@@ -91,10 +91,10 @@ func (h *ShowcaseHandler) CreateShowcase(c *fiber.Ctx) error {
 			"error":      errMsg,
 		}).Error("CreateShowcase: Usecase execution failed")
 
-		if contains(errMsg, "too large") || 
-		   contains(errMsg, "invalid type") || 
-		   contains(errMsg, "is required") ||
-		   contains(errMsg, "Key:") { 
+		if contains(errMsg, "too large") ||
+			contains(errMsg, "invalid type") ||
+			contains(errMsg, "is required") ||
+			contains(errMsg, "Key:") {
 			return utils.ErrorResponse(c, 400, errMsg, nil)
 		}
 
@@ -181,18 +181,17 @@ func (h *ShowcaseHandler) GetMyShowcases(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, 200, "My showcases retrieved", result)
 }
 
-
 func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	idStr := c.Params("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		h.log.WithFields(logrus.Fields{
-			"request_id": reqID,
+			"request_id":  reqID,
 			"showcase_id": idStr,
-			"error":      err.Error(),
+			"error":       err.Error(),
 		}).Error("UpdateShowcase: Invalid UUID format")
 		return utils.ErrorResponse(c, 400, "Invalid UUID format", nil)
 	}
@@ -200,9 +199,9 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 	var req entity.UpdateShowcaseRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.log.WithFields(logrus.Fields{
-			"request_id": reqID,
+			"request_id":  reqID,
 			"showcase_id": id.String(),
-			"error":      err.Error(),
+			"error":       err.Error(),
 		}).Error("UpdateShowcase: Invalid JSON body")
 		return utils.ErrorResponse(c, 400, "Invalid JSON body", nil)
 	}
@@ -211,12 +210,12 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 	userIDVal := c.Locals("user_id")
 	if userIDVal == nil {
 		h.log.WithFields(logrus.Fields{
-			"request_id": reqID,
+			"request_id":  reqID,
 			"showcase_id": id.String(),
 		}).Error("UpdateShowcase: Unauthorized (User ID missing)")
 		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
 	}
-	
+
 	var userID uuid.UUID
 	if str, ok := userIDVal.(string); ok {
 		userID, _ = uuid.Parse(str)
@@ -224,7 +223,7 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 		userID = uid
 	} else {
 		h.log.WithFields(logrus.Fields{
-			"request_id": reqID,
+			"request_id":  reqID,
 			"showcase_id": id.String(),
 		}).Error("UpdateShowcase: Invalid User ID context")
 		return utils.ErrorResponse(c, 401, "Invalid User ID context", nil)
@@ -238,10 +237,18 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 		"payload_keys": func() []string {
 			// Helper to log what fields are being updated (Metadata)
 			var keys []string
-			if req.Title != nil { keys = append(keys, "title") }
-			if req.Content != nil { keys = append(keys, "content") }
-			if req.CategoryID != nil { keys = append(keys, "category_id") }
-			if req.Tags != nil { keys = append(keys, "tags") }
+			if req.Title != nil {
+				keys = append(keys, "title")
+			}
+			if req.Content != nil {
+				keys = append(keys, "content")
+			}
+			if req.CategoryID != nil {
+				keys = append(keys, "category_id")
+			}
+			if req.Tags != nil {
+				keys = append(keys, "tags")
+			}
 			return keys
 		}(),
 	}).Info("Update showcase process started")
@@ -258,7 +265,7 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 	result, err := h.usecase.UpdateShowcase(c.Context(), id, &req, userID)
 	if err != nil {
 		errMsg := err.Error()
-		
+
 		logFields := logrus.Fields{
 			"request_id":  reqID,
 			"user_id":     userID.String(),
@@ -279,7 +286,7 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Error("UpdateShowcase: Validation failed")
 			return utils.ErrorResponse(c, 400, errMsg, nil)
 		}
-		
+
 		// LOG: Fatal/Technical Error (We use Error level but treat as critical)
 		h.log.WithFields(logFields).Error("UpdateShowcase: Technical/Database error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -296,11 +303,10 @@ func (h *ShowcaseHandler) UpdateShowcase(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, 200, "Showcase updated successfully", result)
 }
 
-
 func (h *ShowcaseHandler) ToggleLike(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	idStr := c.Params("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -320,7 +326,7 @@ func (h *ShowcaseHandler) ToggleLike(c *fiber.Ctx) error {
 		}).Error("ToggleLike: Unauthorized (User ID missing)")
 		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
 	}
-	
+
 	var userID uuid.UUID
 	if str, ok := userIDVal.(string); ok {
 		userID, _ = uuid.Parse(str)
@@ -350,13 +356,13 @@ func (h *ShowcaseHandler) ToggleLike(c *fiber.Ctx) error {
 			"showcase_id": id.String(),
 			"error":       err.Error(),
 		}
-		
+
 		if strings.Contains(err.Error(), "not found") {
 			// LOG: WARN - Resource Not Found
 			h.log.WithFields(logFields).Warn("ToggleLike: Showcase not found")
 			return utils.ErrorResponse(c, 404, "Showcase not found", nil)
 		}
-		
+
 		// LOG: ERROR - Database/Logic Error
 		h.log.WithFields(logFields).Error("ToggleLike: Database error")
 		return utils.ErrorResponse(c, 500, err.Error(), nil)
@@ -383,7 +389,7 @@ func (h *ShowcaseHandler) ToggleLike(c *fiber.Ctx) error {
 func (h *ShowcaseHandler) ToggleBookmark(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	idStr := c.Params("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -403,7 +409,7 @@ func (h *ShowcaseHandler) ToggleBookmark(c *fiber.Ctx) error {
 		}).Error("ToggleBookmark: Unauthorized (User ID missing)")
 		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
 	}
-	
+
 	var userID uuid.UUID
 	if str, ok := userIDVal.(string); ok {
 		userID, _ = uuid.Parse(str)
@@ -433,13 +439,13 @@ func (h *ShowcaseHandler) ToggleBookmark(c *fiber.Ctx) error {
 			"showcase_id": id.String(),
 			"error":       err.Error(),
 		}
-		
+
 		if strings.Contains(err.Error(), "not found") {
 			// LOG: WARN - Resource Not Found
 			h.log.WithFields(logFields).Warn("ToggleBookmark: Showcase not found")
 			return utils.ErrorResponse(c, 404, "Showcase not found", nil)
 		}
-		
+
 		// LOG: ERROR - Database/Logic Error
 		h.log.WithFields(logFields).Error("ToggleBookmark: Database error")
 		return utils.ErrorResponse(c, 500, err.Error(), nil)
@@ -462,7 +468,6 @@ func (h *ShowcaseHandler) ToggleBookmark(c *fiber.Ctx) error {
 
 	return utils.SuccessResponse(c, 200, msg, fiber.Map{"is_bookmarked": isBookmarked})
 }
-
 
 func (h *ShowcaseHandler) CreateComment(c *fiber.Ctx) error {
 	// Request ID for Tracing
@@ -562,7 +567,7 @@ func (h *ShowcaseHandler) CreateComment(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Error("CreateComment: Validation failed")
 			return utils.ErrorResponse(c, 400, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("CreateComment: Database error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -665,7 +670,7 @@ func (h *ShowcaseHandler) ReplyComment(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("ReplyComment: Nested depth limit reached")
 			return utils.ErrorResponse(c, 400, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("ReplyComment: Database error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -789,7 +794,7 @@ func (h *ShowcaseHandler) UpdateComment(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("UpdateComment: Forbidden access (Not owner)")
 			return utils.ErrorResponse(c, 403, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("UpdateComment: Database or validation error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -869,7 +874,7 @@ func (h *ShowcaseHandler) DeleteComment(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("DeleteComment: Forbidden access (Not owner)")
 			return utils.ErrorResponse(c, 403, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("DeleteComment: Database error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -944,7 +949,7 @@ func (h *ShowcaseHandler) ToggleCommentLike(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("ToggleCommentLike: Comment not found")
 			return utils.ErrorResponse(c, 404, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("ToggleCommentLike: Database error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -975,7 +980,7 @@ func (h *ShowcaseHandler) ToggleCommentLike(c *fiber.Ctx) error {
 func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	showcaseID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		h.log.WithFields(logrus.Fields{
@@ -994,7 +999,7 @@ func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 		}).Error("DeleteShowcase: Unauthorized (User ID missing)")
 		return utils.ErrorResponse(c, 401, "Unauthorized", nil)
 	}
-	
+
 	var userID uuid.UUID
 	if str, ok := userIDVal.(string); ok {
 		userID, _ = uuid.Parse(str)
@@ -1017,7 +1022,7 @@ func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 
 	if err := h.usecase.DeleteShowcase(c.Context(), showcaseID, userID); err != nil {
 		errMsg := err.Error()
-		
+
 		logFields := logrus.Fields{
 			"request_id":  reqID,
 			"user_id":     userID.String(),
@@ -1035,7 +1040,7 @@ func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("DeleteShowcase: Forbidden access attempt")
 			return utils.ErrorResponse(c, 403, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("DeleteShowcase: Database or cleanup error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -1055,7 +1060,7 @@ func (h *ShowcaseHandler) DeleteShowcase(c *fiber.Ctx) error {
 func (h *ShowcaseHandler) RemoveCollaborator(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	showcaseID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return utils.ErrorResponse(c, 400, "Invalid showcase UUID", nil)
@@ -1064,10 +1069,10 @@ func (h *ShowcaseHandler) RemoveCollaborator(c *fiber.Ctx) error {
 	targetUserID, err := uuid.Parse(c.Params("userId"))
 	if err != nil {
 		h.log.WithFields(logrus.Fields{
-			"request_id":   reqID,
-			"target_id":    c.Params("userId"),
-			"showcase_id":  showcaseID.String(),
-			"error":        err.Error(),
+			"request_id":  reqID,
+			"target_id":   c.Params("userId"),
+			"showcase_id": showcaseID.String(),
+			"error":       err.Error(),
 		}).Error("RemoveCollaborator: Invalid Target UUID format")
 		return utils.ErrorResponse(c, 400, "Invalid target user UUID", nil)
 	}
@@ -1092,22 +1097,22 @@ func (h *ShowcaseHandler) RemoveCollaborator(c *fiber.Ctx) error {
 
 	// LOG: Process Started
 	h.log.WithFields(logrus.Fields{
-		"request_id":   reqID,
-		"user_id":      actorID.String(),
-		"target_id":    targetUserID.String(),
-		"showcase_id":  showcaseID.String(),
-		"action_type":  actionType,
+		"request_id":  reqID,
+		"user_id":     actorID.String(),
+		"target_id":   targetUserID.String(),
+		"showcase_id": showcaseID.String(),
+		"action_type": actionType,
 	}).Info("Remove collaborator process started")
 
 	if err := h.usecase.RemoveCollaborator(c.Context(), showcaseID, targetUserID, actorID); err != nil {
 		errMsg := err.Error()
 		logFields := logrus.Fields{
-			"request_id":   reqID,
-			"user_id":      actorID.String(),
-			"target_id":    targetUserID.String(),
-			"showcase_id":  showcaseID.String(),
-			"action_type":  actionType,
-			"error":        errMsg,
+			"request_id":  reqID,
+			"user_id":     actorID.String(),
+			"target_id":   targetUserID.String(),
+			"showcase_id": showcaseID.String(),
+			"action_type": actionType,
+			"error":       errMsg,
 		}
 
 		if strings.Contains(errMsg, "not found") {
@@ -1125,7 +1130,7 @@ func (h *ShowcaseHandler) RemoveCollaborator(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("RemoveCollaborator: Invalid operation")
 			return utils.ErrorResponse(c, 400, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("RemoveCollaborator: Database or logic error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -1133,11 +1138,11 @@ func (h *ShowcaseHandler) RemoveCollaborator(c *fiber.Ctx) error {
 
 	// LOG: Success
 	h.log.WithFields(logrus.Fields{
-		"request_id":   reqID,
-		"user_id":      actorID.String(),
-		"target_id":    targetUserID.String(),
-		"showcase_id":  showcaseID.String(),
-		"action_type":  actionType,
+		"request_id":  reqID,
+		"user_id":     actorID.String(),
+		"target_id":   targetUserID.String(),
+		"showcase_id": showcaseID.String(),
+		"action_type": actionType,
 	}).Info("Collaborator removed/left successfully")
 
 	return utils.SuccessResponse(c, 200, "Collaborator removed successfully", nil)
@@ -1184,7 +1189,7 @@ func (h *ShowcaseHandler) GetCollaborators(c *fiber.Ctx) error {
 func (h *ShowcaseHandler) DeleteInvitation(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		h.log.WithFields(logrus.Fields{
@@ -1239,7 +1244,7 @@ func (h *ShowcaseHandler) DeleteInvitation(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("DeleteInvitation: Invalid state (already processed)")
 			return utils.ErrorResponse(c, 400, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Technical Error
 		h.log.WithFields(logFields).Error("DeleteInvitation: Database error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)
@@ -1257,11 +1262,14 @@ func (h *ShowcaseHandler) DeleteInvitation(c *fiber.Ctx) error {
 
 func (h *ShowcaseHandler) SearchShowcases(c *fiber.Ctx) error {
 	query := c.Query("q")
-	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
+	cursor := c.Query("cursor") // Get cursor from params
 
-	result, err := h.usecase.SearchShowcases(c.Context(), query, page, limit)
+	result, err := h.usecase.SearchShowcases(c.Context(), query, limit, cursor)
 	if err != nil {
+		if err.Error() == "invalid cursor format" {
+			return utils.ErrorResponse(c, 400, "Invalid cursor format", nil)
+		}
 		return utils.ErrorResponse(c, 500, err.Error(), nil)
 	}
 
@@ -1303,8 +1311,8 @@ func (h *ShowcaseHandler) GetPendingInvitations(c *fiber.Ctx) error {
 				"id":        inv.Showcase.ID,
 				"title":     inv.Showcase.Title,
 				"slug":      inv.Showcase.Slug,
-				"cover_url": nil, // Map from Media if preloaded, but currently not preloaded in this flow specifically (only Showcase and Showcase.Collaborators). 
-				// To get cover_url, we'd need Showcase.Media preloaded. 
+				"cover_url": nil, // Map from Media if preloaded, but currently not preloaded in this flow specifically (only Showcase and Showcase.Collaborators).
+				// To get cover_url, we'd need Showcase.Media preloaded.
 				// Repository used Preload("Showcase") and Preload("Showcase.Collaborators"). Media is missing.
 				// Leaving cover_url as nil or TODO.
 			}
@@ -1351,7 +1359,7 @@ func (h *ShowcaseHandler) GetPendingInvitations(c *fiber.Ctx) error {
 func (h *ShowcaseHandler) InviteCollaborators(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	idStr := c.Params("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -1466,7 +1474,7 @@ func (h *ShowcaseHandler) InviteCollaborators(c *fiber.Ctx) error {
 func (h *ShowcaseHandler) RespondInvitation(c *fiber.Ctx) error {
 	// Request ID for Tracing
 	reqID, _ := c.Locals("requestid").(string)
-	
+
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		h.log.WithFields(logrus.Fields{
@@ -1549,7 +1557,7 @@ func (h *ShowcaseHandler) RespondInvitation(c *fiber.Ctx) error {
 			h.log.WithFields(logFields).Warn("RespondInvitation: Invalid state or response")
 			return utils.ErrorResponse(c, 400, errMsg, nil)
 		}
-		
+
 		// LOG: ERROR - Database/Logic Error
 		h.log.WithFields(logFields).Error("RespondInvitation: Database or logic error")
 		return utils.ErrorResponse(c, 500, "Internal Server Error", nil)

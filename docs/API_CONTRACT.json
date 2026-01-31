@@ -3381,7 +3381,7 @@
 			"get": {
 				"tags": ["Feeds"],
 				"summary": "Search showcases",
-				"description": "Mencari showcase menggunakan Elasticsearch dengan support full-text search, filter kategori, dan sorting. **Requires Cookie Session (JWT)**. Query minimal 3 karakter. Kategori menggunakan comma-separated slugs dengan logic OR.",
+				"description": "Mencari showcase menggunakan Elasticsearch dengan support full-text search, filter kategori, dan sorting. **Requires Cookie Session (JWT)**. Query minimal 3 karakter. Kategori menggunakan comma-separated slugs dengan logic OR. Mendukung Infinite Scroll (Cursor Based).",
 				"operationId": "searchShowcases",
 				"security": [
 					{
@@ -3411,27 +3411,12 @@
 						}
 					},
 					{
-						"name": "sort",
+						"name": "cursor",
 						"in": "query",
 						"required": false,
-						"description": "Sorting hasil pencarian (default: relevance)",
+						"description": "Cursor untuk pagination (kosongkan untuk halaman pertama)",
 						"schema": {
-							"type": "string",
-							"enum": ["latest", "popular", "relevance"],
-							"default": "relevance",
-							"example": "relevance"
-						}
-					},
-					{
-						"name": "page",
-						"in": "query",
-						"required": false,
-						"description": "Halaman yang diminta (default: 1)",
-						"schema": {
-							"type": "integer",
-							"minimum": 1,
-							"default": 1,
-							"example": 1
+							"type": "string"
 						}
 					},
 					{
@@ -3458,91 +3443,50 @@
 								},
 								"examples": {
 									"with_query": {
-										"summary": "Search dengan query",
+										"summary": "Search dengan query (Default)",
 										"value": {
 											"code": 200,
 											"success": true,
+											"message": "Search results retrieved",
 											"data": {
-												"showcases": [
+												"data": [
 													{
-														"id": "550e8400-e29b-41d4-a716-446655440001",
-														"title": "Modern Dashboard Design",
-														"slug": "modern-dashboard-design",
-														"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover1.jpg",
-														"content": "A sleek and modern dashboard design with dark mode support.",
-														"likes_count": 150,
-														"comments_count": 23,
+														"id": "93539457-4a4c-48fb-b073-4f9796c8bec0",
+														"title": "My tsunade Project",
+														"slug": "my-tsunade-project-86af71a4",
+														"content": "This is a detailed description of my tsunade showcase project.",
+														"created_at": "2026-01-31T22:11:16.622259+07:00",
+														"updated_at": "2026-01-31T22:11:16.622259+07:00",
+														"deleted_at": null,
+														"tags": ["ui", "ux", "web", "design"],
+														"likes_count": 0,
+														"views_count": 0,
+														"comments_count": 0,
+														"shares_count": 0,
+														"category_id": "8b55f039-8610-473f-957d-85ad3cc0cf4e",
+														"is_edited": false,
 														"collaborators": [
 															{
-																"id": "collab-uuid-1",
-																"role": "OWNER",
-																"status": "ACCEPTED",
-																"user": {
-																	"id": "uuid-padli",
-																	"username": "padli",
-																	"name": "Septian Padli",
-																	"avatar_url": "https://res.cloudinary.com/talas/avatar/user1.jpg"
-																}
+																"id": "0cc4f86c-13dc-4ce9-90f4-5c9d8003dc32",
+																"name": "user admin",
+																"username": "useradmin",
+																"avatar_url": "https://avatars.githubusercontent.com/u/86516148"
+															},
+															{
+																"id": "fe92b1a7-4188-4e6c-885e-f09dec4521aa",
+																"name": "Maritza Reilly",
+																"username": "maritzareilly13",
+																"avatar_url": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/26.jpg"
 															}
-														],
-														"is_liked": false,
-														"is_bookmarked": true
+														]
 													}
 												],
-												"pagination": {
-													"pagination": {
-														"next_cursor": "eyJpZCI...",
-														"has_next": true
-													}
-												},
-												"errors": null
+												"meta": {
+													"has_more": false,
+													"limit": 10,
+													"next_cursor": ""
+												}
 											}
-										}
-									},
-									"category_only": {
-										"summary": "Search by category saja (tanpa query)",
-										"value": {
-											"code": 200,
-											"success": true,
-											"data": {
-												"showcases": [
-													{
-														"id": "550e8400-e29b-41d4-a716-446655440002",
-														"title": "E-commerce Platform",
-														"slug": "ecommerce-platform",
-														"cover_url": "https://res.cloudinary.com/talas/image/upload/v1/projects/cover2.jpg",
-														"content": "Full-featured e-commerce platform with payment integration.",
-														"likes_count": 89,
-														"comments_count": 12,
-														"author": {
-															"username": "devmaster",
-															"avatar_url": "https://res.cloudinary.com/talas/avatar/user2.jpg"
-														},
-														"is_liked": true,
-														"is_bookmarked": false
-													}
-												],
-												"pagination": {
-													"next_cursor": "eyJpZCI...",
-													"has_next": true
-												}
-											},
-											"errors": null
-										}
-									},
-									"no_results": {
-										"summary": "Pencarian tidak menemukan hasil (empty)",
-										"value": {
-											"code": 200,
-											"success": true,
-											"data": {
-												"showcases": [],
-												"pagination": {
-													"next_cursor": null,
-													"has_next": false
-												}
-											},
-											"errors": null
 										}
 									}
 								}

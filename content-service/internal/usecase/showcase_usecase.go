@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -42,7 +44,7 @@ type ShowcaseUsecase interface {
 	RespondInvitation(ctx context.Context, id uuid.UUID, actorUserID uuid.UUID, response string) error
 
 	// Search
-	SearchShowcases(ctx context.Context, query string, page int, limit int) (map[string]interface{}, error)
+	SearchShowcases(ctx context.Context, query string, limit int, cursor string) (map[string]interface{}, error)
 }
 
 type showcaseUsecase struct {
@@ -1472,8 +1474,18 @@ type searchShowcaseResponse struct {
 	Collaborators []searchUserResponse `json:"collaborators"`
 }
 
-func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, page int, limit int) (map[string]interface{}, error) {
-	showcases, total, err := u.searchRepo.SearchShowcases(ctx, query, page, limit)
+func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, limit int, cursor string) (map[string]interface{}, error) {
+	// 1. Decode Cursor
+	var cursorSlice []interface{}
+	var err error
+	if cursor != "" {
+		cursorSlice, err = u.decodeCursor(cursor)
+		if err != nil {
+			return nil, errors.New("invalid cursor format")
+		}
+	}
+
+	showcases, lastSortValues, err := u.searchRepo.SearchShowcases(ctx, query, limit, cursorSlice)
 	if err != nil {
 		u.log.Errorf("Failed to search showcases: %v", err)
 		return nil, err
@@ -1523,12 +1535,50 @@ func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, pag
 		transformedData = append(transformedData, item)
 	}
 
+	// 2. Encode Next Cursor
+	var nextCursor string
+	var hasMore bool = false
+
+	if len(showcases) == limit {
+		// If we got exactly limit items, potentially there are more.
+		// Note: search_after doesn't guarantee has_more unless we fetch limit+1.
+		// But for simple infinite scroll, returning next_cursor is enough.
+		// If next fetch returns empty, then has_more is false.
+		// Or we can assume has_more if len == limit.
+		hasMore = true
+		if len(lastSortValues) > 0 {
+			nextCursor = u.encodeCursor(lastSortValues)
+		}
+	} else if len(showcases) > 0 {
+		// Got last page partial
+		hasMore = false
+	}
+
 	return map[string]interface{}{
 		"data": transformedData,
 		"meta": map[string]interface{}{
-			"total": total,
-			"page":  page,
-			"limit": limit,
+			"next_cursor": nextCursor,
+			"has_more":    hasMore,
+			"limit":       limit,
 		},
 	}, nil
+}
+
+// Helper: Decode Cursor (Base64 -> JSON)
+func (u *showcaseUsecase) decodeCursor(cursorStr string) ([]interface{}, error) {
+	data, err := base64.StdEncoding.DecodeString(cursorStr)
+	if err != nil {
+		return nil, err
+	}
+	var cursor []interface{}
+	if err := json.Unmarshal(data, &cursor); err != nil {
+		return nil, err
+	}
+	return cursor, nil
+}
+
+// Helper: Encode Cursor (JSON -> Base64)
+func (u *showcaseUsecase) encodeCursor(sortValues []interface{}) string {
+	data, _ := json.Marshal(sortValues)
+	return base64.StdEncoding.EncodeToString(data)
 }
