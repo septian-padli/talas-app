@@ -1,5 +1,22 @@
 # SYSTEM CONTEXT: PROJECT "TALAS" 🍠
 
+---
+## [2026-02] Update: Reliability, Security, and Event-Driven Best Practices
+
+- **RabbitMQ Reliability:**
+    - user-service kini memiliki mekanisme auto-reconnect, channel recovery, dan event queueing pada utilitas RabbitMQ. Event tidak akan hilang meski RabbitMQ/channel sempat down; event akan di-queue dan dipublish ulang otomatis saat channel siap.
+
+- **INTERNAL_SERVICE_SECRET Enforcement:**
+    - Environment variable `INTERNAL_SERVICE_SECRET` sekarang wajib di-set di semua service (user, content, worker) dan sudah enforced di docker-compose. Semua internal API harus menggunakan header ini untuk autentikasi antar service.
+
+- **Config Consistency:**
+    - worker-service sekarang membaca `USER_SERVICE_URL` dan `CONTENT_SERVICE_URL` dari environment variable, memastikan integrasi internal API antar service lebih konsisten dan mudah dikonfigurasi.
+
+- **Best Practice Event-Driven:**
+    - Pada arsitektur event-driven, sangat penting untuk menerapkan event queueing dan retry. Implementasi pada user-service memastikan event tetap dikirim meski terjadi gangguan sementara pada broker/event bus.
+
+---
+
 ## 1. Project Identity & Scope
 * **Name:** Talas.
 * **Concept:** "Threads x Dribbble". Platform showcase project untuk developer & desainer dengan fitur sosial microblogging.
