@@ -14,6 +14,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const showcaseIDRoute = "/showcases/:id"
+
 // NewFiberApp provider to create fiber app instance
 // Now depends on ShowcaseHandler AND Logger
 func NewFiberApp(
@@ -46,7 +48,7 @@ func NewFiberApp(
 	// Internal Routes (MUST BE FIRST - Protected by Shared Secret)
 	internal := api.Group("/internal")
 	internal.Use(internalMiddleware.InternalAuthMiddleware(cfg))
-	internal.Get("/showcases/:id", internalShowcaseHandler.GetShowcaseInternal)
+	internal.Get(showcaseIDRoute, internalShowcaseHandler.GetShowcaseInternal)
 
 	// Protected Routes (Specific First)
 	api.Get("/showcases/me", authMiddleware.Protect, showcaseHandler.GetMyShowcases)
@@ -71,11 +73,11 @@ func NewFiberApp(
 	})
 
 	protected.Post("/showcases", showcaseHandler.CreateShowcase)
-	protected.Get("/showcases/:id/collaborators", showcaseHandler.GetCollaborators)
-	protected.Post("/showcases/:id/collaborators", showcaseHandler.InviteCollaborators)
-	protected.Patch("/showcases/:id", showcaseHandler.UpdateShowcase)
-	protected.Delete("/showcases/:id/collaborators/:userId", showcaseHandler.RemoveCollaborator)
-	protected.Delete("/showcases/:id", showcaseHandler.DeleteShowcase)
+	protected.Get(showcaseIDRoute+"/collaborators", showcaseHandler.GetCollaborators)
+	protected.Post(showcaseIDRoute+"/collaborators", showcaseHandler.InviteCollaborators)
+	protected.Patch(showcaseIDRoute, showcaseHandler.UpdateShowcase)
+	protected.Delete(showcaseIDRoute+"/collaborators/:userId", showcaseHandler.RemoveCollaborator)
+	protected.Delete(showcaseIDRoute, showcaseHandler.DeleteShowcase)
 	protected.Post("/showcases/:id/like", showcaseHandler.ToggleLike)
 	protected.Post("/showcases/:id/bookmark", showcaseHandler.ToggleBookmark)
 	protected.Post("/showcases/:id/comments", showcaseHandler.CreateComment)
