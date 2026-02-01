@@ -44,14 +44,15 @@ model User {
   followingCount Int @default(0) @map("following_count")
 
   // Relasi Self-Join untuk Follow System
-  followedBy    Follow[]       @relation("followedBy")
-  following     Follow[]       @relation("following")
-  refreshTokens RefreshToken[]
+  followedBy Follow[] @relation("followedBy")
+  following  Follow[] @relation("following")
 
   // Relasi Notifications
   receivedNotifications Notification[] @relation("ReceivedNotifications")
   sentNotifications     Notification[] @relation("SentNotifications")
-  socialLinks           SocialLink[]
+
+  refreshTokens RefreshToken[]
+  socialLinks   SocialLink[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -101,31 +102,95 @@ enum NotificationType {
   LIKE
   COMMENT
   FOLLOW
-  COLLABORATOR_INVITED
   COLLABORATOR_ACCEPTED
 }
 
+// model Notification {
+//   id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+//   userId     String           @map("user_id") @db.Uuid // Penerima Notif
+//   senderId   String?          @map("sender_id") @db.Uuid // Pengirim Notif
+//   type       NotificationType
+//   title      String
+//   content    String           @db.Text
+//   isRead     Boolean          @default(false) @map("is_read")
+//   entityId   String?          @map("entity_id") @db.Uuid // ID dari Showcase/Comment/dll
+//   entityType String?          @map("entity_type") // string identifier e.g. "SHOWCASE"
+
+//   createdAt DateTime @default(now()) @map("created_at")
+//   updatedAt DateTime @updatedAt @map("updated_at")
+
+//   // Relasi
+//   recipient User  @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+//   sender    User? @relation("SentNotifications", fields: [senderId], references: [id], onDelete: SetNull)
+
+//   @@index([userId])
+//   @@map("notifications")
+// }
+
 model Notification {
-  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String           @map("user_id") @db.Uuid // Penerima Notif
-  senderId   String?          @map("sender_id") @db.Uuid // Pengirim Notif
-  type       NotificationType
-  title      String
-  content    String           @db.Text
-  isRead     Boolean          @default(false) @map("is_read")
-  entityId   String?          @map("entity_id") @db.Uuid // ID dari Showcase/Comment/dll
-  entityType String?          @map("entity_type") // string identifier e.g. "SHOWCASE"
+  id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type     NotificationType // LIKE, COMMENT, FOLLOW, COLLAB_INVITE
+  isRead   Boolean          @default(false)
+  userId   String           @map("user_id") @db.Uuid // Penerima
+  senderId String?          @map("sender_id") @db.Uuid // Pengirim
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  // KOLOM AJAIB
+  data Json @db.JsonB
 
-  // Relasi
+  createdAt DateTime @default(now())
+
+  // Indexing tetap penting
   recipient User  @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
   sender    User? @relation("SentNotifications", fields: [senderId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
+  @@index([userId, isRead])
   @@map("notifications")
 }
+
+// --------------------------------------
+// MODEL: Mock JSON Notification 'data' field
+// --------------------------------------
+// {
+//   "actor": {
+//     "id": "uuid-andi",
+//     "username": "Andi",
+//     "avatar_url": "https://cloudinary.../andi.jpg"
+//   },
+
+// Jika tipe == like
+//   "entity": {
+//     "type": "SHOWCASE", //'COMMENT' juga bisa
+//     "id": "uuid-showcase-ecommerce",
+//     "title": "E-commerce Dashboard: Great design, clean and modern!",
+//     "slug": "ecommerce-dashboard-123" 
+//   },
+//   "meta": {
+//     "message_key": "notification_like_showcase" // Untuk multi-bahasa
+//   }
+
+// Jika tipe == comment
+// "entity": {
+//   "type": "SHOWCASE",
+//   "id": "uuid-showcase-ecommerce",
+//   "title": "E-commerce Dashboard...",
+//   "slug": "ecommerce-dashboard-123"
+// },
+// "preview": {
+//   "text": "This is amazing projects, bro!!!", // Isi komentar (truncate jika kepanjangan)
+//   "id": "uuid-comment-id" // ID komentar jika diklik langsung scroll ke komennya
+// }
+
+// Jika tipe == follow
+//   "meta": {
+//     "message_key": "notification_follow_user"
+//   }
+
+// Jika tipe == COLLABORATOR_ACCEPTED
+//   "meta": {
+//     "role": "EDITOR", // Opsional: info role dia apa
+//     "message_key": "notification_collab_join"
+//   }
+// }
 
 // --------------------------------------
 // MODEL: SOCIAL LINK

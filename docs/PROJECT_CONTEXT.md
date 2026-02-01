@@ -39,7 +39,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
     * Logic: Row dibuat saat invite, user harus accept via UI. Jika melewati `expired_at`, invitation dianggap kadaluarsa.
 
 ## 4. API Routing & Terminology
-**Global Prefix:** `/v1`
+**Global Prefix:** `/api`
 
 ### A. Auth Strategy (Cookie-Based)
 * **Mechanism:** JWT disimpan dalam **HttpOnly Cookie**.
@@ -48,7 +48,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 
 ### B. Route Definitions (By Service)
 
-#### 🔐 User Service (Express) -> Prefix `/v1`
+#### 🔐 User Service (Express) -> Prefix `/api`
 * `POST /auth/register`, `/auth/login`, `/auth/refresh`
 * `POST /auth/logout` (Clear Cookie & Revoke Token)
 * `GET /users/me`, `PATCH /users/me` (Private Profile)
@@ -57,7 +57,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 * `GET /notifications`, `GET /notifications/count`
 * `PATCH /notifications/read` (**Batch Read: Array User ID**)
 
-#### 🎨 Content Service (Go) -> Prefix `/v1`
+#### 🎨 Content Service (Go) -> Prefix `/api`
 * **Showcases (Projects):**
     * `POST /showcases` (Create - Direct Publish).
     * `GET /showcases/user/:id` (User Profile Feed).
@@ -161,7 +161,7 @@ Sistem menggunakan arsitektur **Microservices** dengan **Strict Isolation**.
 ### A. Frontend (Optimistic UI)
 1. User klik tombol Like/Unlike.
 2. UI **langsung berubah** (icon + counter) tanpa menunggu API.
-3. Request `POST /v1/showcases/:id/like` dikirim di background.
+3. Request `POST /api/showcases/:id/like` dikirim di background.
 4. Jika API error → **Rollback** ke state sebelumnya + tampilkan Toast error.
 
 ### B. Backend API (Content Service)
