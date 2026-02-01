@@ -63,7 +63,7 @@ async function main() {
 				.replace(/[^a-z0-9_]/g, "") + i;
 
 		users.push({
-			email: faker.internet.email({ firstName, lastName }) + i,
+			email: faker.internet.email({ firstName, lastName }),
 			username: username,
 			password: passwordHash,
 			name: `${firstName} ${lastName}`,

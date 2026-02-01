@@ -32,6 +32,8 @@ func LoadConfig() (*Config, error) {
 	viper.BindEnv("RABBITMQ_URL")
 	viper.BindEnv("ELASTICSEARCH_URL")
 	viper.BindEnv("USER_DATABASE_URL")
+	viper.BindEnv("USER_SERVICE_URL")
+	viper.BindEnv("CONTENT_SERVICE_URL")
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
@@ -45,6 +47,8 @@ func LoadConfig() (*Config, error) {
 	fmt.Printf("🔍 DEBUG CONFIG LOADED:\n")
 	fmt.Printf("   RabbitMQ: %s\n", cfg.RabbitMQURL)
 	fmt.Printf("   Elastic:  %s\n", cfg.ElasticsearchURL)
+	fmt.Printf("   UserService: %s\n", cfg.UserServiceURL)
+	fmt.Printf("   ContentService: %s\n", cfg.ContentServiceURL)
 
 	return &cfg, nil
 }

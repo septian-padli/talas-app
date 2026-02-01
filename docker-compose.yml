@@ -138,6 +138,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - PORT=3001
+      - INTERNAL_SERVICE_SECRET="rahasia-dapur-talas-microservices-2026"
     depends_on:
       user_db:
         condition: service_started
@@ -178,6 +179,7 @@ services:
       - USER_SERVICE_URL=http://user_service:3001
       - PORT=3002
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - INTERNAL_SERVICE_SECRET="rahasia-dapur-talas-microservices-2026"
     depends_on:
       content_db:
         condition: service_started
@@ -213,6 +215,7 @@ services:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - USER_SERVICE_URL=http://user_service:3001
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - INTERNAL_SERVICE_SECRET="rahasia-dapur-talas-microservices-2026"
     depends_on:
       content_db:
         condition: service_started
