@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -24,13 +26,25 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("ELASTICSEARCH_INDEX", "showcases")
 
 	if err := viper.ReadInConfig(); err != nil {
-		// Log warning but continue (env vars might be set)
+		fmt.Println("⚠️  No .env file found, relying on System Env Vars")
 	}
+
+	viper.BindEnv("RABBITMQ_URL")
+	viper.BindEnv("ELASTICSEARCH_URL")
+	viper.BindEnv("USER_DATABASE_URL")
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, err
 	}
+
+	if cfg.RabbitMQURL == "" {
+		cfg.RabbitMQURL = viper.GetString("RABBITMQ_URL")
+	}
+
+	fmt.Printf("🔍 DEBUG CONFIG LOADED:\n")
+	fmt.Printf("   RabbitMQ: %s\n", cfg.RabbitMQURL)
+	fmt.Printf("   Elastic:  %s\n", cfg.ElasticsearchURL)
 
 	return &cfg, nil
 }

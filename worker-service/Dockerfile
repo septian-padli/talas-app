@@ -1,4 +1,6 @@
-FROM golang:1.25.6-alpine AS builder
+# syntax=docker/dockerfile:1
+
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -14,18 +16,15 @@ RUN go mod download
 # Copy the rest of the source code
 COPY . .
 
-# Build the API binary
-RUN go build -o api ./cmd/api
-# Build Seeder binary
-RUN go build -o seeder ./cmd/seeder
+# Build the worker binary
+RUN go build -o worker ./cmd/worker
 
 # --- Runtime image ---
 FROM alpine:3.18
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/api ./api
-COPY --from=builder /app/seeder ./seeder
+COPY --from=builder /app/worker ./worker
 
 # Copy any config files if needed (optional)
 # COPY config.yaml ./
@@ -33,5 +32,5 @@ COPY --from=builder /app/seeder ./seeder
 # Set environment variables (can be overridden by docker-compose)
 ENV GIN_MODE=release
 
-# Run the API
-CMD ["./api"]
+# Run the worker
+CMD ["./worker"]

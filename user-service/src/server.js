@@ -13,6 +13,6 @@ const PORT = process.env.PORT || 3001;
 // Initialize RabbitMQ connection
 connectRabbitMQ();
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 User Service running on port ${PORT}`);
 });
