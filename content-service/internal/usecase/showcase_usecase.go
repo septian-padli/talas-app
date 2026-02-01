@@ -24,6 +24,7 @@ import (
 
 type ShowcaseUsecase interface {
 	CreateShowcase(ctx context.Context, input *entity.CreateShowcaseRequest, files []*multipart.FileHeader, userID uuid.UUID) (*entity.Showcase, error)
+	GetShowcaseByID(ctx context.Context, id uuid.UUID) (*entity.Showcase, error)
 	GetShowcaseBySlug(ctx context.Context, slug string) (*entity.Showcase, error)
 	GetShowcasesByUser(ctx context.Context, userIDStr string, limit int, cursor string) (map[string]interface{}, error)
 	GetMyShowcases(ctx context.Context, userID uuid.UUID, limit int, cursor string) (map[string]interface{}, error)
@@ -1275,6 +1276,15 @@ func (u *showcaseUsecase) RespondInvitation(ctx context.Context, id uuid.UUID, a
 	}
 
 	return nil
+}
+
+// GetShowcaseByID fetches showcase by ID only (lightweight, for internal API)
+func (u *showcaseUsecase) GetShowcaseByID(ctx context.Context, id uuid.UUID) (*entity.Showcase, error) {
+	showcase, err := u.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	return showcase, nil
 }
 
 func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*entity.Showcase, error) {

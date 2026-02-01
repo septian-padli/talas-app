@@ -5,10 +5,14 @@ import (
 )
 
 type Config struct {
-	AppEnv             string `mapstructure:"APP_ENV"`
-	RabbitMQURL        string `mapstructure:"RABBITMQ_URL"`
-	ElasticsearchURL   string `mapstructure:"ELASTICSEARCH_URL"`
-	ElasticsearchIndex string `mapstructure:"ELASTICSEARCH_INDEX"`
+	AppEnv                string `mapstructure:"APP_ENV"`
+	RabbitMQURL           string `mapstructure:"RABBITMQ_URL"`
+	ElasticsearchURL      string `mapstructure:"ELASTICSEARCH_URL"`
+	ElasticsearchIndex    string `mapstructure:"ELASTICSEARCH_INDEX"`
+	UserServiceURL        string `mapstructure:"USER_SERVICE_URL"`
+	ContentServiceURL     string `mapstructure:"CONTENT_SERVICE_URL"`
+	InternalServiceSecret string `mapstructure:"INTERNAL_SERVICE_SECRET"`
+	DatabaseURL           string `mapstructure:"USER_DATABASE_URL"`
 }
 
 func LoadConfig() (*Config, error) {

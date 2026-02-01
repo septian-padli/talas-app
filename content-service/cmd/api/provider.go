@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/redis/go-redis/v9"
+	"github.com/septianpadli/talas/content-service/internal/config"
 	"github.com/septianpadli/talas/content-service/internal/handler"
 	internalMiddleware "github.com/septianpadli/talas/content-service/internal/middleware"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
@@ -18,7 +19,9 @@ import (
 func NewFiberApp(
 	db *gorm.DB,
 	redisClient *redis.Client,
+	cfg *config.Config,
 	showcaseHandler *handler.ShowcaseHandler,
+	internalShowcaseHandler *handler.InternalShowcaseHandler,
 	authMiddleware *middleware.AuthMiddleware,
 	log *logrus.Logger,
 ) *fiber.App {
@@ -39,6 +42,11 @@ func NewFiberApp(
 
 	// Register Routes
 	api := app.Group("/api")
+
+	// Internal Routes (MUST BE FIRST - Protected by Shared Secret)
+	internal := api.Group("/internal")
+	internal.Use(internalMiddleware.InternalAuthMiddleware(cfg))
+	internal.Get("/showcases/:id", internalShowcaseHandler.GetShowcaseInternal)
 
 	// Protected Routes (Specific First)
 	api.Get("/showcases/me", authMiddleware.Protect, showcaseHandler.GetMyShowcases)
@@ -79,6 +87,5 @@ func NewFiberApp(
 	protected.Delete("/collaborations/invitations/:id", showcaseHandler.DeleteInvitation)
 	protected.Get("/collaborations/invitations", showcaseHandler.GetPendingInvitations)
 	protected.Patch("/collaborations/:id/response", showcaseHandler.RespondInvitation)
-
 	return app
 }

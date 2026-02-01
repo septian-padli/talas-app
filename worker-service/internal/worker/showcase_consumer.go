@@ -201,23 +201,18 @@ func (c *ShowcaseConsumer) handleDelete(msg amqp.Delivery) {
 	}
 
 	// 2. Extract ID from data
-	idVal, ok := envelope.Data["id"]
-	if !ok {
-		c.log.Errorf("Delete payload missing 'id' field in data")
-		msg.Ack(false)
-		return
+	var payload struct {
+		ID string `json:"id"`
 	}
-
-	idStr, ok := idVal.(string)
-	if !ok {
-		c.log.Errorf("Delete payload 'id' is not a string")
+	if err := json.Unmarshal(envelope.Data, &payload); err != nil {
+		c.log.Errorf("Failed to unmarshal delete payload: %v", err)
 		msg.Ack(false)
 		return
 	}
 
 	// 3. Validate UUID
-	if _, err := uuid.Parse(idStr); err != nil {
-		c.log.Errorf("Invalid UUID in delete payload: %s", idStr)
+	if _, err := uuid.Parse(payload.ID); err != nil {
+		c.log.Errorf("Invalid UUID in delete payload: %s", payload.ID)
 		msg.Ack(false)
 		return
 	}
@@ -225,13 +220,13 @@ func (c *ShowcaseConsumer) handleDelete(msg amqp.Delivery) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := c.repo.DeleteShowcase(ctx, idStr); err != nil {
-		c.log.Errorf("Failed to delete showcase %s: %v", idStr, err)
+	if err := c.repo.DeleteShowcase(ctx, payload.ID); err != nil {
+		c.log.Errorf("Failed to delete showcase %s: %v", payload.ID, err)
 		msg.Nack(false, true)
 		return
 	}
 
-	c.log.Infof("Successfully deleted showcase: %s", idStr)
+	c.log.Infof("Successfully deleted showcase: %s", payload.ID)
 	msg.Ack(false)
 }
 

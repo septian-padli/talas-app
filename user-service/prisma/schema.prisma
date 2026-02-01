@@ -130,9 +130,10 @@ enum NotificationType {
 model Notification {
   id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   type     NotificationType // LIKE, COMMENT, FOLLOW, COLLAB_INVITE
-  isRead   Boolean          @default(false)
+  isRead   Boolean          @default(false) @map("is_read")
   userId   String           @map("user_id") @db.Uuid // Penerima
   senderId String?          @map("sender_id") @db.Uuid // Pengirim
+  eventId  String?          @map("event_id") @db.Uuid
 
   // KOLOM AJAIB
   data Json @db.JsonB

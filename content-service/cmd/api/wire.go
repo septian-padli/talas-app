@@ -58,6 +58,7 @@ func InitializeApp() (*fiber.App, error) {
 
 		// Handler
 		handler.NewShowcaseHandler,
+		handler.NewInternalShowcaseHandler,
 
 		// App
 		NewFiberApp,

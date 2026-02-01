@@ -9,17 +9,19 @@ import (
 	"github.com/septian/worker-service/internal/config"
 	"github.com/septian/worker-service/internal/repository"
 	"github.com/septian/worker-service/internal/worker"
+	"github.com/septian/worker-service/pkg/gateway"
 	"github.com/septian/worker-service/pkg/infrastructure"
 	"github.com/sirupsen/logrus"
 )
 
 // WorkerApp holds all dependencies for the worker service
 type WorkerApp struct {
-	Config   *config.Config
-	Logger   *logrus.Logger
-	MQConn   *amqp.Connection
-	Consumer *worker.ShowcaseConsumer
-	ESRepo   repository.ElasticsearchRepository
+	Config               *config.Config
+	Logger               *logrus.Logger
+	MQConn               *amqp.Connection
+	Consumer             *worker.ShowcaseConsumer
+	NotificationConsumer *worker.NotificationConsumer
+	ESRepo               repository.ElasticsearchRepository
 }
 
 // NewWorkerApp creates a new WorkerApp instance
@@ -28,14 +30,16 @@ func NewWorkerApp(
 	log *logrus.Logger,
 	conn *amqp.Connection,
 	consumer *worker.ShowcaseConsumer,
+	notificationConsumer *worker.NotificationConsumer,
 	esRepo repository.ElasticsearchRepository,
 ) *WorkerApp {
 	return &WorkerApp{
-		Config:   cfg,
-		Logger:   log,
-		MQConn:   conn,
-		Consumer: consumer,
-		ESRepo:   esRepo,
+		Config:               cfg,
+		Logger:               log,
+		MQConn:               conn,
+		Consumer:             consumer,
+		NotificationConsumer: notificationConsumer,
+		ESRepo:               esRepo,
 	}
 }
 
@@ -54,8 +58,12 @@ var ProviderSet = wire.NewSet(
 	infrastructure.NewRabbitMQConnection,
 	infrastructure.NewRabbitMQChannel,
 	infrastructure.NewElasticsearchClient,
+	infrastructure.NewPostgresDB,
 	repository.NewElasticsearchRepository,
+	repository.NewNotificationRepository,
+	gateway.NewInternalGateway,
 	worker.NewShowcaseConsumer,
+	worker.NewNotificationConsumer,
 	NewWorkerApp,
 )
 

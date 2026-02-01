@@ -29,13 +29,24 @@ func main() {
 		log.Fatalf("Failed to setup consumer topology: %v", err)
 	}
 
-	// 3. Start Consumer in Goroutine
+	// 3. Setup Notification Consumer Topology
+	if err := app.NotificationConsumer.Setup(); err != nil {
+		log.Fatalf("Failed to setup notification consumer topology: %v", err)
+	}
+
+	// 4. Start Consumers in Goroutines
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {
 		if err := app.Consumer.Start(ctx); err != nil {
-			log.Errorf("Consumer error: %v", err)
+			log.Errorf("Showcase Consumer error: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := app.NotificationConsumer.Start(ctx); err != nil {
+			log.Errorf("Notification Consumer error: %v", err)
 		}
 	}()
 

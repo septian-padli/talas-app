@@ -3803,6 +3803,71 @@
 				}
 			}
 		},
+		"/internal/showcases/{id}": {
+			"get": {
+				"tags": ["Internal"],
+				"summary": "Get minimal showcase data (Internal Only)",
+				"description": "\u26a0\ufe0f **INTERNAL USE ONLY**. Endpoint ini digunakan oleh Worker Service untuk mengambil data showcase minimal saat proses fan-out notifikasi. Hanya mengembalikan field dasar tanpa category/collaborators/media. **Protected by Nginx Gateway**.",
+				"operationId": "internalGetShowcase",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "UUID Showcase",
+						"schema": { "type": "string", "format": "uuid" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Showcase berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InternalShowcaseResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"showcase": {
+											"id": "550e8400-e29b-41d4-a716-446655440100",
+											"title": "Minimal Showcase Example",
+											"slug": "minimal-showcase-example",
+											"content": "Short description...",
+											"tag": ["go", "elasticsearch"],
+											"count_like": 12,
+											"count_comment": 3,
+											"created_at": "2026-01-27T12:00:00Z",
+											"updated_at": "2026-01-27T12:00:00Z",
+											"is_liked": null,
+											"is_bookmarked": null
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Showcase tidak ditemukan",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/ErrorResponse" }
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/ErrorResponse" }
+							}
+						}
+					}
+				}
+			}
+		},
 		"/showcases/{id}/collaborators": {
 			"get": {
 				"tags": ["Collaborations"],
@@ -5145,6 +5210,41 @@
 						}
 					}
 				}
+			},
+			"InternalShowcaseResponse": {
+				"type": "object",
+				"description": "Internal minimal response untuk GET /api/internal/showcases/{id}",
+				"properties": {
+					"code": { "type": "integer", "example": 200 },
+					"success": { "type": "boolean", "example": true },
+					"data": {
+						"type": "object",
+						"properties": {
+							"showcase": {
+								"type": "object",
+								"properties": {
+									"id": { "type": "string", "format": "uuid" },
+									"title": { "type": "string" },
+									"slug": { "type": "string" },
+									"content": { "type": "string", "nullable": true },
+									"tag": { "type": "array", "items": { "type": "string" } },
+									"count_like": { "type": "integer" },
+									"count_comment": { "type": "integer" },
+									"created_at": { "type": "string", "format": "date-time" },
+									"updated_at": { "type": "string", "format": "date-time" },
+									"is_liked": { "type": "boolean", "nullable": true },
+									"is_bookmarked": { "type": "boolean", "nullable": true }
+								}
+							}
+						}
+					},
+					"errors": {
+						"type": "array",
+						"nullable": true,
+						"items": { "$ref": "#/components/schemas/FieldError" }
+					}
+				},
+				"required": ["code", "success"]
 			},
 			"ToggleLikeResponse": {
 				"type": "object",

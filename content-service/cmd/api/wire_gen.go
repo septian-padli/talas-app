@@ -47,7 +47,8 @@ func InitializeApp() (*fiber.App, error) {
 	eventPublisher := rabbitmq.NewRabbitMQPublisher(configConfig, logrusLogger)
 	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, searchRepository, userClient, cloudinaryUploader, eventPublisher, client, configConfig, logrusLogger)
 	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase, logrusLogger)
+	internalShowcaseHandler := handler.NewInternalShowcaseHandler(showcaseUsecase, logrusLogger)
 	authMiddleware := middleware.NewAuthMiddleware(configConfig)
-	app := NewFiberApp(db, client, showcaseHandler, authMiddleware, logrusLogger)
+	app := NewFiberApp(db, client, configConfig, showcaseHandler, internalShowcaseHandler, authMiddleware, logrusLogger)
 	return app, nil
 }
