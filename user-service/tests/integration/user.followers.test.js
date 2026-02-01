@@ -8,6 +8,13 @@ const prisma = require('../../src/utils/prisma');
 const { hashPassword } = require('../../src/utils/password');
 const { randomUUID } = require('crypto');
 
+afterEach(async () => {
+  await prisma.follow?.deleteMany?.();
+  await prisma.refreshToken?.deleteMany?.();
+  await prisma.notification?.deleteMany?.();
+  await prisma.user?.deleteMany?.();
+});
+
 describe('GET /api/users/:id/followers', () => {
   let userA, userB, loginCookies;
 

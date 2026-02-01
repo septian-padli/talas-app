@@ -16,6 +16,12 @@ describe('POST /api/auth/logout', () => {
     name: 'Logout Test User'
   };
 
+  afterEach(async () => {
+    await prisma.refreshToken?.deleteMany?.();
+    await prisma.notification?.deleteMany?.();
+    await prisma.user?.deleteMany?.();
+  });
+
   /**
    * Setup: Create a user before running tests
    */
@@ -124,12 +130,11 @@ describe('POST /api/auth/logout', () => {
         .post('/api/auth/logout')
         .expect('Content-Type', /json/);
 
-      // Assert status code
       expect(response.status).toBe(401);
-
-      // Assert response structure
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('errors');
+      expect(Array.isArray(response.body.errors)).toBe(true);
+      expect(response.body.errors[0].message).toMatch(/unauthorized|token|login/i);
     });
 
     it('should return 401/403 when invalid token is provided', async () => {

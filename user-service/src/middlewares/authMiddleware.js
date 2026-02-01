@@ -17,8 +17,13 @@ const protect = async (req, res, next) => {
       return res.status(401).json({
         code: 401,
         success: false,
-        message: 'Unauthorized: Harap login terlebih dahulu',
-        errors: null
+        data: null,
+        errors: [
+          {
+            field: 'auth',
+            message: 'Unauthorized: Harap login terlebih dahulu'
+          }
+        ]
       });
     }
 
@@ -28,8 +33,13 @@ const protect = async (req, res, next) => {
       return res.status(401).json({
         code: 401,
         success: false,
-        message: 'Unauthorized: Token tidak valid atau expired',
-        errors: null
+        data: null,
+        errors: [
+          {
+            field: 'auth',
+            message: 'Unauthorized: Token tidak valid atau expired'
+          }
+        ]
       });
     }
 
@@ -51,8 +61,13 @@ const protect = async (req, res, next) => {
       return res.status(401).json({
         code: 401,
         success: false,
-        message: 'Unauthorized: User tidak ditemukan',
-        errors: null
+        data: null,
+        errors: [
+          {
+            field: 'auth',
+            message: 'Unauthorized: User tidak ditemukan'
+          }
+        ]
       });
     }
 

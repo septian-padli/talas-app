@@ -6,6 +6,12 @@ const request = require('supertest');
 const app = require('../../src/app');
 const prisma = require('../../src/utils/prisma');
 
+afterEach(async () => {
+  await prisma.refreshToken?.deleteMany?.();
+  await prisma.notification?.deleteMany?.();
+  await prisma.user?.deleteMany?.();
+});
+
 describe('POST /api/auth/register', () => {
   /**
    * Test Case: Successful registration with valid data

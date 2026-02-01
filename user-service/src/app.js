@@ -25,6 +25,8 @@ app.use('/api/auth', authRoutes);
 const userRoutes = require('./routes/userRoutes');
 app.use('/api/users', userRoutes);
 
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
 
 const internalRoutes = require('./routes/internalRoutes');
 app.use('/api/internal', internalRoutes); // Protected by Service Secret

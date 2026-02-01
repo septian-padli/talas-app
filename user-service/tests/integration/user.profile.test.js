@@ -10,6 +10,13 @@ const { hashPassword } = require('../../src/utils/password');
 describe('GET /api/users/:username', () => {
   let testUser, loginCookies;
 
+  afterEach(async () => {
+    await prisma.follow?.deleteMany?.();
+    await prisma.refreshToken?.deleteMany?.();
+    await prisma.notification?.deleteMany?.();
+    await prisma.user?.deleteMany?.();
+  });
+
   /**
    * Setup: Create users and login
    */

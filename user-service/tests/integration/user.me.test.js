@@ -19,6 +19,13 @@ describe('GET /api/users/me', () => {
 
   let createdUser, loginCookies;
 
+  afterEach(async () => {
+    await prisma.follow?.deleteMany?.();
+    await prisma.refreshToken?.deleteMany?.();
+    await prisma.notification?.deleteMany?.();
+    await prisma.user?.deleteMany?.();
+  });
+
   /**
    * Setup: Create a user and login before running tests
    */
@@ -107,10 +114,9 @@ describe('GET /api/users/me', () => {
 
       // Assert response structure
       expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('message');
-
-      // Message should indicate authentication required
-      expect(response.body.message).toMatch(/unauthorized|token|login/i);
+      expect(response.body).toHaveProperty('errors');
+      expect(Array.isArray(response.body.errors)).toBe(true);
+      expect(response.body.errors[0].message).toMatch(/unauthorized|token|login/i);
     });
 
     it('should return 401/403 when invalid token is provided', async () => {
@@ -122,6 +128,8 @@ describe('GET /api/users/me', () => {
       // Assert status code (401 or 403)
       expect([401, 403]).toContain(response.status);
       expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('errors');
+      expect(Array.isArray(response.body.errors)).toBe(true);
     });
   });
 });

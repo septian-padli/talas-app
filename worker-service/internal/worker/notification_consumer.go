@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	NotificationQueueName = "notification_queue"
+	NotificationQueueName      = "notification_queue"
+	errUnmarshalPayload        = "failed to unmarshal payload: %w"
+	errMarshalNotificationData = "failed to marshal notification data: %w"
 )
 
 // NotificationConsumer processes events and creates notifications
@@ -147,7 +149,7 @@ func (c *NotificationConsumer) handleShowcaseLiked(ctx context.Context, envelope
 		TargetUserID string `json:"target_user_id"`
 	}
 	if err := json.Unmarshal(envelope.Data, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
+		return fmt.Errorf(errUnmarshalPayload, err)
 	}
 
 	// Narcissist check
@@ -199,7 +201,7 @@ func (c *NotificationConsumer) handleShowcaseLiked(ctx context.Context, envelope
 
 	jsonData, err := json.Marshal(notificationData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal notification data: %w", err)
+		return fmt.Errorf(errMarshalNotificationData, err)
 	}
 
 	notification := &domain.Notification{
@@ -225,7 +227,7 @@ func (c *NotificationConsumer) handleCommentCreated(ctx context.Context, envelop
 		TargetUserID string `json:"target_user_id"`
 	}
 	if err := json.Unmarshal(envelope.Data, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
+		return fmt.Errorf(errUnmarshalPayload, err)
 	}
 
 	// Narcissist check
@@ -286,7 +288,7 @@ func (c *NotificationConsumer) handleCommentCreated(ctx context.Context, envelop
 
 	jsonData, err := json.Marshal(notificationData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal notification data: %w", err)
+		return fmt.Errorf(errMarshalNotificationData, err)
 	}
 
 	notification := &domain.Notification{
@@ -314,7 +316,7 @@ func (c *NotificationConsumer) handleUserFollowed(ctx context.Context, envelope 
 		} `json:"follower_info"`
 	}
 	if err := json.Unmarshal(envelope.Data, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
+		return fmt.Errorf(errUnmarshalPayload, err)
 	}
 
 	// Narcissist check
@@ -336,7 +338,7 @@ func (c *NotificationConsumer) handleUserFollowed(ctx context.Context, envelope 
 
 	jsonData, err := json.Marshal(notificationData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal notification data: %w", err)
+		return fmt.Errorf(errMarshalNotificationData, err)
 	}
 
 	notification := &domain.Notification{
@@ -366,7 +368,7 @@ func (c *NotificationConsumer) handleCollaboratorResponded(ctx context.Context, 
 		TargetUserID       string `json:"target_user_id"`
 	}
 	if err := json.Unmarshal(envelope.Data, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
+		return fmt.Errorf(errUnmarshalPayload, err)
 	}
 
 	// Only process ACCEPTED responses
@@ -399,7 +401,7 @@ func (c *NotificationConsumer) handleCollaboratorResponded(ctx context.Context, 
 
 	jsonData, err := json.Marshal(notificationData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal notification data: %w", err)
+		return fmt.Errorf(errMarshalNotificationData, err)
 	}
 
 	notification := &domain.Notification{

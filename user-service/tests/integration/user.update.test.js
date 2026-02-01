@@ -19,6 +19,14 @@ describe('PATCH /api/users/me', () => {
 
   let createdUser, loginCookies;
 
+  afterEach(async () => {
+    await prisma.socialLink?.deleteMany?.();
+    await prisma.follow?.deleteMany?.();
+    await prisma.refreshToken?.deleteMany?.();
+    await prisma.notification?.deleteMany?.();
+    await prisma.user?.deleteMany?.();
+  });
+
   /**
    * Setup: Create a user and login before running tests
    */

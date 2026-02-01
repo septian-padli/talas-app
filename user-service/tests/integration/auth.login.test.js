@@ -16,6 +16,12 @@ describe('POST /api/auth/login', () => {
     name: 'Login Test User'
   };
 
+  afterEach(async () => {
+    await prisma.refreshToken?.deleteMany?.();
+    await prisma.notification?.deleteMany?.();
+    await prisma.user?.deleteMany?.();
+  });
+
   /**
    * Setup: Create a user with hashed password before running login tests
    */

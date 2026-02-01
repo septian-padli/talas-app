@@ -5,6 +5,12 @@
 const request = require('supertest');
 const app = require('../../src/app');
 
+afterEach(async () => {
+  await prisma.refreshToken?.deleteMany?.();
+  await prisma.notification?.deleteMany?.();
+  await prisma.user?.deleteMany?.();
+});
+
 describe('GET /api/auth/init-testing', () => {
   it('should return 200 with correct JSON structure', async () => {
     const response = await request(app).get('/api/auth/init-testing');

@@ -2891,226 +2891,6 @@
 				}
 			}
 		},
-		"/notifications": {
-			"get": {
-				"tags": ["Notifications"],
-				"summary": "List notifications",
-				"description": "Mendapatkan daftar notifikasi user. **Requires Cookie Session (JWT)**. Support pagination untuk infinite scroll dan filter berdasarkan status (read/unread).",
-				"operationId": "listNotifications",
-				"security": [
-					{
-						"cookieAuth": []
-					}
-				],
-				"parameters": [
-					{
-						"name": "cursor",
-						"in": "query",
-						"required": false,
-						"description": "Cursor untuk pagination",
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"name": "limit",
-						"in": "query",
-						"required": false,
-						"description": "Jumlah item per halaman untuk infinite scroll (default: 15)",
-						"schema": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": 50,
-							"default": 15,
-							"example": 15
-						}
-					},
-					{
-						"name": "status",
-						"in": "query",
-						"required": false,
-						"description": "Filter berdasarkan status (kosong = tampilkan semua)",
-						"schema": {
-							"type": "string",
-							"enum": ["unread", "all"],
-							"example": "unread"
-						}
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Daftar notifikasi berhasil diambil",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/NotificationsListResponse"
-								},
-								"example": {
-									"code": 200,
-									"success": true,
-									"data": {
-										"notifications": [
-											{
-												"id": "550e8400-e29b-41d4-a716-446655440100",
-												"type": "LIKE",
-												"content": "User A, User B, dan 3 lainnya menyukai showcase-mu \"Dashboard Design\"",
-												"is_read": false,
-												"created_at": "2026-01-27T05:00:00Z",
-												"updated_at": "2026-01-27T05:30:00Z"
-											},
-											{
-												"id": "550e8400-e29b-41d4-a716-446655440101",
-												"type": "COMMENT",
-												"content": "User C mengomentari showcase-mu \"Mobile App\"",
-												"is_read": false,
-												"created_at": "2026-01-27T04:30:00Z",
-												"updated_at": "2026-01-27T04:30:00Z"
-											},
-											{
-												"id": "550e8400-e29b-41d4-a716-446655440102",
-												"type": "COLLABORATOR_INVITED",
-												"content": "User D mengundangmu sebagai collaborator di \"E-commerce Platform\"",
-												"is_read": true,
-												"created_at": "2026-01-27T03:00:00Z",
-												"updated_at": "2026-01-27T05:00:00Z"
-											}
-										],
-										"pagination": {
-											"next_cursor": "eyJpZCI...",
-											"has_next": true
-										}
-									},
-									"errors": null
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Tidak terautentikasi",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 401,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "auth",
-											"message": "Token tidak valid atau sudah expired"
-										}
-									]
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 500,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "server",
-											"message": "Terjadi kesalahan pada server"
-										}
-									]
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/notifications/count": {
-			"get": {
-				"tags": ["Notifications"],
-				"summary": "Get unread notifications count",
-				"description": "Mendapatkan jumlah notifikasi yang belum dibaca dengan breakdown per tipe. **Requires Cookie Session (JWT)**.",
-				"operationId": "getNotificationCount",
-				"security": [
-					{
-						"cookieAuth": []
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Count berhasil diambil",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/NotificationCountResponse"
-								},
-								"example": {
-									"code": 200,
-									"success": true,
-									"data": {
-										"unread_count": 12,
-										"by_type": {
-											"LIKE": 5,
-											"COMMENT": 4,
-											"COLLABORATOR_INVITED": 2,
-											"COLLABORATOR_ACCEPTED": 1
-										}
-									},
-									"errors": null
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Tidak terautentikasi",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 401,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "auth",
-											"message": "Token tidak valid atau sudah expired"
-										}
-									]
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								},
-								"example": {
-									"code": 500,
-									"success": false,
-									"data": null,
-									"errors": [
-										{
-											"field": "server",
-											"message": "Terjadi kesalahan pada server"
-										}
-									]
-								}
-							}
-						}
-					}
-				}
-			}
-		},
 		"/feed": {
 			"get": {
 				"tags": ["Feeds"],
@@ -4233,6 +4013,245 @@
 				}
 			}
 		},
+		"/notifications": {
+			"get": {
+				"tags": ["Notifications"],
+				"summary": "List notifications",
+				"description": "Mendapatkan daftar notifikasi user. **Requires Cookie Session (JWT)**. Support pagination untuk infinite scroll dan filter berdasarkan status (read/unread).",
+				"operationId": "listNotifications",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"description": "Cursor untuk pagination",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Jumlah item per halaman untuk infinite scroll (default: 15)",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50,
+							"default": 15,
+							"example": 15
+						}
+					},
+					{
+						"name": "status",
+						"in": "query",
+						"required": false,
+						"description": "Filter berdasarkan status (kosong = tampilkan semua)",
+						"schema": {
+							"type": "string",
+							"enum": ["unread", "all"],
+							"example": "unread"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Daftar notifikasi berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/NotificationsListResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"notifications": [
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440100",
+												"type": "LIKE",
+												"is_read": false,
+												"created_at": "2026-02-01T10:00:00Z",
+												"data": {
+													"actor": {
+														"id": "user-uuid-1",
+														"username": "mckenzielindgren14",
+														"avatar_url": "https://avatars.githubusercontent.com/u/..."
+													},
+													"entity": {
+														"type": "SHOWCASE",
+														"id": "showcase-uuid-1",
+														"title": "My killerbee Project",
+														"slug": "my-killerbee-project"
+													},
+													"meta": {
+														"message_key": "notification_like_showcase"
+													}
+												}
+											},
+											{
+												"id": "550e8400-e29b-41d4-a716-446655440101",
+												"type": "COMMENT",
+												"is_read": true,
+												"created_at": "2026-02-01T09:30:00Z",
+												"data": {
+													"actor": {
+														"username": "budi_design",
+														"avatar_url": "..."
+													},
+													"entity": {
+														"type": "SHOWCASE",
+														"title": "Mobile App UI",
+														"slug": "mobile-app-ui"
+													},
+													"preview": {
+														"id": "comment-uuid-1",
+														"text": "Great work on the typography! I love it."
+													}
+												}
+											}
+										],
+										"pagination": {
+											"next_cursor": "eyJ...",
+											"has_next": true
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/notifications/count": {
+			"get": {
+				"tags": ["Notifications"],
+				"summary": "Get unread notifications count",
+				"description": "Mendapatkan jumlah notifikasi yang belum dibaca dengan breakdown per tipe. **Requires Cookie Session (JWT)**.",
+				"operationId": "getNotificationCount",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Count berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/NotificationCountResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"unread_count": 12,
+										"by_type": {
+											"LIKE": 5,
+											"COMMENT": 4,
+											"FOLLOW": 2,
+											"COLLABORATOR_ACCEPTED": 1
+										}
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/notifications/read": {
 			"patch": {
 				"tags": ["Notifications"],
@@ -4273,6 +4292,129 @@
 						}
 					}
 				},
+				"responses": {
+					"200": {
+						"description": "Notifikasi berhasil di-mark as read",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MarkNotificationsReadResponse"
+								},
+								"example": {
+									"code": 200,
+									"success": true,
+									"data": {
+										"message": "3 notifikasi berhasil ditandai sebagai sudah dibaca",
+										"updated_ids": [
+											"550e8400-e29b-41d4-a716-446655440100",
+											"550e8400-e29b-41d4-a716-446655440101",
+											"550e8400-e29b-41d4-a716-446655440102"
+										]
+									},
+									"errors": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validasi gagal",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 400,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "notification_ids",
+											"message": "notification_ids wajib diisi dan harus berupa array"
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Tidak terautentikasi",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 401,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "auth",
+											"message": "Token tidak valid atau sudah expired"
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Tidak ada notifikasi yang ditemukan atau user tidak memiliki akses",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 404,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "notification_ids",
+											"message": "Tidak ada notifikasi yang ditemukan dengan ID tersebut"
+										}
+									]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"example": {
+									"code": 500,
+									"success": false,
+									"data": null,
+									"errors": [
+										{
+											"field": "server",
+											"message": "Terjadi kesalahan pada server"
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/notifications/read-all": {
+			"patch": {
+				"tags": ["Notifications"],
+				"summary": "Mark all pending notifications as read",
+				"description": "Mark semua notifikasi yang pending sebagai read. **Requires Cookie Session (JWT)**.",
+				"operationId": "markAllNotificationsAsRead",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [],
 				"responses": {
 					"200": {
 						"description": "Notifikasi berhasil di-mark as read",
@@ -5807,7 +5949,7 @@
 										"type": "integer",
 										"example": 4
 									},
-									"COLLABORATOR_INVITED": {
+									"FOLLOW": {
 										"type": "integer",
 										"example": 2
 									},
