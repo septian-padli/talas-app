@@ -15,6 +15,20 @@ import (
 const (
 	ExchangeName = "talas.events"
 	QueueName    = "search_sync_queue"
+
+	RoutingShowcaseCreated       = "showcase.created"
+	RoutingShowcaseUpdated       = "showcase.updated"
+	RoutingShowcaseDeleted       = "showcase.deleted"
+	RoutingCollaboratorResponded = "collaborator.responded"
+	RoutingCollaboratorRemoved   = "collaborator.removed"
+	RoutingShowcaseLiked         = "showcase.liked"
+	RoutingShowcaseUnliked       = "showcase.unliked"
+	RoutingShowcaseViewed        = "showcase.viewed"
+	RoutingCommentCreated        = "comment.created"
+	RoutingCommentDeleted        = "comment.deleted"
+
+	ErrUnmarshalEnvelope = "Failed to unmarshal event envelope: %v"
+	ErrRemarshalData     = "Failed to re-marshal data field: %v"
 )
 
 // ShowcaseConsumer consumes showcase events from RabbitMQ
@@ -70,16 +84,16 @@ func (c *ShowcaseConsumer) Setup() error {
 
 	// 3. Bind Queue to Routing Keys
 	routingKeys := []string{
-		"showcase.created",
-		"showcase.updated",
-		"showcase.deleted",
-		"collaborator.responded",
-		"collaborator.removed",
-		"showcase.liked",
-		"showcase.unliked",
-		"showcase.viewed",
-		"comment.created",
-		"comment.deleted",
+		RoutingShowcaseCreated,
+		RoutingShowcaseUpdated,
+		RoutingShowcaseDeleted,
+		RoutingCollaboratorResponded,
+		RoutingCollaboratorRemoved,
+		RoutingShowcaseLiked,
+		RoutingShowcaseUnliked,
+		RoutingShowcaseViewed,
+		RoutingCommentCreated,
+		RoutingCommentDeleted,
 	}
 	for _, key := range routingKeys {
 		err = c.channel.QueueBind(QueueName, key, ExchangeName, false, nil)
@@ -129,15 +143,15 @@ func (c *ShowcaseConsumer) handleMessage(msg amqp.Delivery) {
 	c.log.Infof("Received message [%s]: %s", msg.RoutingKey, string(msg.Body))
 
 	switch msg.RoutingKey {
-	case "showcase.created", "showcase.updated":
+	case RoutingShowcaseCreated, RoutingShowcaseUpdated:
 		c.handleIndex(msg)
-	case "showcase.deleted":
+	case RoutingShowcaseDeleted:
 		c.handleDelete(msg)
-	case "collaborator.responded":
+	case RoutingCollaboratorResponded:
 		c.handleAddCollaborator(msg)
-	case "collaborator.removed":
+	case RoutingCollaboratorRemoved:
 		c.handleRemoveCollaborator(msg)
-	case "showcase.liked", "showcase.unliked", "showcase.viewed", "comment.created", "comment.deleted":
+	case RoutingShowcaseLiked, RoutingShowcaseUnliked, RoutingShowcaseViewed, RoutingCommentCreated, RoutingCommentDeleted:
 		c.handleCountersUpdate(msg)
 	default:
 		c.log.Warnf("Unknown routing key: %s", msg.RoutingKey)
@@ -150,7 +164,7 @@ func (c *ShowcaseConsumer) handleIndex(msg amqp.Delivery) {
 	// 1. Parse Event Envelope
 	var envelope domain.EventEnvelope
 	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
-		c.log.Errorf("Failed to unmarshal event envelope: %v", err)
+		c.log.Errorf(ErrUnmarshalEnvelope, err)
 		msg.Ack(false)
 		return
 	}
@@ -158,7 +172,7 @@ func (c *ShowcaseConsumer) handleIndex(msg amqp.Delivery) {
 	// 2. Extract showcase data from envelope
 	dataBytes, err := json.Marshal(envelope.Data)
 	if err != nil {
-		c.log.Errorf("Failed to re-marshal data field: %v", err)
+		c.log.Errorf(ErrRemarshalData, err)
 		msg.Ack(false)
 		return
 	}
@@ -195,7 +209,7 @@ func (c *ShowcaseConsumer) handleDelete(msg amqp.Delivery) {
 	// 1. Parse Event Envelope
 	var envelope domain.EventEnvelope
 	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
-		c.log.Errorf("Failed to unmarshal delete event envelope: %v", err)
+		c.log.Errorf(ErrUnmarshalEnvelope, err)
 		msg.Ack(false)
 		return
 	}
@@ -235,7 +249,7 @@ func (c *ShowcaseConsumer) handleAddCollaborator(msg amqp.Delivery) {
 	// 1. Parse Event Envelope
 	var envelope domain.EventEnvelope
 	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
-		c.log.Errorf("Failed to unmarshal event envelope: %v", err)
+		c.log.Errorf(ErrUnmarshalEnvelope, err)
 		msg.Ack(false)
 		return
 	}
@@ -243,7 +257,7 @@ func (c *ShowcaseConsumer) handleAddCollaborator(msg amqp.Delivery) {
 	// 2. Extract Data
 	dataBytes, err := json.Marshal(envelope.Data)
 	if err != nil {
-		c.log.Errorf("Failed to re-marshal data field: %v", err)
+		c.log.Errorf(ErrRemarshalData, err)
 		msg.Ack(false)
 		return
 	}
@@ -295,7 +309,7 @@ func (c *ShowcaseConsumer) handleRemoveCollaborator(msg amqp.Delivery) {
 	// 1. Parse Event Envelope
 	var envelope domain.EventEnvelope
 	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
-		c.log.Errorf("Failed to unmarshal event envelope: %v", err)
+		c.log.Errorf(ErrUnmarshalEnvelope, err)
 		msg.Ack(false)
 		return
 	}
@@ -303,7 +317,7 @@ func (c *ShowcaseConsumer) handleRemoveCollaborator(msg amqp.Delivery) {
 	// 2. Extract Data
 	dataBytes, err := json.Marshal(envelope.Data)
 	if err != nil {
-		c.log.Errorf("Failed to re-marshal data field: %v", err)
+		c.log.Errorf(ErrRemarshalData, err)
 		msg.Ack(false)
 		return
 	}
@@ -341,7 +355,7 @@ func (c *ShowcaseConsumer) handleCountersUpdate(msg amqp.Delivery) {
 	// 1. Parse Event Envelope
 	var envelope domain.EventEnvelope
 	if err := json.Unmarshal(msg.Body, &envelope); err != nil {
-		c.log.Errorf("Failed to unmarshal event envelope: %v", err)
+		c.log.Errorf(ErrUnmarshalEnvelope, err)
 		msg.Ack(false)
 		return
 	}
@@ -349,7 +363,7 @@ func (c *ShowcaseConsumer) handleCountersUpdate(msg amqp.Delivery) {
 	// 2. Extract Data (Generic Map)
 	dataBytes, err := json.Marshal(envelope.Data)
 	if err != nil {
-		c.log.Errorf("Failed to re-marshal data field: %v", err)
+		c.log.Errorf(ErrRemarshalData, err)
 		msg.Ack(false)
 		return
 	}
@@ -377,16 +391,16 @@ func (c *ShowcaseConsumer) handleCountersUpdate(msg amqp.Delivery) {
 	isCommentEvent := false
 
 	switch msg.RoutingKey {
-	case "showcase.viewed":
+	case RoutingShowcaseViewed:
 		viewDelta = 1
-	case "showcase.liked":
+	case RoutingShowcaseLiked:
 		likeDelta = 1
-	case "showcase.unliked":
+	case RoutingShowcaseUnliked:
 		likeDelta = -1
-	case "comment.created":
+	case RoutingCommentCreated:
 		commentDelta = 1
 		isCommentEvent = true
-	case "comment.deleted":
+	case RoutingCommentDeleted:
 		commentDelta = -1
 		isCommentEvent = true
 	}
