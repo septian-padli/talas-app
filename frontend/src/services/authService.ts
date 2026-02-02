@@ -30,10 +30,9 @@ export const authService = {
 		}
 	},
 
-	// Fungsi tambahan: Cek session (Who am I?)
-	// Berguna untuk mendapatkan data user saat refresh halaman
-	getProfile: async () => {
+	getMe: async () => {
+		// Endpoint ini membaca HttpOnly cookie secara otomatis
 		const response = await api.get("/auth/me");
-		return response.data;
+		return response.data; // Asumsi return object User
 	},
 };

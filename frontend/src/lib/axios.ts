@@ -15,17 +15,32 @@ const api = axios.create({
 
 api.interceptors.response.use(
 	(response) => response,
-	(error) => {
-		if (error.response && error.response.status === 401) {
-			if (typeof window !== "undefined") {
-				// Hapus data user di UI (bukan token, karena token di cookie)
-				localStorage.removeItem("user_data");
-				// Redirect login
-				// window.location.href = '/login';
+	async (error) => {
+		const originalRequest = error.config;
+
+		// Cek jika error 401 DAN belum pernah mencoba refresh sebelumnya
+		if (error.response?.status === 401 && !originalRequest._retry) {
+			originalRequest._retry = true; // Tandai agar tidak looping infinite
+
+			try {
+				// 1. Coba minta Access Token baru ke Backend
+				// Pastikan endpoint ini ada di backend kamu!
+				await api.post("/auth/refresh");
+
+				// 2. Jika berhasil, ulangi request awal yang tadi gagal
+				return api(originalRequest);
+			} catch (refreshError) {
+				// 3. Jika refresh token juga sudah basi (misal user offline 30 hari)
+				// BARU kita logout paksa
+				if (typeof window !== "undefined") {
+					localStorage.removeItem("user_data");
+					window.location.href = "/login";
+				}
+				return Promise.reject(refreshError);
 			}
 		}
+
 		return Promise.reject(error);
 	},
 );
-
 export default api;

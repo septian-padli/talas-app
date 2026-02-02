@@ -48,8 +48,8 @@ export interface UserProfile {
 	username: string;
 	email: string;
 	avatar_url: string | null;
-	bio: string | null;
-	is_verified: boolean;
-	created_at: string;
-	updated_at: string;
+	bio?: string | null;
+	is_verified?: boolean;
+	created_at?: string;
+	updated_at?: string;
 }

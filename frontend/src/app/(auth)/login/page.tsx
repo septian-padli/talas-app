@@ -32,11 +32,11 @@ export default function LoginPage() {
     const {
         register,
         handleSubmit,
-        formState: { errors, isValid },
+        formState: { errors },
         reset,
     } = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
-        mode: "onChange",
+        mode: "onSubmit",
     });
 
     const mutation = useMutation({
@@ -58,6 +58,7 @@ export default function LoginPage() {
                 msg = err.response.data.message;
             }
             toast.error(msg, { position: "bottom-right" });
+
         },
     });
 
@@ -108,7 +109,7 @@ export default function LoginPage() {
                             Belum punya akun?{' '}
                             <a href="/register" className="text-brand-400 hover:underline font-semibold">Register sekarang</a>
                         </p>
-                        <Button variant={"brand"} type="submit" size={"lg"} disabled={mutation.isPending || !isValid} className="w-full">
+                        <Button variant={"brand"} type="submit" size={"lg"} disabled={mutation.isPending} className="w-full">
                             {mutation.isPending ? "Loading..." : "Submit"}
                         </Button>
                     </Field>

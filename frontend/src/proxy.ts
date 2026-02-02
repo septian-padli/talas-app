@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
 	// 1. Ambil cookie token dari request browser
 	// ⚠️ PENTING: Pastikan nama string 'token' ini SAMA dengan key yang dikirim Backend
 	// (Cek di Inspect Element -> Application -> Cookies jika ragu)
@@ -39,7 +39,7 @@ export function middleware(request: NextRequest) {
 }
 
 // Konfigurasi Matcher:
-// Middleware ini akan jalan di SEMUA route, KECUALI:
+// Proxy ini akan jalan di SEMUA route, KECUALI:
 // - /api (biarkan backend handle auth api)
 // - /_next/static (file statis nextjs)
 // - /_next/image (gambar nextjs)
