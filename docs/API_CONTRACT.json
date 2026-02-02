@@ -716,6 +716,7 @@
 											"username": "johndoe",
 											"name": "John Doe",
 											"bio": "Full-stack developer passionate about clean code",
+											"job_title": "Full-stack Developer",
 											"avatar_url": "https://res.cloudinary.com/talas/image/upload/v1234567890/avatars/johndoe.jpg",
 											"followers_count": 120,
 											"following_count": 85,
@@ -4905,6 +4906,12 @@
 									"updated_at": {
 										"type": "string",
 										"format": "date-time"
+									},
+									"job_title": {
+										"type": "string",
+										"nullable": true,
+										"description": "Pekerjaan atau jabatan user",
+										"example": "Frontend Developer"
 									}
 								}
 							}
@@ -5034,6 +5041,12 @@
 									"bio": {
 										"type": "string",
 										"nullable": true
+									},
+									"job_title": {
+										"type": "string",
+										"nullable": true,
+										"description": "Pekerjaan atau jabatan user",
+										"example": "Frontend Developer"
 									},
 									"avatar_url": {
 										"type": "string",
@@ -6144,6 +6157,12 @@
 											"format": "uri",
 											"nullable": true,
 											"example": "https://res.cloudinary.com/talas/avatar/user1.jpg"
+										},
+										"job_title": {
+											"type": "string",
+											"nullable": true,
+											"description": "Pekerjaan atau jabatan user",
+											"example": "Frontend Developer"
 										}
 									}
 								}

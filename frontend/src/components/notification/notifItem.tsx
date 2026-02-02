@@ -1,47 +1,10 @@
-import React from "react";
 import {
-  HeartIcon,
-  ChatBubbleOvalLeftIcon,
-  UserPlusIcon,
   BellIcon,
 } from "@heroicons/react/24/solid";
 import { formatDistanceToNow } from "date-fns";
 import { NotificationItem, NotificationType } from "@/types/notification";
 import Image from "next/image";
 
-// const getNotificationIcon = (notification: NotificationType) => {
-//   const { type, title } = notification;
-//   const iconProps = { className: "w-5 h-5 text-green-500" };
-
-//   switch (type?.toLowerCase()) {
-//     case 'like':
-//     case 'like_project':
-//       return <HeartIcon {...iconProps} />;
-//     case 'comment':
-//     case 'comment_project':
-//       return <ChatBubbleOvalLeftIcon {...iconProps} />;
-//     case 'follow':
-//     case 'follow_user':
-//       return <UserPlusIcon {...iconProps} />;
-//     default: {
-//       const titleLower = title?.toLowerCase() || '';
-//       if (titleLower.includes('liked') || titleLower.includes('like')) {
-//         return <HeartIcon {...iconProps} />;
-//       } else if (titleLower.includes('comment') || titleLower.includes('replied')) {
-//         return <ChatBubbleOvalLeftIcon {...iconProps} />;
-//       } else if (titleLower.includes('follow') || titleLower.includes('started following')) {
-//         return <UserPlusIcon {...iconProps} />;
-//       }
-//       return <BellIcon {...iconProps} />;
-//     }
-//   }
-// };
-
-
-// contoh text type like: Budi Santoso menyukai showcase "Redesign Aplikasi Gojek"
-// contoh text type comment: Siti Aminah mengomentari "Website E-Commerce": "Keren banget bang, tech stack-nya..."
-// contoh text type follow: Reza Rahadian mulai mengikuti Anda
-// contoh text type collaborator_accepted: Dian Sastro sekarang kolaborator di showcase "Sistem Manajemen Gudang"
 
 // function getTextContent
 function getTextContent(notification: NotificationItem): string {

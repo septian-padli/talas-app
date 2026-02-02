@@ -9,7 +9,7 @@ const navItems = [
     { icon: BookmarkIcon, label: "Bookmark", url: "/bookmark" },
     { icon: MagnifyingGlassIcon, label: "Search", url: "/search" },
     { icon: BellIcon, label: "Notification", url: "/notification" },
-    { icon: UserIcon, label: "Profile", url: "/profile" },
+    { icon: UserIcon, label: "Profile", url: "/profile/me" },
 ];
 
 interface SideNavProps {

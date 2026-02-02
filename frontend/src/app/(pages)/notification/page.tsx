@@ -1,6 +1,4 @@
 "use client";
-import { PostCard } from "@/components/feeds/post-card";
-import { PostComposer } from "@/components/feeds/post-composer";
 import { NotificationItems } from "@/components/notification/notifItem";
 import { NotificationItemSkeleton } from "@/components/notification/notifItemSkeleton";
 import { useNotifications } from "@/hooks/useNotifications";

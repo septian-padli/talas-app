@@ -19,18 +19,8 @@ const getMyProfile = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        name: true,
-        bio: true,
-        avatarUrl: true,
-        jobTitle: true,
-        followersCount: true,
-        followingCount: true,
-        createdAt: true,
-        updatedAt: true
+      include: {
+        socialLinks: true
       }
     });
 
@@ -44,21 +34,27 @@ const getMyProfile = async (req, res) => {
     }
 
     // Map to API Contract (snake_case)
-    const responseData = {
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        bio: user.bio,
-        avatar_url: user.avatarUrl,
-        is_verified: false, // Default value as per plan
-        followers_count: user.followersCount,
-        following_count: user.followingCount,
-        created_at: user.createdAt,
-        updated_at: user.updatedAt
-      }
-    };
+      const responseData = {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          name: user.name,
+          bio: user.bio,
+          job_title: user.jobTitle,
+          avatar_url: user.avatarUrl,
+          is_verified: false, // Default value as per plan
+          followers_count: user.followersCount,
+          following_count: user.followingCount,
+          created_at: user.createdAt,
+          updated_at: user.updatedAt,
+          social_links: user.socialLinks?.map(sl => ({
+            social: sl.social,
+            link: sl.link,
+            username: sl.username
+          })) || []
+        }
+      };
 
     res.json({
       code: 200,
@@ -85,14 +81,8 @@ const getUserByUsername = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { username },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        bio: true,
-        avatarUrl: true,
-        followersCount: true,
-        followingCount: true
+      include: {
+        socialLinks: true
       }
     });
 
@@ -121,10 +111,16 @@ const getUserByUsername = async (req, res) => {
         username: user.username,
         name: user.name,
         bio: user.bio,
+        job_title: user.jobTitle,
         avatar_url: user.avatarUrl,
         followers_count: user.followersCount,
         following_count: user.followingCount,
-        is_following: !!isFollowing
+        is_following: !!isFollowing,
+        social_links: user.socialLinks?.map(sl => ({
+          social: sl.social,
+          link: sl.link,
+          username: sl.username
+        })) || []
       }
     };
 

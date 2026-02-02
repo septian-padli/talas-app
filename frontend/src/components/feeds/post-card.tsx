@@ -89,18 +89,18 @@ export function PostCard({
     };
   }, []);
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    // Prevents navigation if a link or button within the card is clicked
-    if (target.closest('a, button, [data-prevent-card-click="true"]')) {
-      return;
-    }
-    if (slug) {
-      router.push(`/project/${slug}`);
-    } else {
-      router.push(`/project/${id}`);
-    }
-  };
+  // const handleCardClick = (e: React.MouseEvent) => {
+  //   const target = e.target as HTMLElement;
+  //   // Prevents navigation if a link or button within the card is clicked
+  //   if (target.closest('a, button, [data-prevent-card-click="true"]')) {
+  //     return;
+  //   }
+  //   if (slug) {
+  //     router.push(`/project/${slug}`);
+  //   } else {
+  //     router.push(`/project/${id}`);
+  //   }
+  // };
 
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click

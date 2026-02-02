@@ -38,7 +38,6 @@ export default function RegisterPage() {
         register,
         handleSubmit,
         formState: { errors },
-        reset,
     } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
     });
@@ -96,9 +95,11 @@ export default function RegisterPage() {
                             {...register("name")}
                             disabled={mutation.isPending || isSuccessDelay}
                         />
-                        {errors.name && (
-                            <p className="text-red-400 text-sm mt-1">{errors.name.message}</p>
-                        )}
+                        {errors.name ? (
+                            <FieldDescription className="text-rose-400">
+                                {errors.name.message}
+                            </FieldDescription>
+                        ) : null}
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="fieldgroup-username">Username</FieldLabel>
@@ -108,9 +109,11 @@ export default function RegisterPage() {
                             {...register("username")}
                             disabled={mutation.isPending || isSuccessDelay}
                         />
-                        {errors.username && (
-                            <p className="text-red-400 text-sm mt-1">{errors.username.message}</p>
-                        )}
+                        {errors.username ? (
+                            <FieldDescription className="text-rose-400">
+                                {errors.username.message}
+                            </FieldDescription>
+                        ) : null}
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="fieldgroup-email">Email</FieldLabel>
@@ -121,12 +124,11 @@ export default function RegisterPage() {
                             {...register("email")}
                             disabled={mutation.isPending || isSuccessDelay}
                         />
-                        {errors.email && (
-                            <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
-                        )}
-                        {/* <FieldDescription>
-                            We&apos;ll send updates to this address.
-                        </FieldDescription> */}
+                        {errors.email ? (
+                            <FieldDescription className="text-rose-400">
+                                {errors.email.message}
+                            </FieldDescription>
+                        ) : null}
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="fieldgroup-password">Password</FieldLabel>
@@ -137,9 +139,11 @@ export default function RegisterPage() {
                             {...register("password")}
                             disabled={mutation.isPending || isSuccessDelay}
                         />
-                        {errors.password && (
-                            <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
-                        )}
+                        {errors.password ? (
+                            <FieldDescription className="text-rose-400">
+                                {errors.password.message}
+                            </FieldDescription>
+                        ) : null}
                     </Field>
                     <Field orientation="vertical" className="items-end w-full">
                         <p className="text-sm text-white/80 mb-2 text-right w-full">
