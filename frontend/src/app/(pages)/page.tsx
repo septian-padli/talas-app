@@ -73,26 +73,24 @@ const dummyPosts = [
 
 const HomePage: React.FC<HomePageProps> = () => {
     return (
-        <>
-            <div className="max-w-2/3 mx-auto">
+        <div className="max-w-2/3 mx-auto">
 
-                {/* composer */}
-                <div className="mb-8">
-                    <PostComposer />
-                </div>
-
-                <div className="bg-[#181818] rounded-2xl">
-                    {dummyPosts.map((post) => (
-                        <div key={post.id} className="border-b border-white/10 p-1">
-                            <PostCard
-                                {...post}
-                            />
-                        </div>
-                    ))}
-                </div>
+            {/* composer */}
+            <div className="mb-8">
+                <PostComposer />
             </div>
 
-        </>
+            <div className="bg-[#181818] rounded-2xl">
+                {dummyPosts.map((post) => (
+                    <div key={post.id} className="border-b border-white/10 p-1">
+                        <PostCard
+                            {...post}
+                        />
+                    </div>
+                ))}
+            </div>
+        </div>
+
     );
 };
 

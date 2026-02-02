@@ -1,13 +1,27 @@
+"use client";
 import Image from "next/image";
 import { LogoutButton } from "../auth/LogoutButton";
 import SideNav from "./sidenav";
-import { Button } from "../ui/button";
+import { usePathname } from "next/navigation";
 
-interface SidebarProps {
-    activeItem?: string;
-}
+// interface SidebarProps {
+//     activeItem?: string;
+// }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeItem = "Home" }) => {
+const pathToLabel: Record<string, string> = {
+    "/": "Home",
+    "/bookmark": "Bookmark",
+    "/search": "Search",
+    "/notification": "Notification",
+    "/profile": "Profile",
+};
+
+const Sidebar: React.FC = () => {
+    const pathname = usePathname();
+    // Find the best match for the current path
+    const activeItem = pathToLabel[
+        Object.keys(pathToLabel).find((key) => pathname === key || pathname.startsWith(key + "/")) || "/"
+    ] || "Home";
     return (
         <>
             {/* Desktop Sidebar */}
