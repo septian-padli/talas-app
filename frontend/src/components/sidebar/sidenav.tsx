@@ -3,6 +3,7 @@
 import { HomeIcon, BookmarkIcon, MagnifyingGlassIcon, BellIcon, UserIcon } from "@heroicons/react/24/outline"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { useNotifications } from "@/hooks/useNotifications"
 
 const navItems = [
     { icon: HomeIcon, label: "Home", url: "/" },
@@ -18,6 +19,8 @@ interface SideNavProps {
 }
 
 const SideNav: React.FC<SideNavProps> = ({ activeItem, orientation = "vertical" }) => {
+
+    const { unreadCount } = useNotifications();
     return (
         <nav className={cn(
             orientation === "horizontal"
@@ -38,7 +41,14 @@ const SideNav: React.FC<SideNavProps> = ({ activeItem, orientation = "vertical" 
                             isActive ? "text-brand-400" : "text-white"
                         )}
                     >
-                        <Icon className={cn("w-6 h-6", isActive ? "text-brand-400" : "text-white")} />
+                        <div className="relative">
+                            <Icon className={cn("w-6 h-6", isActive ? "text-brand-400" : "text-white")} />
+                            {item.label === "Notification" && unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-4.5 h-5 px-1 flex items-center justify-center text-xs font-bold bg-red-500 text-white rounded-full border-2 border-background z-10">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
+                        </div>
                         {orientation !== "horizontal" && (
                             <span>{item.label}</span>
                         )}

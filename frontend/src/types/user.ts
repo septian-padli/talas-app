@@ -1,3 +1,8 @@
+export interface SocialLink {
+	social: string;
+	link: string;
+	username?: string | null;
+}
 // --- User Main Object ---
 export interface User {
 	id: string;
@@ -10,11 +15,7 @@ export interface User {
 	is_verified?: boolean; // only for private profile
 	created_at?: string;
 	updated_at?: string;
-	social_links?: {
-		instagram?: string | null;
-		linkedin?: string | null;
-		[key: string]: string | null | undefined;
-	};
+	social_links?: SocialLink[];
 	// stats
 	followers_count: number;
 	following_count: number;
@@ -29,12 +30,9 @@ export interface UserStats {
 export interface UpdateProfilePayload {
 	name?: string;
 	bio?: string;
-	avatar_url?: string;
-	social_links?: {
-		instagram?: string | null;
-		linkedin?: string | null;
-		[key: string]: string | null | undefined;
-	};
+	avatarUrl?: string;
+	jobTitle?: string;
+	socialLinks?: SocialLink[];
 }
 
 export interface FieldError {

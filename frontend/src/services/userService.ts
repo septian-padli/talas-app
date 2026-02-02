@@ -18,7 +18,9 @@ export const userService = {
 	async updateProfile(
 		data: UpdateProfilePayload,
 	): Promise<UpdateProfileResponse> {
+		console.log("userService.updateProfile called with data:", data);
 		const res = await axios.patch("/users/me", data);
+		console.log("userService.updateProfile response data:", res.data);
 		return res.data;
 	},
 

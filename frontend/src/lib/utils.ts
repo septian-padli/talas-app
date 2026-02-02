@@ -1,6 +1,69 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+	return twMerge(clsx(inputs));
 }
+
+export const extractUsername = (url: string): string | null => {
+	if (!url) return null;
+
+	try {
+		// 1. Normalisasi URL (tambahkan https jika belum ada agar URL constructor tidak error)
+		const cleanUrl = url.trim();
+		const withProtocol = cleanUrl.startsWith("http")
+			? cleanUrl
+			: `https://${cleanUrl}`;
+
+		// 2. Parsing menggunakan API URL bawaan browser
+		const urlObj = new URL(withProtocol);
+		const hostname = urlObj.hostname.toLowerCase();
+		const pathname = urlObj.pathname;
+
+		// Remove trailing slash agar split lebih bersih
+		const cleanPath = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+		const segments = cleanPath.split("/").filter(Boolean); // Hapus string kosong
+
+		// --- LOGIC KHUSUS PER PLATFORM ---
+
+		// A. LINKEDIN (Format: /in/username)
+		if (hostname.includes("linkedin.com")) {
+			// Biasanya ada di segment setelah 'in', misal: /in/septian
+			const inIndex = segments.indexOf("in");
+			if (inIndex !== -1 && segments[inIndex + 1]) {
+				return segments[inIndex + 1];
+			}
+			// Fallback jika formatnya beda (misal company page)
+			return segments[0] || null;
+		}
+
+		// B. FACEBOOK (Bisa username atau ID)
+		if (hostname.includes("facebook.com")) {
+			// Kasus: profile.php?id=1000234
+			if (pathname.includes("profile.php")) {
+				const id = urlObj.searchParams.get("id");
+				return id || null;
+			}
+			// Kasus: facebook.com/septianpadli
+			return segments[0] || null;
+		}
+
+		// C. YOUTUBE (Format: /@username atau /c/username atau /user/username)
+		if (hostname.includes("youtube.com") || hostname.includes("youtu.be")) {
+			// Cari segment yang dimulai dengan @
+			const handle = segments.find((s) => s.startsWith("@"));
+			if (handle) return handle.replace("@", "");
+
+			// Jika format channel/user biasa, ambil segment terakhir
+			return segments[segments.length - 1] || null;
+		}
+
+		// D. STANDARD (Instagram, GitHub, X/Twitter, Dribbble)
+		// Format umumnya: domain.com/username
+		return segments[0] || null;
+	} catch {
+		// Jika input user bukan URL valid (misal user ngetik "septian" doang)
+		// Kita bisa return string aslinya saja (asumsi dia input username langsung)
+		return url.trim();
+	}
+};
