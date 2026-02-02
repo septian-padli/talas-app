@@ -1,38 +1,26 @@
 // src/lib/axios.ts
 import axios from "axios";
 
-// 1. Buat Instance
 const api = axios.create({
 	baseURL: process.env.NEXT_PUBLIC_API_URL,
 	headers: {
 		"Content-Type": "application/json",
 	},
+	// 🔥 PENTING: Ini kuncinya agar cookie dikirim/diterima
+	withCredentials: true,
 });
 
-// 2. Request Interceptor: Sisipkan Token
-api.interceptors.request.use(
-	(config) => {
-		// Cek apakah kode jalan di browser (bukan server side Next.js)
-		if (typeof window !== "undefined") {
-			const token = localStorage.getItem("token");
-			if (token) {
-				config.headers.Authorization = `Bearer ${token}`;
-			}
-		}
-		return config;
-	},
-	(error) => Promise.reject(error),
-);
+// HAPUS interceptor request yang menyisipkan 'Bearer token' manual.
+// Kita hanya butuh response interceptor untuk handle 401 (Logout).
 
-// 3. Response Interceptor: Handle Token Expired (401)
 api.interceptors.response.use(
 	(response) => response,
 	(error) => {
-		// Jika error 401 (Unauthorized), berarti token basi/salah
 		if (error.response && error.response.status === 401) {
 			if (typeof window !== "undefined") {
-				localStorage.removeItem("token"); // Hapus token
-				// Opsional: Redirect ke halaman login
+				// Hapus data user di UI (bukan token, karena token di cookie)
+				localStorage.removeItem("user_data");
+				// Redirect login
 				// window.location.href = '/login';
 			}
 		}
