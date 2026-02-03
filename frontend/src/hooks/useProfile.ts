@@ -11,3 +11,12 @@ export const useProfile = () => {
 		refetchOnWindowFocus: false, // Jangan refresh saat pindah tab (kecuali perlu real-time)
 	});
 };
+
+export const usePublicProfile = (username: string) => {
+	return useQuery({
+		queryKey: ["profile", username], // Cache unik per username
+		queryFn: () => userService.getByUsername(username),
+		enabled: !!username, // Hanya jalan jika username ada
+		retry: false, // Jangan retry kalau 404
+	});
+};

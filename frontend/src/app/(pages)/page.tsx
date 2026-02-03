@@ -73,8 +73,7 @@ const dummyPosts = [
 
 const HomePage: React.FC<HomePageProps> = () => {
     return (
-        <div className="max-w-2/3 mx-auto">
-
+        <>
             {/* composer */}
             <div className="mb-8">
                 <PostComposer />
@@ -89,7 +88,7 @@ const HomePage: React.FC<HomePageProps> = () => {
                     </div>
                 ))}
             </div>
-        </div>
+        </>
 
     );
 };

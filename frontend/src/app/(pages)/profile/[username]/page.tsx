@@ -1,13 +1,10 @@
 "use client";
-
 import { PostCard } from "@/components/feeds/post-card";
-
 import ProfileCard from "@/components/profile/profile-card";
-import { useProfile } from "@/hooks/useProfile";
+import { useParams } from "next/navigation";
+import { usePublicProfile } from "@/hooks/useProfile";
 import { useHeaderStore } from "@/store/useHeaderStore";
 import { useEffect } from "react";
-
-
 
 interface ProfilePageProps {
     prop: string;
@@ -78,15 +75,19 @@ const dummyPosts = [
     },
 ];
 
+
 const ProfilePage: React.FC<ProfilePageProps> = () => {
+    const params = useParams();
     const { setTitle } = useHeaderStore();
     useEffect(() => {
         setTitle("Profile");
         return () => setTitle("Talas App");
     }, [setTitle]);
 
-    const { data: profileResponse, isLoading, isError } = useProfile();
-    const profile = profileResponse?.data.user;
+    const username = typeof params.username === "string" ? params.username : Array.isArray(params.username) ? params.username[0] : "";
+
+    const { data: response, isLoading, isError } = usePublicProfile(username);
+    const profile = response?.data?.user;
 
     if (isLoading) {
         return <div className="p-8 text-center">Loading profile...</div>;

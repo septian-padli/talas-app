@@ -1,4 +1,4 @@
-// src/middleware.ts
+// src/proxy.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -7,6 +7,7 @@ export function proxy(request: NextRequest) {
 	// ⚠️ PENTING: Pastikan nama string 'token' ini SAMA dengan key yang dikirim Backend
 	// (Cek di Inspect Element -> Application -> Cookies jika ragu)
 	const token = request.cookies.get("accessToken")?.value;
+	const refreshToken = request.cookies.get("refreshToken")?.value;
 
 	// 2. Cek user sedang ada di halaman mana
 	const { pathname } = request.nextUrl;
@@ -24,13 +25,14 @@ export function proxy(request: NextRequest) {
 	// Tapi mencoba masuk ke halaman Login/Register
 	// Action: Tendang balik ke Dashboard (Home)
 	if (token && isAuthPage) {
+		// if (refreshToken && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
 		return NextResponse.redirect(new URL("/", request.url));
 	}
 
 	// SKENARIO B: User BELUM Login (Tidak punya Token)
 	// Tapi mencoba masuk ke halaman selain Auth (misal: Dashboard)
 	// Action: Tendang ke halaman Login
-	if (!token && !isAuthPage) {
+	if (!token && !refreshToken && !isAuthPage) {
 		return NextResponse.redirect(new URL("/login", request.url));
 	}
 

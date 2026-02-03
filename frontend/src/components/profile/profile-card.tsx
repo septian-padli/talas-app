@@ -4,7 +4,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { SiDribbble, SiFacebook, SiGithub, SiInstagram, SiX } from '@icons-pack/react-simple-icons';
 import { Edit3Icon, Linkedin } from "lucide-react";
-import { useProfile } from "@/hooks/useProfile";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 
@@ -27,23 +26,22 @@ const getIcon = (platform: string) => {
   }
 }
 
-const ProfileCard: React.FC = () => {
-  // data profile dari hook useProfile nanti
-  const { data: profileResponse, isLoading, isError } = useProfile();
-  const profile = profileResponse?.data.user;
 
+import type { User } from "@/types/user";
+import { useUser } from "@/hooks/useUser";
+
+interface ProfileCardProps {
+  profile: User;
+}
+
+
+const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
   const router = useRouter();
   const goToEditProfile = () => {
     router.push("/profile/edit");
-  }
+  };
 
-  if (isLoading) {
-    return <div>Loading profile...</div>;
-  }
-
-  if (isError || !profile) {
-    return <div>Error loading profile.</div>;
-  }
+  const isMine = useUser().data?.user?.username === profile?.username;
 
   return (
     <>
@@ -59,14 +57,16 @@ const ProfileCard: React.FC = () => {
         </div>
         {/* avatar */}
         <div className="flex items-end justify-center gap-4 flex-col">
-          <Button
-            variant={"outline"}
-            size={"sm"}
-            onClick={goToEditProfile}
-          >
-            <Edit3Icon size={16} className="mr-2" />
-            Edit Profile
-          </Button>
+          {isMine && (
+            <Button
+              variant={"outline"}
+              size={"sm"}
+              onClick={goToEditProfile}
+            >
+              <Edit3Icon size={16} className="mr-2" />
+              Edit Profile
+            </Button>
+          )}
           <Avatar className="w-16 md:w-20 lg:w-22 xl:w-24 h-16 md:h-20 lg:h-22 xl:h-24">
             <AvatarImage src={profile?.avatar_url || undefined} alt={`@${profile?.username}`} />
             <AvatarFallback className="text-2xl font-bold">{profile?.name ? profile.name.charAt(0) + profile.name.charAt(1) : "CN"}</AvatarFallback>

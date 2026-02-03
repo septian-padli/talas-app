@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { extractUsername } from "@/lib/utils";
+import { useHeaderStore } from "@/store/useHeaderStore";
 
 const socialPlatforms = [
     { key: "instagram", label: "Instagram Link", icon: <SiInstagram /> },
@@ -58,6 +59,12 @@ function getFieldError<T extends FieldValues>(errors: FieldErrorsImpl<T> | undef
 }
 
 const ProfilePage = () => {
+    const { setTitle } = useHeaderStore();
+    useEffect(() => {
+        setTitle("Edit Profile");
+        return () => setTitle("Talas App");
+    }, [setTitle]);
+
     const router = useRouter();
     const { data, isLoading } = useProfile();
     const profile = data?.data?.user;

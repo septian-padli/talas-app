@@ -17,7 +17,10 @@ export function PostComposer({ className = "" }: { className?: string }) {
   const router = useRouter();
   const { data: user, isLoading: userLoading, error: userError } = useUser() as { data?: UserProfile; isLoading: boolean; error: AxiosError | null; };
 
-  const handleRedirect = () => {
+  const handleRedirectSearch = () => {
+    router.push("/search");
+  };
+  const handleRedirectCreate = () => {
     router.push("/showcase/create");
   };
 
@@ -49,13 +52,16 @@ export function PostComposer({ className = "" }: { className?: string }) {
             <div className="flex-1">
               <input
                 type="text"
-                placeholder={"What's going on today?"}
+                placeholder={`What's going on today, ${user?.name
+                  ? user.name.split(" ").slice(0, 2).join(" ")
+                  : ""
+                  }?`}
                 className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground cursor-pointer text-base"
-                onClick={handleRedirect}
+                onClick={handleRedirectSearch}
                 readOnly
               />
             </div>
-            <button
+            {/* <button
               type="button"
               className="rounded-full p-2 hover:bg-white/10 transition-colors ml-2"
               tabIndex={-1}
@@ -70,10 +76,13 @@ export function PostComposer({ className = "" }: { className?: string }) {
               aria-label="Add image"
             >
               <ImageIcon className="w-5 h-5 text-white" />
-            </button>
+            </button> */}
             <Button
-              onClick={handleRedirect}
-              className="rounded-full px-6 bg-brand-400 text-white hover:bg-brand-500 ml-3"
+              onClick={handleRedirectCreate}
+              // className="rounded-full px-6 bg-brand-400 text-white hover:bg-brand-500 ml-3"
+              className="rounded-full ml-3"
+              variant="brand"
+              size="lg"
             >
               Post
             </Button>

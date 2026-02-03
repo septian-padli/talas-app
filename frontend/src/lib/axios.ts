@@ -6,41 +6,94 @@ const api = axios.create({
 	headers: {
 		"Content-Type": "application/json",
 	},
-	// 🔥 PENTING: Ini kuncinya agar cookie dikirim/diterima
+	// 🔥 PENTING: Wajib true agar cookie dikirim/diterima
 	withCredentials: true,
 });
 
-// HAPUS interceptor request yang menyisipkan 'Bearer token' manual.
-// Kita hanya butuh response interceptor untuk handle 401 (Logout).
+// --- LOGIC ANTRIAN (QUEUE) ---
+// Variabel ini di luar interceptor agar statusnya global
+let isRefreshing = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let failedQueue: any[] = [];
+
+// Fungsi untuk memproses antrian setelah refresh selesai
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const processQueue = (error: any, token: string | null = null) => {
+	failedQueue.forEach((prom) => {
+		if (error) {
+			prom.reject(error);
+		} else {
+			prom.resolve(token);
+		}
+	});
+	failedQueue = [];
+};
 
 api.interceptors.response.use(
 	(response) => response,
 	async (error) => {
 		const originalRequest = error.config;
 
-		// Cek jika error 401 DAN belum pernah mencoba refresh sebelumnya
-		if (error.response?.status === 401 && !originalRequest._retry) {
-			originalRequest._retry = true; // Tandai agar tidak looping infinite
+		// 1. Cek Error 401
+		// PENTING: Pastikan yang error BUKAN request ke /auth/refresh itu sendiri
+		// Jika /auth/refresh error 401, berarti memang sesi habis total.
+		if (
+			error.response?.status === 401 &&
+			!originalRequest.url.includes("/auth/refresh")
+		) {
+			// Cek pencegah loop infinite
+			if (originalRequest._retry) {
+				return Promise.reject(error);
+			}
+
+			// 2. Jika sedang ada proses refresh berlangsung...
+			if (isRefreshing) {
+				// ...Request ini kita suruh ANTRI (masuk failedQueue)
+				// Dia akan menunggu sampai processQueue dipanggil
+				return new Promise(function (resolve, reject) {
+					failedQueue.push({ resolve, reject });
+				})
+					.then(() => {
+						// Setelah antrian jalan, ulangi request ini
+						return api(originalRequest);
+					})
+					.catch((err) => {
+						return Promise.reject(err);
+					});
+			}
+
+			// 3. Jika belum ada yang refresh, request ini yang jadi EKSEKUTOR
+			originalRequest._retry = true;
+			isRefreshing = true;
 
 			try {
-				// 1. Coba minta Access Token baru ke Backend
-				// Pastikan endpoint ini ada di backend kamu!
+				// Tembak Refresh Token
 				await api.post("/auth/refresh");
 
-				// 2. Jika berhasil, ulangi request awal yang tadi gagal
+				// SUKSES: Proses semua request yang mengantri tadi
+				processQueue(null, "success");
+
+				// Ulangi request EKSEKUTOR ini
 				return api(originalRequest);
 			} catch (refreshError) {
-				// 3. Jika refresh token juga sudah basi (misal user offline 30 hari)
-				// BARU kita logout paksa
+				// GAGAL: Beritahu semua antrian bahwa refresh gagal
+				processQueue(refreshError, null);
+
+				// Logout Paksa
 				if (typeof window !== "undefined") {
-					localStorage.removeItem("user_data");
+					// Hapus data user di local storage (bukan token, token di cookie urusan browser)
+					localStorage.removeItem("user_data"); // Sesuaikan key kamu
 					window.location.href = "/login";
 				}
 				return Promise.reject(refreshError);
+			} finally {
+				// Reset status agar siap untuk refresh berikutnya di masa depan
+				isRefreshing = false;
 			}
 		}
 
 		return Promise.reject(error);
 	},
 );
+
 export default api;
