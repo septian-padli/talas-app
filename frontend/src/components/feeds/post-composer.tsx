@@ -84,7 +84,7 @@ export function PostComposer({ className = "" }: { className?: string }) {
               variant="brand"
               size="lg"
             >
-              Post
+              Create Showcase
             </Button>
           </>
         )}

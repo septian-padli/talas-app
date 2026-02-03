@@ -337,12 +337,16 @@ const updateAvatar = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Upload to Cloudinary using stream
+    // Ambil avatar lama user
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const oldAvatarUrl = user?.avatarUrl;
+
+    // Upload ke Cloudinary pakai stream
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "talas/avatars",
-        public_id: "avatar_" + Date.now(), 
-        resource_type: "image",            
+        public_id: "avatar_" + Date.now(),
+        resource_type: "image",
         overwrite: true,
       },
       async (error, result) => {
@@ -350,7 +354,21 @@ const updateAvatar = async (req, res) => {
           return res.status(500).json({ message: "Upload failed", error: error.message });
         }
         try {
-          // Update user avatarUrl in DB (must use camelCase: avatarUrl)
+          // Hapus file lama jika dari Cloudinary
+          if (oldAvatarUrl && oldAvatarUrl.includes("res.cloudinary.com")) {
+            // Ekstrak public_id dari URL lama
+            const matches = oldAvatarUrl.match(/\/talas\/avatars\/([^./]+)(\.[a-zA-Z0-9]+)?$/);
+            if (matches && matches[1]) {
+              const oldPublicId = `talas/avatars/${matches[1]}`;
+              try {
+                await cloudinary.uploader.destroy(oldPublicId);
+              } catch (delErr) {
+                // Log error, tapi jangan gagalkan proses utama
+                console.error('Cloudinary delete old avatar error:', delErr);
+              }
+            }
+          }
+          // Update user avatarUrl di DB
           const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: { avatarUrl: result.secure_url },

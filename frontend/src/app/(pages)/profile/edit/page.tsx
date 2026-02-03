@@ -26,6 +26,7 @@ import { useHeaderStore } from "@/store/useHeaderStore";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 
 import { useState } from "react";
+import AvatarUploadDialog from "@/components/profile/AvatarUploadDialog";
 
 const socialPlatforms = [
     { key: "instagram", label: "Instagram Link", icon: <SiInstagram /> },
@@ -71,6 +72,9 @@ const ProfilePage = () => {
     const router = useRouter();
     const { data, isLoading } = useProfile();
     const profile = data?.data?.user;
+
+    const [isUploadOpen, setIsUploadOpen] = useState(false);
+
     const {
         register,
         handleSubmit,
@@ -181,7 +185,11 @@ const ProfilePage = () => {
                                             <AvatarFallback className="text-2xl font-bold">{profile?.name ? profile.name.charAt(0) + profile.name.charAt(1) : "CN"}</AvatarFallback>
                                         </Avatar>
                                     </div>
-                                    <Button variant={"outline"} size={"sm"} onClick={() => { }}>
+                                    <Button type="button" variant={"outline"} size={"sm"}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setIsUploadOpen(true);
+                                        }}>
                                         Edit Gambar
                                     </Button>
                                 </div>
@@ -214,6 +222,11 @@ const ProfilePage = () => {
                     </FieldGroup>
                 </form>
             </div>
+
+            <AvatarUploadDialog
+                open={isUploadOpen}
+                onOpenChange={setIsUploadOpen}
+            />
         </div>
     );
 };
