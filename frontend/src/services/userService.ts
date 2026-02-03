@@ -10,6 +10,13 @@ import type {
 } from "@/types/user";
 
 export const userService = {
+	async updateAvatar(formData: FormData): Promise<string> {
+		const res = await axios.patch("/users/me/avatar", formData, {
+			headers: { "Content-Type": "multipart/form-data" },
+		});
+		// Asumsikan response berisi url avatar baru
+		return res.data.avatarUrl || res.data.url || "";
+	},
 	async getMe(): Promise<GetMeResponse> {
 		const res = await axios.get("/users/me");
 		return res.data;

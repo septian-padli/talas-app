@@ -1,3 +1,5 @@
+const cloudinary = require("../config/cloudinary");
+const streamifier = require("streamifier");
 const prisma = require('../utils/prisma');
 const { publishEvent } = require('../utils/rabbitmq');
 const { updateProfileSchema } = require('../validations/userValidation');
@@ -327,7 +329,43 @@ const toggleFollow = async (req, res) => {
   }
 };
 
+// PATCH /users/me/avatar
+const updateAvatar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
 
+    // Upload to Cloudinary using stream
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "talas/avatars",
+        public_id: "avatar_" + Date.now(), 
+        resource_type: "image",            
+        overwrite: true,
+      },
+      async (error, result) => {
+        if (error) {
+          return res.status(500).json({ message: "Upload failed", error: error.message });
+        }
+        try {
+          // Update user avatarUrl in DB (must use camelCase: avatarUrl)
+          const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { avatarUrl: result.secure_url },
+          });
+          return res.json({ message: "Success", avatarUrl: updatedUser.avatarUrl });
+        } catch (dbErr) {
+          return res.status(500).json({ message: "Database update failed", error: dbErr.message });
+        }
+      }
+    );
+    streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
 const getUserFollowers = async (req, res) => {
   const targetUserId = req.params.id;
@@ -710,6 +748,7 @@ module.exports = {
   toggleFollow,
   getUserFollowers,
   getUserFollowing,
-  updateUserProfile
+  updateUserProfile,
+  updateAvatar
 };
 

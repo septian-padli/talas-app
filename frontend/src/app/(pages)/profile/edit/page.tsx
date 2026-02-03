@@ -23,6 +23,9 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { extractUsername } from "@/lib/utils";
 import { useHeaderStore } from "@/store/useHeaderStore";
+import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+
+import { useState } from "react";
 
 const socialPlatforms = [
     { key: "instagram", label: "Instagram Link", icon: <SiInstagram /> },
@@ -156,27 +159,39 @@ const ProfilePage = () => {
             <div className="px-6 py-8">
                 <form onSubmit={handleSubmit((data) => mutation.mutate(data))}>
                     <FieldGroup>
-                        {/* Name */}
-                        <Field>
-                            <FieldLabel htmlFor="fieldgroup-name">Name</FieldLabel>
-                            <Input id="fieldgroup-name" placeholder="Jordan Lee" {...register("name")} />
-                            {errors.name && <span className="text-red-500 text-xs">{errors.name.message}</span>}
-                        </Field>
-                        {/* Job Title */}
-                        <Field>
-                            <FieldLabel htmlFor="fieldgroup-jobtitle">Job Title</FieldLabel>
-                            <Input id="fieldgroup-jobtitle" placeholder="Frontend Developer" {...register("jobTitle")} />
-                        </Field>
+                        <div className="grid grid-cols-4 gap-4">
+                            <div className="w-full flex flex-col gap-4 col-span-3">
+                                {/* Name */}
+                                <Field>
+                                    <FieldLabel htmlFor="fieldgroup-name">Name</FieldLabel>
+                                    <Input id="fieldgroup-name" placeholder="Jordan Lee" {...register("name")} />
+                                    {errors.name && <span className="text-red-500 text-xs">{errors.name.message}</span>}
+                                </Field>
+                                {/* Job Title */}
+                                <Field>
+                                    <FieldLabel htmlFor="fieldgroup-jobtitle">Job Title</FieldLabel>
+                                    <Input id="fieldgroup-jobtitle" placeholder="Frontend Developer" {...register("jobTitle")} />
+                                </Field>
+                            </div>
+                            <div className="col-span-1 flex items-end flex-col gap-2">
+                                <div>
+                                    <div className="rounded-full overflow-hidden max-w-32 max-h-32 mb-2">
+                                        <Avatar>
+                                            <AvatarImage src={profile?.avatar_url || undefined} alt={`@${profile?.username}`} />
+                                            <AvatarFallback className="text-2xl font-bold">{profile?.name ? profile.name.charAt(0) + profile.name.charAt(1) : "CN"}</AvatarFallback>
+                                        </Avatar>
+                                    </div>
+                                    <Button variant={"outline"} size={"sm"} onClick={() => { }}>
+                                        Edit Gambar
+                                    </Button>
+                                </div>
+
+                            </div>
+                        </div>
                         {/* Bio */}
                         <Field>
                             <FieldLabel htmlFor="fieldgroup-bio">Bio</FieldLabel>
                             <Textarea id="fieldgroup-bio" placeholder="Tulis bio singkat..." rows={3} {...register("bio")} />
-                        </Field>
-                        {/* Avatar URL */}
-                        <Field>
-                            <FieldLabel htmlFor="fieldgroup-avatar">Avatar URL</FieldLabel>
-                            <Input id="fieldgroup-avatar" placeholder="https://..." {...register("avatarUrl")} />
-                            {errors.avatarUrl && <span className="text-red-500 text-xs">{errors.avatarUrl.message}</span>}
                         </Field>
                         {/* Social Links */}
                         {socialPlatforms.map(({ key, label, icon }) => (

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SiDribbble, SiFacebook, SiGithub, SiInstagram, SiX } from '@icons-pack/react-simple-icons';
 import { Edit3Icon, Linkedin } from "lucide-react";
 import { Button } from "../ui/button";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const getIcon = (platform: string) => {
   switch (platform) {
@@ -40,6 +40,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
   const goToEditProfile = () => {
     router.push("/profile/edit");
   };
+  const pathname = usePathname();
 
   const isMine = useUser().data?.user?.username === profile?.username;
 
@@ -57,13 +58,12 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
         </div>
         {/* avatar */}
         <div className="flex items-end justify-center gap-4 flex-col">
-          {isMine && (
+          {(isMine || pathname == "/profile/me") && (
             <Button
               variant={"outline"}
               size={"sm"}
               onClick={goToEditProfile}
             >
-              <Edit3Icon size={16} className="mr-2" />
               Edit Profile
             </Button>
           )}
