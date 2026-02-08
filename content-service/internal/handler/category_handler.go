@@ -9,8 +9,60 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/usecase"
 )
 
+// CreateCategoryRequest DTO
+type CreateCategoryRequest struct {
+	Name string `json:"name" validate:"required,max=100"`
+}
+
 type CategoryHandler struct {
 	usecase usecase.CategoryUsecase
+}
+
+// POST /categories
+func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
+	var req CreateCategoryRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"code":    400,
+			"status":  false,
+			"message": "Invalid request body",
+		})
+	}
+	// Validasi name (required, max 100)
+	if len(req.Name) == 0 || len(req.Name) > 100 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"code":    400,
+			"status":  false,
+			"message": "Name is required and max 100 characters",
+		})
+	}
+	// Akan dipanggil usecase selanjutnya
+	category, err := h.usecase.CreateCategory(c.Context(), req.Name)
+	if err != nil {
+		if err.Error() == "category already exists" {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"code":    409,
+				"status":  false,
+				"message": "Category sudah ada",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"code":    500,
+			"status":  false,
+			"message": err.Error(),
+		})
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"code":   201,
+		"status": true,
+		"data": fiber.Map{
+			"id":         category.ID.String(),
+			"name":       category.Name,
+			"slug":       category.Slug,
+			"created_at": category.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			"updated_at": category.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		},
+	})
 }
 
 func NewCategoryHandler(usecase usecase.CategoryUsecase) *CategoryHandler {

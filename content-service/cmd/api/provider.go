@@ -67,16 +67,19 @@ func NewFiberApp(
 	internal.Use(internalMiddleware.InternalAuthMiddleware(cfg))
 	internal.Get(showcaseIDRoute, handlers.InternalShowcaseHandler.GetShowcaseInternal)
 
-	// Protected Routes (Specific First)
-	api.Get("/showcases/me", authMiddleware.Protect, handlers.ShowcaseHandler.GetMyShowcases)
+	// Category Routes (All Protected)
+	api.Post("/categories", authMiddleware.Protect, handlers.CategoryHandler.CreateCategory)
+	api.Get("/categories", authMiddleware.Protect, handlers.CategoryHandler.GetCategories)
+	api.Get("/categories/:id", authMiddleware.Protect, handlers.CategoryHandler.GetCategoryDetail)
 
-	// Public Routes
-	api.Get("/categories", handlers.CategoryHandler.GetCategories)
-	api.Get("/categories/:id", handlers.CategoryHandler.GetCategoryDetail)
-	api.Get("/search", handlers.ShowcaseHandler.SearchShowcases)
-	api.Get("/feeds/trending", handlers.ShowcaseHandler.GetTrendingFeeds) // Trending Feeds
+	// Showcase & Other Routes
+	api.Get("/showcases/me", authMiddleware.Protect, handlers.ShowcaseHandler.GetMyShowcases)
+	api.Get("/showcases/user/:id", authMiddleware.Protect, handlers.ShowcaseHandler.GetShowcasesByUser)
+	api.Get("/search", authMiddleware.Protect, handlers.ShowcaseHandler.SearchShowcases)
+	api.Get("/feeds/trending", authMiddleware.Protect, handlers.ShowcaseHandler.GetTrendingFeeds)
+
+	// public
 	api.Get("/showcases/:slug", handlers.ShowcaseHandler.GetShowcaseBySlug)
-	api.Get("/showcases/user/:id", handlers.ShowcaseHandler.GetShowcasesByUser)
 	api.Get("/showcases/:id/comments", handlers.ShowcaseHandler.GetShowcaseComments)
 
 	// Protected Group (Generic)

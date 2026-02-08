@@ -10,6 +10,20 @@ type CategoryRepository interface {
 	GetCategories(limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error)
 	GetCategoryByIDOrSlug(id uuid.UUID, slug string) (*entity.Category, error)
 	GetShowcasesByCategory(categoryID uuid.UUID, cursor uuid.UUID, limit int) ([]entity.Showcase, *uuid.UUID, error)
+	CreateCategory(category *entity.Category) error
+	GetCategoryBySlug(slug string) (*entity.Category, error)
+}
+
+func (r *categoryRepository) GetCategoryBySlug(slug string) (*entity.Category, error) {
+	var category entity.Category
+	if err := r.db.Where("slug = ?", slug).First(&category).Error; err != nil {
+		return nil, err
+	}
+	return &category, nil
+}
+
+func (r *categoryRepository) CreateCategory(category *entity.Category) error {
+	return r.db.Create(category).Error
 }
 
 type categoryRepository struct {
