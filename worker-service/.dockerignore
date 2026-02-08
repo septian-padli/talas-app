@@ -1,0 +1,32 @@
+# Ignore binaries and temporary files
+worker
+worker-service
+*.exe
+*.out
+*.test
+*.log
+*.tmp
+
+# Ignore build output folders
+/tmp/
+
+# Ignore editor and system files
+*.swp
+*.swo
+*.DS_Store
+
+# Ignore local environment and config files
+.env
+.air.toml
+
+# Ignore Go module cache (handled by Docker)
+
+# Ignore wire generated files if not needed in build
+cmd/worker/tmp/
+
+# Do not ignore source code and go.mod/go.sum
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!pkg/

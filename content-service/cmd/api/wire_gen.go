@@ -48,7 +48,11 @@ func InitializeApp() (*fiber.App, error) {
 	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, searchRepository, userClient, cloudinaryUploader, eventPublisher, client, configConfig, logrusLogger)
 	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase, logrusLogger)
 	internalShowcaseHandler := handler.NewInternalShowcaseHandler(showcaseUsecase, logrusLogger)
+	categoryRepository := repository.NewCategoryRepository(db)
+	categoryUsecase := usecase.NewCategoryUsecase(categoryRepository)
+	categoryHandler := handler.NewCategoryHandler(categoryUsecase)
+	handlerGroup := NewHandlerGroup(showcaseHandler, internalShowcaseHandler, categoryHandler)
 	authMiddleware := middleware.NewAuthMiddleware(configConfig)
-	app := NewFiberApp(db, client, configConfig, showcaseHandler, internalShowcaseHandler, authMiddleware, logrusLogger)
+	app := NewFiberApp(db, client, configConfig, handlerGroup, authMiddleware, logrusLogger)
 	return app, nil
 }
