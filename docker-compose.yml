@@ -62,8 +62,8 @@ services:
       - "5672:5672" # Port komunikasi antar service
       - "15672:15672" # Port Dashboard UI (Buka di browser)
     environment:
-      RABBITMQ_DEFAULT_USER: user
-      RABBITMQ_DEFAULT_PASS: password
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -170,15 +170,10 @@ services:
     environment:
       - DB_HOST=content_db
       - DB_PORT=5432
-      - DB_USER=content_admin
-      - DB_PASSWORD=password123
-      - DB_NAME=talas_content
       - REDIS_URL=redis:6379
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - USER_SERVICE_URL=http://user_service:3001
-      - PORT=3002
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - INTERNAL_SERVICE_SECRET="rahasia-dapur-talas-microservices-2026"
     depends_on:
@@ -208,14 +203,13 @@ services:
     environment:
       - DB_HOST=content_db
       - DB_PORT=5432
-      - DB_USER=content_admin
-      - DB_PASSWORD=password123
-      - DB_NAME=talas_content
+      - REDIS_URL=redis:6379
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - USER_SERVICE_URL=http://user_service:3001
+      - CONTENT_SERVICE_URL=http://content_service:3002
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - USER_DATABASE_URL=postgresql://user_admin:password123@user_db:5432/talas_user?sslmode=disable
       - INTERNAL_SERVICE_SECRET="rahasia-dapur-talas-microservices-2026"
     depends_on:
       content_db:

@@ -67,6 +67,7 @@ func (g *InternalGateway) GetUsersByIDs(ctx context.Context, userIDs []string) (
 	}
 
 	// Add headers
+	fmt.Println("Sending x-service-secret:", g.internalServiceSecret)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-service-secret", g.internalServiceSecret)
 

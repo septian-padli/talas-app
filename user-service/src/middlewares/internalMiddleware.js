@@ -12,6 +12,8 @@ const verifyInternalKey = (req, res, next) => {
   }
 
   if (!clientSecret || clientSecret !== serverSecret) {
+    console.warn("client secret:", clientSecret)
+    console.warn("server secret:", serverSecret)
     return res.status(403).json({
       code: 403,
       success: false,

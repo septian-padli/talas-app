@@ -16,14 +16,31 @@ import (
 
 const showcaseIDRoute = "/showcases/:id"
 
+// HandlerGroup to group all handlers
+type HandlerGroup struct {
+	ShowcaseHandler         *handler.ShowcaseHandler
+	InternalShowcaseHandler *handler.InternalShowcaseHandler
+	CategoryHandler         *handler.CategoryHandler
+}
+
+func NewHandlerGroup(
+	showcaseHandler *handler.ShowcaseHandler,
+	internalShowcaseHandler *handler.InternalShowcaseHandler,
+	categoryHandler *handler.CategoryHandler,
+) *HandlerGroup {
+	return &HandlerGroup{
+		ShowcaseHandler:         showcaseHandler,
+		InternalShowcaseHandler: internalShowcaseHandler,
+		CategoryHandler:         categoryHandler,
+	}
+}
+
 // NewFiberApp provider to create fiber app instance
-// Now depends on ShowcaseHandler AND Logger
 func NewFiberApp(
 	db *gorm.DB,
 	redisClient *redis.Client,
 	cfg *config.Config,
-	showcaseHandler *handler.ShowcaseHandler,
-	internalShowcaseHandler *handler.InternalShowcaseHandler,
+	handlers *HandlerGroup,
 	authMiddleware *middleware.AuthMiddleware,
 	log *logrus.Logger,
 ) *fiber.App {
@@ -48,17 +65,22 @@ func NewFiberApp(
 	// Internal Routes (MUST BE FIRST - Protected by Shared Secret)
 	internal := api.Group("/internal")
 	internal.Use(internalMiddleware.InternalAuthMiddleware(cfg))
-	internal.Get(showcaseIDRoute, internalShowcaseHandler.GetShowcaseInternal)
+	internal.Get(showcaseIDRoute, handlers.InternalShowcaseHandler.GetShowcaseInternal)
 
-	// Protected Routes (Specific First)
-	api.Get("/showcases/me", authMiddleware.Protect, showcaseHandler.GetMyShowcases)
+	// Category Routes (All Protected)
+	api.Post("/categories", authMiddleware.Protect, handlers.CategoryHandler.CreateCategory)
+	api.Get("/categories", authMiddleware.Protect, handlers.CategoryHandler.GetCategories)
+	api.Get("/categories/:id", authMiddleware.Protect, handlers.CategoryHandler.GetCategoryDetail)
 
-	// Public Routes
-	api.Get("/search", showcaseHandler.SearchShowcases)
-	api.Get("/feeds/trending", showcaseHandler.GetTrendingFeeds) // Trending Feeds
-	api.Get("/showcases/:slug", showcaseHandler.GetShowcaseBySlug)
-	api.Get("/showcases/user/:id", showcaseHandler.GetShowcasesByUser)
-	api.Get("/showcases/:id/comments", showcaseHandler.GetShowcaseComments)
+	// Showcase & Other Routes
+	api.Get("/showcases/me", authMiddleware.Protect, handlers.ShowcaseHandler.GetMyShowcases)
+	api.Get("/showcases/user/:id", authMiddleware.Protect, handlers.ShowcaseHandler.GetShowcasesByUser)
+	api.Get("/search", authMiddleware.Protect, handlers.ShowcaseHandler.SearchShowcases)
+	api.Get("/feeds/trending", authMiddleware.Protect, handlers.ShowcaseHandler.GetTrendingFeeds)
+
+	// public
+	api.Get("/showcases/:slug", handlers.ShowcaseHandler.GetShowcaseBySlug)
+	api.Get("/showcases/:id/comments", handlers.ShowcaseHandler.GetShowcaseComments)
 
 	// Protected Group (Generic)
 	protected := api.Group("/")
@@ -72,22 +94,22 @@ func NewFiberApp(
 		})
 	})
 
-	protected.Post("/showcases", showcaseHandler.CreateShowcase)
-	protected.Get(showcaseIDRoute+"/collaborators", showcaseHandler.GetCollaborators)
-	protected.Post(showcaseIDRoute+"/collaborators", showcaseHandler.InviteCollaborators)
-	protected.Patch(showcaseIDRoute, showcaseHandler.UpdateShowcase)
-	protected.Delete(showcaseIDRoute+"/collaborators/:userId", showcaseHandler.RemoveCollaborator)
-	protected.Delete(showcaseIDRoute, showcaseHandler.DeleteShowcase)
-	protected.Post("/showcases/:id/like", showcaseHandler.ToggleLike)
-	protected.Post("/showcases/:id/bookmark", showcaseHandler.ToggleBookmark)
-	protected.Post("/showcases/:id/comments", showcaseHandler.CreateComment)
-	protected.Post("/comments/:id/reply", showcaseHandler.ReplyComment)
-	protected.Patch("/comments/:id", showcaseHandler.UpdateComment)
-	protected.Delete("/comments/:id", showcaseHandler.DeleteComment)
-	protected.Post("/comments/:id/like", showcaseHandler.ToggleCommentLike)
+	protected.Post("/showcases", handlers.ShowcaseHandler.CreateShowcase)
+	protected.Get(showcaseIDRoute+"/collaborators", handlers.ShowcaseHandler.GetCollaborators)
+	protected.Post(showcaseIDRoute+"/collaborators", handlers.ShowcaseHandler.InviteCollaborators)
+	protected.Patch(showcaseIDRoute, handlers.ShowcaseHandler.UpdateShowcase)
+	protected.Delete(showcaseIDRoute+"/collaborators/:userId", handlers.ShowcaseHandler.RemoveCollaborator)
+	protected.Delete(showcaseIDRoute, handlers.ShowcaseHandler.DeleteShowcase)
+	protected.Post("/showcases/:id/like", handlers.ShowcaseHandler.ToggleLike)
+	protected.Post("/showcases/:id/bookmark", handlers.ShowcaseHandler.ToggleBookmark)
+	protected.Post("/showcases/:id/comments", handlers.ShowcaseHandler.CreateComment)
+	protected.Post("/comments/:id/reply", handlers.ShowcaseHandler.ReplyComment)
+	protected.Patch("/comments/:id", handlers.ShowcaseHandler.UpdateComment)
+	protected.Delete("/comments/:id", handlers.ShowcaseHandler.DeleteComment)
+	protected.Post("/comments/:id/like", handlers.ShowcaseHandler.ToggleCommentLike)
 
-	protected.Delete("/collaborations/invitations/:id", showcaseHandler.DeleteInvitation)
-	protected.Get("/collaborations/invitations", showcaseHandler.GetPendingInvitations)
-	protected.Patch("/collaborations/:id/response", showcaseHandler.RespondInvitation)
+	protected.Delete("/collaborations/invitations/:id", handlers.ShowcaseHandler.DeleteInvitation)
+	protected.Get("/collaborations/invitations", handlers.ShowcaseHandler.GetPendingInvitations)
+	protected.Patch("/collaborations/:id/response", handlers.ShowcaseHandler.RespondInvitation)
 	return app
 }

@@ -1,0 +1,31 @@
+# Ignore binaries and temporary files
+api
+seeder
+*.exe
+*.out
+*.test
+*.log
+*.tmp
+
+# Ignore build output folders
+cmd/api/tmp/
+cmd/seeder/tmp/
+
+# Ignore editor and system files
+*.swp
+*.swo
+*.DS_Store
+
+# Ignore local environment and config files
+.env
+.air.toml
+
+# Ignore test output and test folders
+/tests/
+
+# Do not ignore source code and go.mod/go.sum
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!pkg/
