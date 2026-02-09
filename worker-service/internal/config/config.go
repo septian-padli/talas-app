@@ -34,6 +34,7 @@ func LoadConfig() (*Config, error) {
 	viper.BindEnv("USER_DATABASE_URL")
 	viper.BindEnv("USER_SERVICE_URL")
 	viper.BindEnv("CONTENT_SERVICE_URL")
+	viper.BindEnv("INTERNAL_SERVICE_SECRET")
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
@@ -49,6 +50,6 @@ func LoadConfig() (*Config, error) {
 	fmt.Printf("   Elastic:  %s\n", cfg.ElasticsearchURL)
 	fmt.Printf("   UserService: %s\n", cfg.UserServiceURL)
 	fmt.Printf("   ContentService: %s\n", cfg.ContentServiceURL)
-
+	fmt.Printf("   InternalServiceSecret: %s\n", cfg.InternalServiceSecret)
 	return &cfg, nil
 }

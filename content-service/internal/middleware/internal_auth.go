@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/septianpadli/talas/content-service/internal/config"
 )
@@ -9,6 +11,8 @@ import (
 func InternalAuthMiddleware(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		secret := c.Get("x-service-secret")
+		fmt.Println("Received x-service-secret:", secret)
+		fmt.Println("Expected internal service secret:", cfg.InternalServiceSecret)
 
 		// Check if header is missing
 		if secret == "" {

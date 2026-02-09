@@ -1,9 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
+	"fmt"
 	"log"
 
+	_ "github.com/lib/pq"
 	"github.com/septianpadli/talas/content-service/internal/config"
 	"github.com/septianpadli/talas/content-service/internal/entity"
 	"github.com/septianpadli/talas/content-service/pkg/database"
@@ -18,16 +21,53 @@ func main() {
 	// 1. Load Config
 	cfg := config.LoadConfig()
 
-	// 2. Connect DB
+	// 2. Ensure Database Exists
+	ensureDatabase(cfg)
+
+	// 3. Connect DB
 	db := database.ConnectDB(cfg)
 
-	// 3. Reset DB if flag is set
+	// 4. Reset DB if flag is set
 	if *reset {
 		resetStats(db)
 	}
 
-	// 4. Seed Categories
+	// 5. Seed Categories
 	seedCategories(db)
+}
+
+// ensureDatabase checks and creates the database if it does not exist
+func ensureDatabase(cfg *config.Config) {
+	host := cfg.DBHost
+	port := cfg.DBPort
+	user := cfg.DBUser
+	password := cfg.DBPassword
+	dbName := cfg.DBName
+	sslmode := cfg.DBSSLMode
+
+	// Connect to default database (postgres)
+	baseDSN := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s", host, port, user, password, sslmode)
+	db, err := sql.Open("postgres", baseDSN)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect to PostgreSQL: %v", err)
+	}
+	defer db.Close()
+
+	log.Printf("🔍 Checking if database '%s' exists...", dbName)
+	var exists bool
+	err = db.QueryRow("SELECT 1 FROM pg_database WHERE datname = $1", dbName).Scan(&exists)
+	if err == sql.ErrNoRows || !exists {
+		log.Printf("⚠️ Database '%s' does not exist. Creating...", dbName)
+		_, err = db.Exec(fmt.Sprintf("CREATE DATABASE %s", dbName))
+		if err != nil {
+			log.Fatalf("❌ Failed to create database '%s': %v", dbName, err)
+		}
+		log.Printf("✅ Database '%s' created successfully!", dbName)
+	} else if err != nil && err != sql.ErrNoRows {
+		log.Fatalf("❌ Error checking database existence: %v", err)
+	} else {
+		log.Printf("✅ Database '%s' already exists.", dbName)
+	}
 }
 
 func resetStats(db *gorm.DB) {
@@ -42,7 +82,7 @@ func resetStats(db *gorm.DB) {
 			log.Printf("🗑️ Legacy table dropped: %s", tbl)
 		}
 	}
-	
+
 	// 2. Drop tables in compatible order (Foreign Keys)
 	err := db.Migrator().DropTable(
 		&entity.Collaborator{},

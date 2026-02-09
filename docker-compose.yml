@@ -62,8 +62,8 @@ services:
       - "5672:5672" # Port komunikasi antar service
       - "15672:15672" # Port Dashboard UI (Buka di browser)
     environment:
-      RABBITMQ_DEFAULT_USER: user
-      RABBITMQ_DEFAULT_PASS: password
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -174,6 +174,7 @@ services:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - USER_SERVICE_URL=http://user_service:3001
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - INTERNAL_SERVICE_SECRET="rahasia-dapur-talas-microservices-2026"
     depends_on:
       content_db:
         condition: service_started
@@ -208,6 +209,7 @@ services:
       - CONTENT_SERVICE_URL=http://content_service:3002
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - USER_DATABASE_URL=postgresql://user_admin:password123@user_db:5432/talas_user?sslmode=disable
+      - INTERNAL_SERVICE_SECRET="rahasia-dapur-talas-microservices-2026"
     depends_on:
       content_db:
         condition: service_started
