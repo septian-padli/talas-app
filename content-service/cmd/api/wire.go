@@ -53,15 +53,18 @@ func InitializeApp() (*fiber.App, error) {
 		repository.NewShowcaseRepository,
 		repository.NewSearchRepository,
 		repository.NewCategoryRepository,
+		repository.NewCommentRepository,
 
 		// Usecase
 		usecase.NewShowcaseUsecase,
 		usecase.NewCategoryUsecase,
+		usecase.NewCommentUsecase,
 
 		// Handler
 		handler.NewShowcaseHandler,
 		handler.NewInternalShowcaseHandler,
 		handler.NewCategoryHandler,
+		handler.NewCommentHandler,
 		NewHandlerGroup,
 
 		// App

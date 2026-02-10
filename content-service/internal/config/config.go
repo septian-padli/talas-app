@@ -32,6 +32,7 @@ type Config struct {
 	RabbitMQURL           string
 	ElasticsearchURL      string
 	RedisURL              string
+	ElasticsearchIndex    string
 }
 
 func LoadConfig() *Config {
@@ -64,6 +65,7 @@ func LoadConfig() *Config {
 		InternalServiceSecret: getEnv("INTERNAL_SERVICE_SECRET", ""),
 		RabbitMQURL:           getEnv("RABBITMQ_URL", "amqp://user:password@localhost:5672"),
 		ElasticsearchURL:      getEnv("ELASTICSEARCH_URL", "http://localhost:9200"),
+		ElasticsearchIndex:    getEnv("ELASTICSEARCH_INDEX", "showcases"),
 		RedisURL:              getEnv("REDIS_URL", "localhost:6379"),
 	}
 }

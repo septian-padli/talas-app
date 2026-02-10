@@ -21,17 +21,20 @@ type HandlerGroup struct {
 	ShowcaseHandler         *handler.ShowcaseHandler
 	InternalShowcaseHandler *handler.InternalShowcaseHandler
 	CategoryHandler         *handler.CategoryHandler
+	CommentHandler          *handler.CommentHandler
 }
 
 func NewHandlerGroup(
 	showcaseHandler *handler.ShowcaseHandler,
 	internalShowcaseHandler *handler.InternalShowcaseHandler,
 	categoryHandler *handler.CategoryHandler,
+	commentHandler *handler.CommentHandler,
 ) *HandlerGroup {
 	return &HandlerGroup{
 		ShowcaseHandler:         showcaseHandler,
 		InternalShowcaseHandler: internalShowcaseHandler,
 		CategoryHandler:         categoryHandler,
+		CommentHandler:          commentHandler,
 	}
 }
 
@@ -80,7 +83,7 @@ func NewFiberApp(
 
 	// public
 	api.Get("/showcases/:slug", handlers.ShowcaseHandler.GetShowcaseBySlug)
-	api.Get("/showcases/:id/comments", handlers.ShowcaseHandler.GetShowcaseComments)
+	api.Get("/showcases/:id/comments", handlers.CommentHandler.GetShowcaseComments)
 
 	// Protected Group (Generic)
 	protected := api.Group("/")
@@ -102,11 +105,11 @@ func NewFiberApp(
 	protected.Delete(showcaseIDRoute, handlers.ShowcaseHandler.DeleteShowcase)
 	protected.Post("/showcases/:id/like", handlers.ShowcaseHandler.ToggleLike)
 	protected.Post("/showcases/:id/bookmark", handlers.ShowcaseHandler.ToggleBookmark)
-	protected.Post("/showcases/:id/comments", handlers.ShowcaseHandler.CreateComment)
-	protected.Post("/comments/:id/reply", handlers.ShowcaseHandler.ReplyComment)
-	protected.Patch("/comments/:id", handlers.ShowcaseHandler.UpdateComment)
-	protected.Delete("/comments/:id", handlers.ShowcaseHandler.DeleteComment)
-	protected.Post("/comments/:id/like", handlers.ShowcaseHandler.ToggleCommentLike)
+	protected.Post("/showcases/:id/comments", handlers.CommentHandler.CreateComment)
+	protected.Post("/comments/:id/reply", handlers.CommentHandler.ReplyComment)
+	protected.Patch("/comments/:id", handlers.CommentHandler.UpdateComment)
+	protected.Delete("/comments/:id", handlers.CommentHandler.DeleteComment)
+	protected.Post("/comments/:id/like", handlers.CommentHandler.ToggleCommentLike)
 
 	protected.Delete("/collaborations/invitations/:id", handlers.ShowcaseHandler.DeleteInvitation)
 	protected.Get("/collaborations/invitations", handlers.ShowcaseHandler.GetPendingInvitations)

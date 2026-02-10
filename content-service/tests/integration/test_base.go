@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 
 	"github.com/gofiber/fiber/v2"
@@ -92,6 +93,41 @@ func (m *MockSearchRepository) GetTrendingShowcases(ctx context.Context, limit i
 
 var testDB *gorm.DB
 
+// containsNoDBErr checks if error string is about missing database
+func containsNoDBErr(err string) bool {
+	return (contains(err, "does not exist") && contains(err, "database")) || contains(err, "SQLSTATE 3D000")
+}
+
+// contains is a helper for string contains
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) && (s[0:len(substr)] == substr || contains(s[1:], substr))))
+}
+
+// createTestDatabase connects to the default DB and creates the test DB
+func createTestDatabase(cfg *config.Config) {
+	defaultDSN := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s",
+		cfg.DBHost,
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBPort,
+		cfg.DBSSLMode,
+	)
+	db, err := gorm.Open(postgres.Open(defaultDSN), &gorm.Config{
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+	})
+	if err != nil {
+		panic("Failed to connect to default postgres DB: " + err.Error())
+	}
+	sql := fmt.Sprintf("CREATE DATABASE %s", cfg.DBName)
+	if err := db.Exec(sql).Error; err != nil {
+		// If already exists, ignore
+		if !contains(err.Error(), "already exists") {
+			panic("Failed to create test DB: " + err.Error())
+		}
+	}
+}
+
 func setupTestDB() *gorm.DB {
 	if testDB != nil {
 		return testDB
@@ -119,7 +155,20 @@ func setupTestDB() *gorm.DB {
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
 	if err != nil {
-		panic("Failed to connect to test DB: " + err.Error())
+		// Check if error is "database does not exist"
+		if err.Error() != "" && (containsNoDBErr(err.Error())) {
+			// Try to create the database
+			createTestDatabase(cfg)
+			// Retry connect
+			db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+				Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+			})
+			if err != nil {
+				panic("Failed to connect to test DB after create: " + err.Error())
+			}
+		} else {
+			panic("Failed to connect to test DB: " + err.Error())
+		}
 	}
 
 	// Force Drop Tables (Clean Slate for Tests)
@@ -178,12 +227,14 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	cfg := config.LoadConfig()
 	cfg.DBName = "talas_content_test" // Ensure config used by others also points to test DB
 	log := logger.NewLogger()
+	log.SetOutput(io.Discard)
 
 	// 2. Database
 	db := setupTestDB()
 
 	// 3. Repository
-	repo := repository.NewShowcaseRepository(db)
+	showcaseRepo := repository.NewShowcaseRepository(db)
+	commentRepo := repository.NewCommentRepository(db)
 
 	// 4. Mocks
 	mockUploader := &MockMediaUploader{}
@@ -192,10 +243,12 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	mockSearchRepo := &MockSearchRepository{}
 
 	// 5. Usecase (Injected with Mocks)
-	uc := usecase.NewShowcaseUsecase(repo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
+	ucShowcase := usecase.NewShowcaseUsecase(showcaseRepo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
+	ucComment := usecase.NewCommentUsecase(commentRepo, mockSearchRepo, showcaseRepo, mockUserClient, mockEventPublisher, cfg, log)
 
 	// 6. Handler
-	h := handler.NewShowcaseHandler(uc, log)
+	hShowcase := handler.NewShowcaseHandler(ucShowcase, log)
+	hComment := handler.NewCommentHandler(ucComment, log)
 
 	// 7. Middleware
 	auth := middleware.NewAuthMiddleware(cfg)
@@ -219,24 +272,24 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	protected := api.Group("/")
 	protected.Use(auth.Protect)
 
-	protected.Post("/showcases", h.CreateShowcase)
-	protected.Patch("/showcases/:id", h.UpdateShowcase)
-	protected.Delete("/showcases/:id", h.DeleteShowcase)
+	protected.Post("/showcases", hShowcase.CreateShowcase)
+	protected.Patch("/showcases/:id", hShowcase.UpdateShowcase)
+	protected.Delete("/showcases/:id", hShowcase.DeleteShowcase)
 
-	protected.Post("/showcases/:id/collaborators", h.InviteCollaborators)
-	protected.Delete("/showcases/:id/collaborators/:userId", h.RemoveCollaborator)
-	protected.Get("/showcases/:id/collaborators", h.GetCollaborators)
+	protected.Post("/showcases/:id/collaborators", hShowcase.InviteCollaborators)
+	protected.Delete("/showcases/:id/collaborators/:userId", hShowcase.RemoveCollaborator)
+	protected.Get("/showcases/:id/collaborators", hShowcase.GetCollaborators)
 
-	protected.Patch("/collaborations/:id/response", h.RespondInvitation)
+	protected.Patch("/collaborations/:id/response", hShowcase.RespondInvitation)
 
-	protected.Post("/showcases/:id/like", h.ToggleLike)
-	protected.Post("/showcases/:id/bookmark", h.ToggleBookmark)
-	protected.Post("/comments/:id/like", h.ToggleCommentLike)
+	protected.Post("/showcases/:id/like", hShowcase.ToggleLike)
+	protected.Post("/showcases/:id/bookmark", hShowcase.ToggleBookmark)
+	protected.Post("/comments/:id/like", hComment.ToggleCommentLike)
 
-	protected.Post("/showcases/:id/comments", h.CreateComment)
+	protected.Post("/showcases/:id/comments", hComment.CreateComment)
 
-	protected.Post("/comments/:id/reply", h.ReplyComment)
-	protected.Delete("/comments/:id", h.DeleteComment)
+	protected.Post("/comments/:id/reply", hComment.ReplyComment)
+	protected.Delete("/comments/:id", hComment.DeleteComment)
 	// Add other routes as needed for tests
 
 	return app, db, mockEventPublisher

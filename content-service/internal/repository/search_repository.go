@@ -30,8 +30,7 @@ type searchRepository struct {
 }
 
 func NewSearchRepository(client *elasticsearch8.Client, cfg *config.Config, log *logrus.Logger) SearchRepository {
-	// Assuming index name is hardcoded or from config, but typically "showcases" based on worker service
-	indexName := "showcases"
+	indexName := cfg.ElasticsearchIndex
 	return &searchRepository{
 		client:    client,
 		indexName: indexName,

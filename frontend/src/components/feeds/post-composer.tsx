@@ -80,7 +80,7 @@ export function PostComposer({ className = "" }: { className?: string }) {
             <Button
               onClick={handleRedirectCreate}
               // className="rounded-full px-6 bg-brand-400 text-white hover:bg-brand-500 ml-3"
-              className="rounded-full ml-3"
+              className="rounded-full ml-3 cursor-pointer"
               variant="brand"
               size="lg"
             >

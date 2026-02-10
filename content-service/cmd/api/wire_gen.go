@@ -51,7 +51,10 @@ func InitializeApp() (*fiber.App, error) {
 	categoryRepository := repository.NewCategoryRepository(db)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepository)
 	categoryHandler := handler.NewCategoryHandler(categoryUsecase)
-	handlerGroup := NewHandlerGroup(showcaseHandler, internalShowcaseHandler, categoryHandler)
+	commentRepository := repository.NewCommentRepository(db)
+	commentUsecase := usecase.NewCommentUsecase(commentRepository, searchRepository, showcaseRepository, userClient, eventPublisher, configConfig, logrusLogger)
+	commentHandler := handler.NewCommentHandler(commentUsecase, logrusLogger)
+	handlerGroup := NewHandlerGroup(showcaseHandler, internalShowcaseHandler, categoryHandler, commentHandler)
 	authMiddleware := middleware.NewAuthMiddleware(configConfig)
 	app := NewFiberApp(db, client, configConfig, handlerGroup, authMiddleware, logrusLogger)
 	return app, nil

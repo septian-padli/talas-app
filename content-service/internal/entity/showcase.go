@@ -80,3 +80,11 @@ type UpdateShowcaseRequest struct {
 	CategoryID *string  `json:"category_id"`
 	Tags       []string `json:"tags"`
 }
+
+type ShowcaseDTOCategory struct {
+	ID        string          `json:"id"`
+	Title     string          `json:"title"`
+	Slug      string          `json:"slug"`
+	Media     []ShowcaseMedia `json:"media"`
+	CreatedAt string          `json:"created_at"`
+}

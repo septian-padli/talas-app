@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
 	"github.com/septianpadli/talas/content-service/internal/usecase"
+	"github.com/septianpadli/talas/content-service/pkg/utils"
 )
 
 // CreateCategoryRequest DTO
@@ -19,51 +20,7 @@ type CategoryHandler struct {
 }
 
 // POST /categories
-func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
-	var req CreateCategoryRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    400,
-			"status":  false,
-			"message": "Invalid request body",
-		})
-	}
-	// Validasi name (required, max 100)
-	if len(req.Name) == 0 || len(req.Name) > 100 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    400,
-			"status":  false,
-			"message": "Name is required and max 100 characters",
-		})
-	}
-	// Akan dipanggil usecase selanjutnya
-	category, err := h.usecase.CreateCategory(c.Context(), req.Name)
-	if err != nil {
-		if err.Error() == "category already exists" {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"code":    409,
-				"status":  false,
-				"message": "Category sudah ada",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    500,
-			"status":  false,
-			"message": err.Error(),
-		})
-	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code":   201,
-		"status": true,
-		"data": fiber.Map{
-			"id":         category.ID.String(),
-			"name":       category.Name,
-			"slug":       category.Slug,
-			"created_at": category.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			"updated_at": category.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		},
-	})
-}
+var formatTimeStamp = "2006-01-02T15:04:05Z07:00"
 
 func NewCategoryHandler(usecase usecase.CategoryUsecase) *CategoryHandler {
 	return &CategoryHandler{usecase: usecase}
@@ -81,16 +38,12 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 	if cursorStr != "" {
 		cursor, err = uuid.Parse(cursorStr)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid cursor"})
+			return utils.ErrorResponse(c, 400, "Invalid cursor", nil)
 		}
 	}
 	categories, nextCursor, err := h.usecase.ListCategories(c.Context(), limit, cursor)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    500,
-			"success": false,
-			"message": err.Error(),
-		})
+		return utils.ErrorResponse(c, 500, err.Error(), nil)
 	}
 	// Mapping ke DTO tanpa deleted_at
 	var categoryDTOs []entity.CategoryDTO
@@ -99,26 +52,23 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 			ID:        cat.ID.String(),
 			Name:      cat.Name,
 			Slug:      cat.Slug,
-			CreatedAt: cat.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			UpdatedAt: cat.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt: cat.CreatedAt.Format(formatTimeStamp),
+			UpdatedAt: cat.UpdatedAt.Format(formatTimeStamp),
 		})
 	}
 	hasNext := nextCursor != nil
-	resp := fiber.Map{
-		"code":   200,
-		"status": true,
-		"data": fiber.Map{
-			"categories": categoryDTOs,
-			"pagination": fiber.Map{
-				"next_cursor": nil,
-				"has_next":    hasNext,
-			},
-		},
+	pagination := fiber.Map{
+		"next_cursor": nil,
+		"has_next":    hasNext,
 	}
 	if nextCursor != nil {
-		resp["data"].(fiber.Map)["pagination"].(fiber.Map)["next_cursor"] = nextCursor.String()
+		pagination["next_cursor"] = nextCursor.String()
 	}
-	return c.JSON(resp)
+	data := fiber.Map{
+		"categories": categoryDTOs,
+		"pagination": pagination,
+	}
+	return utils.SuccessResponse(c, 200, "Categories retrieved successfully", data)
 }
 
 // GET /categories/:id?showcase=true&cursor=uuid&limit=10
@@ -147,27 +97,25 @@ func (h *CategoryHandler) GetCategoryDetail(c *fiber.Ctx) error {
 
 	category, showcases, nextCursor, err := h.usecase.GetCategoryDetail(c.Context(), id, slug, withShowcase, cursor, limit)
 	if err != nil {
-		return c.Status(404).JSON(fiber.Map{
-			"code":    404,
-			"status":  false,
-			"message": "Category not found",
-		})
+		return utils.ErrorResponse(c, 404, "Category not found", nil)
 	}
 
 	categoryDTO := entity.CategoryDTO{
 		ID:        category.ID.String(),
 		Name:      category.Name,
 		Slug:      category.Slug,
-		CreatedAt: category.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: category.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt: category.CreatedAt.Format(formatTimeStamp),
+		UpdatedAt: category.UpdatedAt.Format(formatTimeStamp),
 	}
 
-	showcasesDTO := []map[string]interface{}{}
+	showcasesDTO := []entity.ShowcaseDTOCategory{}
 	for _, s := range showcases {
-		showcasesDTO = append(showcasesDTO, map[string]interface{}{
-			"id":         s.ID.String(),
-			"title":      s.Title,
-			"created_at": s.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		showcasesDTO = append(showcasesDTO, entity.ShowcaseDTOCategory{
+			ID:        s.ID.String(),
+			Title:     s.Title,
+			Slug:      s.Slug,
+			Media:     s.Media,
+			CreatedAt: s.CreatedAt.Format(formatTimeStamp),
 		})
 	}
 
@@ -178,6 +126,12 @@ func (h *CategoryHandler) GetCategoryDetail(c *fiber.Ctx) error {
 		nextCursorVal = nil
 	}
 
+	hasNext := nextCursor != nil
+	pagination := map[string]interface{}{
+		"has_next":    hasNext,
+		"next_cursor": nextCursorVal,
+	}
+
 	categoryResp := map[string]interface{}{
 		"id":         categoryDTO.ID,
 		"name":       categoryDTO.Name,
@@ -185,21 +139,47 @@ func (h *CategoryHandler) GetCategoryDetail(c *fiber.Ctx) error {
 		"created_at": categoryDTO.CreatedAt,
 		"updated_at": categoryDTO.UpdatedAt,
 		"showcases": map[string]interface{}{
-			"items":       showcasesDTO,
-			"next_cursor": nextCursorVal,
+			"items":      showcasesDTO,
+			"pagination": pagination,
 		},
 	}
 
 	if !withShowcase {
 		categoryResp["showcases"] = map[string]interface{}{
-			"items":       []interface{}{},
-			"next_cursor": nil,
+			"items": []interface{}{},
+			"pagination": map[string]interface{}{
+				"has_next":    false,
+				"next_cursor": nil,
+			},
 		}
 	}
 
-	return c.Status(200).JSON(fiber.Map{
-		"code":   200,
-		"status": true,
-		"data":   categoryResp,
-	})
+	return utils.SuccessResponse(c, 200, "Category detail retrieved successfully", categoryResp)
+}
+
+func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
+	var req CreateCategoryRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.ErrorResponse(c, 400, "Invalid request body", nil)
+	}
+	// Validasi name (required, max 100)
+	if len(req.Name) == 0 || len(req.Name) > 100 {
+		return utils.ErrorResponse(c, 400, "Name is required and max 100 characters", nil)
+	}
+	// Akan dipanggil usecase selanjutnya
+	category, err := h.usecase.CreateCategory(c.Context(), req.Name)
+	if err != nil {
+		if err.Error() == "category already exists" {
+			return utils.ErrorResponse(c, 409, "Category sudah ada", nil)
+		}
+		return utils.ErrorResponse(c, 500, err.Error(), nil)
+	}
+	data := fiber.Map{
+		"id":         category.ID.String(),
+		"name":       category.Name,
+		"slug":       category.Slug,
+		"created_at": category.CreatedAt.Format(formatTimeStamp),
+		"updated_at": category.UpdatedAt.Format(formatTimeStamp),
+	}
+	return utils.SuccessResponse(c, 201, "Category created successfully", data)
 }

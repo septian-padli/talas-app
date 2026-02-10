@@ -4526,6 +4526,278 @@
 					}
 				}
 			}
+		},
+		"/categories": {
+			"get": {
+				"tags": ["Categories"],
+				"summary": "Get list of categories",
+				"description": "Mendapatkan daftar kategori. Mendukung infinite scroll dengan cursor dan limit. Hanya dapat diakses oleh user yang sudah login (protected).",
+				"operationId": "getCategories",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "Jumlah kategori yang ingin diambil (default 20)",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 20
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"description": "UUID kategori terakhir untuk infinite scroll",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Daftar kategori berhasil diambil",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"code": { "type": "integer", "example": 200 },
+										"status": { "type": "boolean", "example": true },
+										"data": {
+											"type": "object",
+											"properties": {
+												"categories": {
+													"type": "array",
+													"items": {
+														"type": "object",
+														"properties": {
+															"id": { "type": "string", "format": "uuid" },
+															"name": { "type": "string" },
+															"slug": { "type": "string" },
+															"created_at": {
+																"type": "string",
+																"format": "date-time"
+															},
+															"updated_at": {
+																"type": "string",
+																"format": "date-time"
+															}
+														}
+													}
+												},
+												"pagination": {
+													"type": "object",
+													"properties": {
+														"has_next": { "type": "boolean", "example": false },
+														"next_cursor": {
+															"type": "string",
+															"format": "uuid",
+															"example": null
+														}
+													}
+												}
+											}
+										}
+									}
+								},
+								"examples": {
+									"success": {
+										"summary": "Success response",
+										"value": {
+											"code": 200,
+											"status": true,
+											"data": {
+												"categories": [
+													{
+														"id": "b1a2c3d4-e5f6-7890-1234-56789abcdef0",
+														"name": "Web Design",
+														"slug": "web-design",
+														"created_at": "2026-02-10T10:00:00Z",
+														"updated_at": "2026-02-10T10:00:00Z"
+													},
+													{
+														"id": "c2b3a4d5-e6f7-8901-2345-67890abcdef1",
+														"name": "Mobile App",
+														"slug": "mobile-app",
+														"created_at": "2026-02-10T10:01:00Z",
+														"updated_at": "2026-02-10T10:01:00Z"
+													}
+												],
+												"pagination": {
+													"next_cursor": null,
+													"has_next": false
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Request tidak valid",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": ["Categories"],
+				"summary": "Create new category",
+				"description": "Membuat kategori baru. Hanya dapat diakses oleh user yang sudah login (protected). Nama kategori harus unik dan maksimal 100 karakter.",
+				"operationId": "createCategory",
+				"security": [
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"maxLength": 100,
+										"description": "Nama kategori"
+									}
+								},
+								"required": ["name"]
+							},
+							"examples": {
+								"create": {
+									"summary": "Create category request",
+									"value": {
+										"name": "UI Design"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Kategori berhasil dibuat",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"code": { "type": "integer", "example": 201 },
+										"status": { "type": "boolean", "example": true },
+										"data": {
+											"type": "object",
+											"properties": {
+												"id": { "type": "string", "format": "uuid" },
+												"name": { "type": "string" },
+												"slug": { "type": "string" },
+												"created_at": {
+													"type": "string",
+													"format": "date-time"
+												},
+												"updated_at": {
+													"type": "string",
+													"format": "date-time"
+												}
+											}
+										}
+									}
+								},
+								"examples": {
+									"success": {
+										"summary": "Success response",
+										"value": {
+											"code": 201,
+											"status": true,
+											"data": {
+												"id": "b1a2c3d4-e5f6-7890-1234-56789abcdef0",
+												"name": "UI Design",
+												"slug": "ui-design",
+												"created_at": "2026-02-10T10:10:00Z",
+												"updated_at": "2026-02-10T10:10:00Z"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Request tidak valid",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"examples": {
+									"invalid": {
+										"summary": "Invalid request",
+										"value": {
+											"code": 400,
+											"status": false,
+											"message": "Name is required and max 100 characters"
+										}
+									}
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Kategori sudah ada",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								},
+								"examples": {
+									"exists": {
+										"summary": "Category already exists",
+										"value": {
+											"code": 409,
+											"status": false,
+											"message": "Category sudah ada"
+										}
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	},
 	"components": {
