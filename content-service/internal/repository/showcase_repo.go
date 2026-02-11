@@ -14,12 +14,11 @@ type ShowcaseRepository interface {
 	Update(showcase *entity.Showcase) error
 	GetBySlug(slug string) (*entity.Showcase, error)
 	GetByID(id uuid.UUID) (*entity.Showcase, error)
-
+	GetShowcasesByCategory(categoryID uuid.UUID, cursor uuid.UUID, limit int) ([]entity.Showcase, *uuid.UUID, error)
 	GetByUserID(userID uuid.UUID, limit int, cursor string) ([]entity.Showcase, *entity.PaginationMeta, error)
 	ToggleLike(userID uuid.UUID, showcaseID uuid.UUID) (bool, error)
 	ToggleBookmark(userID uuid.UUID, showcaseID uuid.UUID) (bool, error)
 	DeleteShowcase(id uuid.UUID) error
-	GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error)
 	IncrementViewCount(id uuid.UUID) error
 }
 
@@ -203,10 +202,21 @@ func (r *showcaseRepository) DeleteShowcase(id uuid.UUID) error {
 	return r.db.Delete(&entity.Showcase{}, id).Error
 }
 
-func (r *showcaseRepository) GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error) {
-	var ids []uuid.UUID
-	err := r.db.Model(&entity.Category{}).Where("slug IN ?", slugs).Pluck("id", &ids).Error
-	return ids, err
+func (r *showcaseRepository) GetShowcasesByCategory(categoryID uuid.UUID, cursor uuid.UUID, limit int) ([]entity.Showcase, *uuid.UUID, error) {
+	var showcases []entity.Showcase
+	query := r.db.Where("category_id = ?", categoryID).Order("id DESC").Limit(limit)
+	if cursor != uuid.Nil {
+		query = query.Where("id < ?", cursor)
+	}
+	if err := query.Find(&showcases).Error; err != nil {
+		return nil, nil, err
+	}
+	var nextCursor *uuid.UUID
+	if len(showcases) == limit {
+		next := showcases[len(showcases)-1].ID
+		nextCursor = &next
+	}
+	return showcases, nextCursor, nil
 }
 
 func (r *showcaseRepository) IncrementViewCount(id uuid.UUID) error {

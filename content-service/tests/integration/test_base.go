@@ -234,6 +234,7 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 
 	// 3. Repository
 	showcaseRepo := repository.NewShowcaseRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
 	collabRepo := repository.NewCollabRepository(db)
 
@@ -244,11 +245,13 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	mockSearchRepo := &MockSearchRepository{}
 
 	// 5. Usecase (Injected with Mocks)
-	ucShowcase := usecase.NewShowcaseUsecase(showcaseRepo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
+	// ucCategory := usecase.NewCategoryUsecase(categoryRepo, showcaseRepo)
+	ucShowcase := usecase.NewShowcaseUsecase(showcaseRepo, categoryRepo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
 	ucComment := usecase.NewCommentUsecase(commentRepo, mockSearchRepo, showcaseRepo, mockUserClient, mockEventPublisher, cfg, log)
 	ucCollab := usecase.NewCollabUsecase(showcaseRepo, collabRepo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
 
 	// 6. Handler
+	// hCategory := handler.NewCategoryHandler(ucCategory)
 	hShowcase := handler.NewShowcaseHandler(ucShowcase, log)
 	hComment := handler.NewCommentHandler(ucComment, log)
 	hCollab := handler.NewCollabHandler(ucCollab, log)

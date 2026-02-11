@@ -40,6 +40,7 @@ type ShowcaseUsecase interface {
 
 type showcaseUsecase struct {
 	showcaseRepo   repository.ShowcaseRepository
+	categoryRepo   repository.CategoryRepository
 	searchRepo     repository.SearchRepository
 	userClient     clients.UserClient
 	mediaUploader  media.MediaUploader
@@ -52,6 +53,7 @@ type showcaseUsecase struct {
 
 func NewShowcaseUsecase(
 	showcaseRepo repository.ShowcaseRepository,
+	categoryRepo repository.CategoryRepository,
 	searchRepo repository.SearchRepository,
 	userClient clients.UserClient,
 	mediaUploader media.MediaUploader,
@@ -62,6 +64,7 @@ func NewShowcaseUsecase(
 ) ShowcaseUsecase {
 	return &showcaseUsecase{
 		showcaseRepo:   showcaseRepo,
+		categoryRepo:   categoryRepo,
 		searchRepo:     searchRepo,
 		userClient:     userClient,
 		mediaUploader:  mediaUploader,
@@ -755,7 +758,7 @@ func (u *showcaseUsecase) SearchShowcases(ctx context.Context, query string, lim
 		}
 
 		var err error
-		categoryIDs, err = u.showcaseRepo.GetCategoryIDsBySlugs(slugs)
+		categoryIDs, err = u.categoryRepo.GetCategoryIDsBySlugs(slugs)
 		if err != nil {
 			u.log.Warnf("Failed to resolve category slugs: %v", err)
 			return nil, err

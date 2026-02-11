@@ -77,6 +77,7 @@ func NewFiberApp(
 	// Category Routes (All Protected)
 	api.Post("/categories", authMiddleware.Protect, handlers.CategoryHandler.CreateCategory)
 	api.Get("/categories", authMiddleware.Protect, handlers.CategoryHandler.GetCategories)
+	api.Get("/categories/search", authMiddleware.Protect, handlers.CategoryHandler.SearchCategories)
 	api.Get("/categories/:id", authMiddleware.Protect, handlers.CategoryHandler.GetCategoryDetail)
 
 	// Showcase & Other Routes

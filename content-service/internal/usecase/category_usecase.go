@@ -15,31 +15,32 @@ import (
 type CategoryUsecase interface {
 	ListCategories(ctx context.Context, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error)
 	GetCategoryDetail(ctx context.Context, id uuid.UUID, slug string, withShowcase bool, showcaseCursor uuid.UUID, showcaseLimit int) (*entity.Category, []entity.Showcase, *uuid.UUID, error)
-
 	CreateCategory(ctx context.Context, name string) (*entity.Category, error)
+	SearchCategories(ctx context.Context, keyword string) ([]entity.Category, error)
 }
 
 type categoryUsecase struct {
-	repo repository.CategoryRepository
+	repoCategory repository.CategoryRepository
+	repoShowcase repository.ShowcaseRepository
 }
 
-func NewCategoryUsecase(repo repository.CategoryRepository) CategoryUsecase {
-	return &categoryUsecase{repo: repo}
+func NewCategoryUsecase(repoCategory repository.CategoryRepository, repoShowcase repository.ShowcaseRepository) CategoryUsecase {
+	return &categoryUsecase{repoCategory: repoCategory, repoShowcase: repoShowcase}
 }
 
 func (u *categoryUsecase) ListCategories(ctx context.Context, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error) {
-	return u.repo.GetCategories(limit, cursor)
+	return u.repoCategory.GetCategories(limit, cursor)
 }
 
 func (u *categoryUsecase) GetCategoryDetail(ctx context.Context, id uuid.UUID, slug string, withShowcase bool, showcaseCursor uuid.UUID, showcaseLimit int) (*entity.Category, []entity.Showcase, *uuid.UUID, error) {
-	category, err := u.repo.GetCategoryByIDOrSlug(id, slug)
+	category, err := u.repoCategory.GetCategoryByIDOrSlug(id, slug)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	var showcases []entity.Showcase
 	var nextCursor *uuid.UUID
 	if withShowcase {
-		showcases, nextCursor, err = u.repo.GetShowcasesByCategory(category.ID, showcaseCursor, showcaseLimit)
+		showcases, nextCursor, err = u.repoShowcase.GetShowcasesByCategory(category.ID, showcaseCursor, showcaseLimit)
 		if err != nil {
 			return category, nil, nil, err
 		}
@@ -75,7 +76,7 @@ func slugify(s string) string {
 func (u *categoryUsecase) CreateCategory(ctx context.Context, name string) (*entity.Category, error) {
 	slug := slugify(name)
 	// Cek slug sudah ada
-	if existing, _ := u.repo.GetCategoryBySlug(slug); existing != nil {
+	if existing, _ := u.repoCategory.GetCategoryBySlug(slug); existing != nil {
 		return nil, errors.New("category already exists")
 	}
 	category := &entity.Category{
@@ -83,8 +84,16 @@ func (u *categoryUsecase) CreateCategory(ctx context.Context, name string) (*ent
 		Name: name,
 		Slug: slug,
 	}
-	if err := u.repo.CreateCategory(category); err != nil {
+	if err := u.repoCategory.CreateCategory(category); err != nil {
 		return nil, err
 	}
 	return category, nil
+}
+
+// Mencari kategori berdasarkan keyword. Case-insensitive, hasil diurutkan berdasarkan relevansi. Minimal 2 karakter, maksimal 20 hasil.
+func (u *categoryUsecase) SearchCategories(ctx context.Context, keyword string) ([]entity.Category, error) {
+	if len(keyword) < 2 {
+		return []entity.Category{}, nil
+	}
+	return u.repoCategory.SearchCategories(keyword)
 }

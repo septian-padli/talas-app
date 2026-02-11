@@ -34,6 +34,7 @@ func InitializeApp() (*fiber.App, error) {
 		return nil, err
 	}
 	showcaseRepository := repository.NewShowcaseRepository(db)
+	categoryRepository := repository.NewCategoryRepository(db)
 	elasticsearchClient, err := infrastructure.NewElasticsearchClient(configConfig)
 	if err != nil {
 		return nil, err
@@ -45,11 +46,10 @@ func InitializeApp() (*fiber.App, error) {
 		return nil, err
 	}
 	eventPublisher := rabbitmq.NewRabbitMQPublisher(configConfig, logrusLogger)
-	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, searchRepository, userClient, cloudinaryUploader, eventPublisher, client, configConfig, logrusLogger)
+	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, categoryRepository, searchRepository, userClient, cloudinaryUploader, eventPublisher, client, configConfig, logrusLogger)
 	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase, logrusLogger)
 	internalHandler := handler.NewInternalHandler(showcaseUsecase, userClient, logrusLogger)
-	categoryRepository := repository.NewCategoryRepository(db)
-	categoryUsecase := usecase.NewCategoryUsecase(categoryRepository)
+	categoryUsecase := usecase.NewCategoryUsecase(categoryRepository, showcaseRepository)
 	categoryHandler := handler.NewCategoryHandler(categoryUsecase)
 	commentRepository := repository.NewCommentRepository(db)
 	commentUsecase := usecase.NewCommentUsecase(commentRepository, searchRepository, showcaseRepository, userClient, eventPublisher, configConfig, logrusLogger)

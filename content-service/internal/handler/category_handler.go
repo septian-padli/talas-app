@@ -183,3 +183,29 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 	}
 	return utils.SuccessResponse(c, 201, "Category created successfully", data)
 }
+
+func (h *CategoryHandler) SearchCategories(c *fiber.Ctx) error {
+	keyword := c.Query("q", "")
+	if keyword == "" {
+		return utils.ErrorResponse(c, 400, "Keyword is required", nil)
+	}
+	categories, err := h.usecase.SearchCategories(c.Context(), keyword)
+	if err != nil {
+		return utils.ErrorResponse(c, 500, err.Error(), nil)
+	}
+	// Mapping ke DTO tanpa deleted_at
+	var categoryDTOs []entity.CategoryDTO
+	for _, cat := range categories {
+		categoryDTOs = append(categoryDTOs, entity.CategoryDTO{
+			ID:        cat.ID.String(),
+			Name:      cat.Name,
+			Slug:      cat.Slug,
+			CreatedAt: cat.CreatedAt.Format(formatTimeStamp),
+			UpdatedAt: cat.UpdatedAt.Format(formatTimeStamp),
+		})
+	}
+	data := fiber.Map{
+		"categories": categoryDTOs,
+	}
+	return utils.SuccessResponse(c, 200, "Categories retrieved successfully", data)
+}

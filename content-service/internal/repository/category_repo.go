@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
 	"gorm.io/gorm"
@@ -9,23 +11,11 @@ import (
 type CategoryRepository interface {
 	GetCategories(limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error)
 	GetCategoryByIDOrSlug(id uuid.UUID, slug string) (*entity.Category, error)
-	GetShowcasesByCategory(categoryID uuid.UUID, cursor uuid.UUID, limit int) ([]entity.Showcase, *uuid.UUID, error)
+	GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error)
 	CreateCategory(category *entity.Category) error
 	GetCategoryBySlug(slug string) (*entity.Category, error)
+	SearchCategories(keyword string) ([]entity.Category, error)
 }
-
-func (r *categoryRepository) GetCategoryBySlug(slug string) (*entity.Category, error) {
-	var category entity.Category
-	if err := r.db.Where("slug = ?", slug).First(&category).Error; err != nil {
-		return nil, err
-	}
-	return &category, nil
-}
-
-func (r *categoryRepository) CreateCategory(category *entity.Category) error {
-	return r.db.Create(category).Error
-}
-
 type categoryRepository struct {
 	db *gorm.DB
 }
@@ -68,19 +58,35 @@ func (r *categoryRepository) GetCategoryByIDOrSlug(id uuid.UUID, slug string) (*
 	return &category, nil
 }
 
-func (r *categoryRepository) GetShowcasesByCategory(categoryID uuid.UUID, cursor uuid.UUID, limit int) ([]entity.Showcase, *uuid.UUID, error) {
-	var showcases []entity.Showcase
-	query := r.db.Where("category_id = ?", categoryID).Order("id DESC").Limit(limit)
-	if cursor != uuid.Nil {
-		query = query.Where("id < ?", cursor)
+func (r *categoryRepository) GetCategoryBySlug(slug string) (*entity.Category, error) {
+	var category entity.Category
+	if err := r.db.Where("slug = ?", slug).First(&category).Error; err != nil {
+		return nil, err
 	}
-	if err := query.Find(&showcases).Error; err != nil {
-		return nil, nil, err
+	return &category, nil
+}
+
+func (r *categoryRepository) CreateCategory(category *entity.Category) error {
+	return r.db.Create(category).Error
+}
+
+func (r *categoryRepository) SearchCategories(keyword string) ([]entity.Category, error) {
+	var categories []entity.Category
+	pattern := "%" + keyword + "%"
+	// Interpolasi keyword ke orderClause
+	orderClause := fmt.Sprintf("POSITION(LOWER('%s') IN LOWER(name)) ASC, LENGTH(name) ASC", keyword)
+	err := r.db.Where("LOWER(name) LIKE LOWER(?)", pattern).
+		Order(orderClause).
+		Limit(20).
+		Find(&categories).Error
+	if err != nil {
+		return nil, err
 	}
-	var nextCursor *uuid.UUID
-	if len(showcases) == limit {
-		next := showcases[len(showcases)-1].ID
-		nextCursor = &next
-	}
-	return showcases, nextCursor, nil
+	return categories, nil
+}
+
+func (r *categoryRepository) GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := r.db.Model(&entity.Category{}).Where("slug IN ?", slugs).Pluck("id", &ids).Error
+	return ids, err
 }
