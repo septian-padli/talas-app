@@ -18,23 +18,26 @@ const showcaseIDRoute = "/showcases/:id"
 
 // HandlerGroup to group all handlers
 type HandlerGroup struct {
-	ShowcaseHandler         *handler.ShowcaseHandler
-	InternalShowcaseHandler *handler.InternalShowcaseHandler
-	CategoryHandler         *handler.CategoryHandler
-	CommentHandler          *handler.CommentHandler
+	ShowcaseHandler *handler.ShowcaseHandler
+	InternalHandler *handler.InternalHandler
+	CategoryHandler *handler.CategoryHandler
+	CommentHandler  *handler.CommentHandler
+	CollabHandler   *handler.CollabHandler
 }
 
 func NewHandlerGroup(
 	showcaseHandler *handler.ShowcaseHandler,
-	internalShowcaseHandler *handler.InternalShowcaseHandler,
+	internalHandler *handler.InternalHandler,
 	categoryHandler *handler.CategoryHandler,
 	commentHandler *handler.CommentHandler,
+	collabHandler *handler.CollabHandler,
 ) *HandlerGroup {
 	return &HandlerGroup{
-		ShowcaseHandler:         showcaseHandler,
-		InternalShowcaseHandler: internalShowcaseHandler,
-		CategoryHandler:         categoryHandler,
-		CommentHandler:          commentHandler,
+		ShowcaseHandler: showcaseHandler,
+		InternalHandler: internalHandler,
+		CategoryHandler: categoryHandler,
+		CommentHandler:  commentHandler,
+		CollabHandler:   collabHandler,
 	}
 }
 
@@ -68,7 +71,8 @@ func NewFiberApp(
 	// Internal Routes (MUST BE FIRST - Protected by Shared Secret)
 	internal := api.Group("/internal")
 	internal.Use(internalMiddleware.InternalAuthMiddleware(cfg))
-	internal.Get(showcaseIDRoute, handlers.InternalShowcaseHandler.GetShowcaseInternal)
+	internal.Get(showcaseIDRoute, handlers.InternalHandler.GetShowcaseInternal)
+	internal.Post("/users/bulk", handlers.InternalHandler.GetUsersBulk)
 
 	// Category Routes (All Protected)
 	api.Post("/categories", authMiddleware.Protect, handlers.CategoryHandler.CreateCategory)
@@ -98,10 +102,10 @@ func NewFiberApp(
 	})
 
 	protected.Post("/showcases", handlers.ShowcaseHandler.CreateShowcase)
-	protected.Get(showcaseIDRoute+"/collaborators", handlers.ShowcaseHandler.GetCollaborators)
-	protected.Post(showcaseIDRoute+"/collaborators", handlers.ShowcaseHandler.InviteCollaborators)
+	protected.Get(showcaseIDRoute+"/collaborators", handlers.CollabHandler.GetCollaborators)
+	protected.Post(showcaseIDRoute+"/collaborators", handlers.CollabHandler.InviteCollaborators)
 	protected.Patch(showcaseIDRoute, handlers.ShowcaseHandler.UpdateShowcase)
-	protected.Delete(showcaseIDRoute+"/collaborators/:userId", handlers.ShowcaseHandler.RemoveCollaborator)
+	protected.Delete(showcaseIDRoute+"/collaborators/:userId", handlers.CollabHandler.RemoveCollaborator)
 	protected.Delete(showcaseIDRoute, handlers.ShowcaseHandler.DeleteShowcase)
 	protected.Post("/showcases/:id/like", handlers.ShowcaseHandler.ToggleLike)
 	protected.Post("/showcases/:id/bookmark", handlers.ShowcaseHandler.ToggleBookmark)
@@ -111,8 +115,8 @@ func NewFiberApp(
 	protected.Delete("/comments/:id", handlers.CommentHandler.DeleteComment)
 	protected.Post("/comments/:id/like", handlers.CommentHandler.ToggleCommentLike)
 
-	protected.Delete("/collaborations/invitations/:id", handlers.ShowcaseHandler.DeleteInvitation)
-	protected.Get("/collaborations/invitations", handlers.ShowcaseHandler.GetPendingInvitations)
-	protected.Patch("/collaborations/:id/response", handlers.ShowcaseHandler.RespondInvitation)
+	protected.Delete("/collaborations/invitations/:id", handlers.CollabHandler.DeleteInvitation)
+	protected.Get("/collaborations/invitations", handlers.CollabHandler.GetPendingInvitations)
+	protected.Patch("/collaborations/:id/response", handlers.CollabHandler.RespondInvitation)
 	return app
 }

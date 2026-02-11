@@ -69,7 +69,7 @@ func (c *userClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]UserDetail
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Service-Secret", c.cfg.InternalServiceSecret)
+	req.Header.Set("x-service-secret", c.cfg.InternalServiceSecret)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -116,7 +116,7 @@ func (c *userClient) GetUsersByUsernames(usernames []string) (map[string]UserDet
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Service-Secret", c.cfg.InternalServiceSecret)
+	req.Header.Set("x-service-secret", c.cfg.InternalServiceSecret)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

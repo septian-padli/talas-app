@@ -235,6 +235,7 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	// 3. Repository
 	showcaseRepo := repository.NewShowcaseRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
+	collabRepo := repository.NewCollabRepository(db)
 
 	// 4. Mocks
 	mockUploader := &MockMediaUploader{}
@@ -245,10 +246,12 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	// 5. Usecase (Injected with Mocks)
 	ucShowcase := usecase.NewShowcaseUsecase(showcaseRepo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
 	ucComment := usecase.NewCommentUsecase(commentRepo, mockSearchRepo, showcaseRepo, mockUserClient, mockEventPublisher, cfg, log)
+	ucCollab := usecase.NewCollabUsecase(showcaseRepo, collabRepo, mockSearchRepo, mockUserClient, mockUploader, mockEventPublisher, nil, cfg, log)
 
 	// 6. Handler
 	hShowcase := handler.NewShowcaseHandler(ucShowcase, log)
 	hComment := handler.NewCommentHandler(ucComment, log)
+	hCollab := handler.NewCollabHandler(ucCollab, log)
 
 	// 7. Middleware
 	auth := middleware.NewAuthMiddleware(cfg)
@@ -276,11 +279,11 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 	protected.Patch("/showcases/:id", hShowcase.UpdateShowcase)
 	protected.Delete("/showcases/:id", hShowcase.DeleteShowcase)
 
-	protected.Post("/showcases/:id/collaborators", hShowcase.InviteCollaborators)
-	protected.Delete("/showcases/:id/collaborators/:userId", hShowcase.RemoveCollaborator)
-	protected.Get("/showcases/:id/collaborators", hShowcase.GetCollaborators)
+	protected.Post("/showcases/:id/collaborators", hCollab.InviteCollaborators)
+	protected.Delete("/showcases/:id/collaborators/:userId", hCollab.RemoveCollaborator)
+	protected.Get("/showcases/:id/collaborators", hCollab.GetCollaborators)
 
-	protected.Patch("/collaborations/:id/response", hShowcase.RespondInvitation)
+	protected.Patch("/collaborations/:id/response", hCollab.RespondInvitation)
 
 	protected.Post("/showcases/:id/like", hShowcase.ToggleLike)
 	protected.Post("/showcases/:id/bookmark", hShowcase.ToggleBookmark)
