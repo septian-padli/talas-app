@@ -25,4 +25,9 @@ export const showcaseService = {
 		);
 		return response.data.data;
 	},
+
+	getDetailShowcase: async (slug: string) => {
+		const response = await axiosInstance.get(`/showcases/${slug}`);
+		return response.data.data.showcase;
+	},
 };

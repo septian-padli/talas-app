@@ -22,6 +22,13 @@ export interface User {
 	is_following?: boolean; // only for public profile (if logged in)
 }
 
+export interface userMinimal {
+	id: string;
+	username: string;
+	name: string | null;
+	avatar_url: string | null;
+}
+
 export interface UserStats {
 	followers_count: number;
 	following_count: number;

@@ -11,72 +11,63 @@ import { formatDistanceToNow } from 'date-fns';
 import { PostHeader } from "./post-header";
 import { PostActions } from "./post-actions";
 import { toast } from "sonner";
+import { ShowcaseDetail } from "@/types/showcase";
+
+
+// Accepts a showcase object directly
 
 interface PostCardProps {
-  id: string;
-  slug?: string;
-  title?: string;
-  username: string;
-  userRole: string;
-  avatarSrc: string;
-  timestamp: string;
-  content: string;
-  images?: string[];
-  image1?: string;
-  image2?: string;
-  image3?: string;
-  image4?: string;
-  image5?: string;
-  likes: number;
-  comments: number;
-  link_figma?: string;
-  link_github?: string;
-  isLiked: boolean;
-  isBookmarked: boolean;
-  onToggleLike: () => void;
-  onToggleBookmark: () => void;
-  category?: {
-    slug: string;
-    title: string;
-  };
-  displayContext?: 'saved-page' | string; // New prop
+  showcase: ShowcaseDetail;
+  displayContext?: 'saved-page' | string;
 }
 
-export function PostCard({
-  id,
-  slug,
-  title,
-  username,
-  userRole,
-  avatarSrc,
-  timestamp,
-  content,
-  images = [],
-  image1,
-  image2,
-  image3,
-  image4,
-  image5,
-  likes,
-  comments,
-  link_figma,
-  link_github,
-  isLiked,
-  isBookmarked,
-  onToggleLike,
-  onToggleBookmark,
-  category,
-  displayContext, // Use the new prop
-}: PostCardProps) {
+export function PostCard({ showcase, displayContext }: PostCardProps) {
+  // 1. Only show owner collaborator (safe for undefined)
+  const owner = showcase.collaborators?.find((c) => c.role === 'OWNER');
+  const username = owner?.user.username || '';
+  const userRole = owner?.role || '';
+  const avatarSrc = owner?.user.avatar_url || '';
+
+  // 2. Only IMAGE media, sorted by position
+  const images = (showcase.media || [])
+    .filter((m) => m.type == 'IMAGE')
+    .sort((a, b) => a.position - b.position)
+    .map((m) => m.url);
+
+  // 3. Default handlers
+  const onToggleLike = () => console.log('Like toggled', showcase.id);
+  const onToggleBookmark = () => console.log('Bookmark toggled', showcase.id);
+
+  // 4. Category mapping
+  const category = showcase.category
+    ? { slug: showcase.category.slug, title: showcase.category.name }
+    : undefined;
+
+  // 5. Timestamp
+  const timestamp = showcase.created_at;
+
+  // 6. Link figma/github kosong
+  const link_figma = undefined;
+  const link_github = undefined;
+
+  // 7. Title & content
+  const title = showcase.title;
+  const content = showcase.content;
+
+  // 8. Slug
+  const slug = showcase.slug;
+
+  // 9. Likes/comments
+  const likes = showcase.likes_count;
+  const comments = showcase.comments_count;
+
+  // 10. Dummy state for like/bookmark (for now always false)
+  const isLiked = false;
+  const isBookmarked = false;
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
 
-  const allDisplayImages = [...images];
-  if (image1) allDisplayImages.push(image1);
-  if (image2) allDisplayImages.push(image2);
-  if (image3) allDisplayImages.push(image3);
-  if (image4) allDisplayImages.push(image4);
-  if (image5) allDisplayImages.push(image5);
+  const allDisplayImages = images;
 
   useEffect(() => {
     const handleResize = () => {
@@ -107,7 +98,7 @@ export function PostCard({
     if (slug) {
       router.push(`/project/${slug}#comments`);
     } else {
-      router.push(`/project/${id}#comments`);
+      router.push(`/project/${showcase.id}#comments`);
     }
   };
 
@@ -127,15 +118,13 @@ export function PostCard({
   const postActionsVariant = displayContext === 'saved-page' ? 'bookmark-only' : 'full';
 
   const handleShare = () => {
-    const projectUrl = `${window.location.origin}/project/${slug || id}`;
+    const projectUrl = `${window.location.origin}/project/${slug || showcase.id}`;
     navigator.clipboard.writeText(projectUrl)
       .then(() => {
-        // showToast('Project link copied to clipboard!', 'success');
         toast.success("Project link copied to clipboard!", { position: "bottom-right" });
       })
       .catch(err => {
         console.error('Failed to copy link: ', err);
-        // showToast('Failed to copy link', 'error');
         toast.error("Failed to copy project link", { position: "bottom-right" });
       });
   };
@@ -155,12 +144,12 @@ export function PostCard({
         {/* This div acts as a block-level container for the title link */}
         <div>
           <Link
-            href={`/project/${slug || id}`}
+            href={`/project/${slug || showcase.id}`}
             onClick={(e) => e.stopPropagation()}
             data-prevent-card-click="true"
           >
             <h2 className="text-lg font-bold hover:text-primary transition-colors duration-200 inline-block">
-              {displayTitle}
+              {title || (content ? content.split('\n')[0] : 'Untitled Project')}
             </h2>
           </Link>
         </div>
@@ -171,35 +160,10 @@ export function PostCard({
           </p>
         )}
         <p className="text-white text-sm whitespace-pre-line">
-          {displayContent}
+          {title ? content : (content ? content.split('\n').slice(1).join('\n') : '')}
         </p>
 
-        {(link_figma || link_github) && (
-          <div className="flex gap-3 mt-3" onClick={e => e.stopPropagation()} data-prevent-card-click="true">
-            {link_figma && (
-              <Link
-                href={link_figma}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white transition-all duration-200 transform active:scale-90"
-              >
-                <Figma size={16} className="w-4 h-4 transition-transform duration-200" />
-                <span>Figma</span>
-              </Link>
-            )}
-            {link_github && (
-              <Link
-                href={link_github}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white transition-all duration-200 transform active:scale-90"
-              >
-                <Github size={16} className="w-4 h-4 transition-transform duration-200" />
-                <span>GitHub</span>
-              </Link>
-            )}
-          </div>
-        )}
+        {/* Figma/Github links hidden for now */}
       </div>
 
       {allDisplayImages.length > 0 && (
@@ -246,7 +210,7 @@ export function PostCard({
           comments={comments}
           onLikeToggle={onToggleLike}
           onComment={handleCommentClick}
-          onShare={handleShare} // Use the new handleShare function
+          onShare={handleShare}
           isLiked={isLiked}
           isBookmarked={isBookmarked}
           onBookmarkToggle={onToggleBookmark}

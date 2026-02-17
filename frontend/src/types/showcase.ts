@@ -1,32 +1,33 @@
+import { userMinimal } from "./user";
+
 export interface ShowcaseDetail {
 	id: string;
 	title: string;
 	content?: string;
 	slug: string;
+	category_id: string;
 	category: Category;
-	tag?: string[];
+	tags?: string[];
+	is_edited?: boolean;
+	views_count?: number;
+	likes_count: number;
+	comments_count: number;
+	shares_count?: number;
 	media?: MediaItem[];
-	owner: {
-		id: string;
-		username: string;
-		full_name: string;
-		avatar_url: string;
-	};
-	collaborators?: Array<{
-		id: string;
-		username: string;
-		full_name: string;
-		avatar_url: string;
-		role: string;
-		status: string;
-	}>;
-	like_count: number;
-	comment_count: number;
-	bookmark_count: number;
+	collaborators?: Array<Collaborator>;
 	is_liked?: boolean;
 	is_bookmarked?: boolean;
+	bookmark_count?: number;
 	created_at: string;
 	updated_at: string;
+	deleted_at?: string | null;
+}
+
+export interface Collaborator {
+	id: string;
+	role: string;
+	status: string;
+	user: userMinimal;
 }
 
 export interface ShowcaseCreateResponse {
@@ -37,10 +38,15 @@ export interface ShowcaseCreateResponse {
 	};
 }
 export interface MediaItem {
+	id?: string;
 	url: string;
-	type: "image" | "video";
+	type: "IMAGE" | "VIDEO" | "image" | "video";
 	alt?: string;
-	order: number;
+	position: number;
+	created_at?: string;
+	updated_at?: string;
+	deleted_at?: string | null;
+	showcase_id?: string;
 }
 
 export interface Category {

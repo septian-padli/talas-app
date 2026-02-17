@@ -1,74 +1,84 @@
 "use client";
 import { PostCard } from "@/components/feeds/post-card";
 import { PostComposer } from "@/components/feeds/post-composer";
+import { ShowcaseDetail } from "@/types/showcase";
 
 interface HomePageProps {
     prop: string;
 }
 
-const dummyPosts = [
+const dummyPosts: ShowcaseDetail[] = [
     {
-        id: "1",
-        slug: "my-first-project",
-        title: "My First Project",
-        username: "johndoe",
-        userRole: "Developer",
-        avatarSrc: "https://randomuser.me/api/portraits/men/1.jpg",
-        timestamp: new Date().toISOString(),
-        content: "This is my first project!\nIt uses Next.js and Tailwind.",
-        images: [
-            "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=600&q=80",
-            "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80",
-            "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80"
+        "id": "66f310ae-3805-49ef-bf0a-fd7dac0e1df0",
+        "created_at": "2026-02-17T18:29:44.79499+07:00",
+        "updated_at": "2026-02-17T18:29:44.79499+07:00",
+        "deleted_at": null,
+        "title": "project roro jongrang",
+        "slug": "project-roro-jongrang-8f849af6",
+        "content": "project roro jongrang",
+        "tags": [
+            "nextjs",
+            " golang"
         ],
-        likes: 12,
-        comments: 3,
-        link_figma: "https://figma.com/file/abc123",
-        link_github: "https://github.com/johndoe/project1",
-        isLiked: false,
-        isBookmarked: false,
-        onToggleLike: () => { },
-        onToggleBookmark: () => { },
-        category: { slug: "web", title: "Web App" },
-    },
-    {
-        id: "2",
-        title: "UI Exploration",
-        username: "janedoe",
-        userRole: "Designer",
-        avatarSrc: "https://randomuser.me/api/portraits/women/2.jpg",
-        timestamp: new Date(Date.now() - 3600 * 1000).toISOString(),
-        content: "UI/UX exploration for a mobile app.",
-        images: [
-            "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80"
+        "is_edited": false,
+        "views_count": 4,
+        "likes_count": 0,
+        "comments_count": 0,
+        "shares_count": 0,
+        "category_id": "8e11bcf5-68a2-400b-a99c-2158f330cc62",
+        "category": {
+            "id": "8e11bcf5-68a2-400b-a99c-2158f330cc62",
+            "created_at": "2026-02-09T10:33:43.779686+07:00",
+            "updated_at": "2026-02-09T10:33:43.779686+07:00",
+            "name": "Backend Engineering",
+            "slug": "backend-engineering"
+        },
+        "media": [
+            {
+                "id": "a73a3d23-685d-4a18-a081-f41142043c8a",
+                "created_at": "2026-02-17T18:29:44.809852+07:00",
+                "updated_at": "2026-02-17T18:29:44.809852+07:00",
+                "deleted_at": null,
+                "showcase_id": "66f310ae-3805-49ef-bf0a-fd7dac0e1df0",
+                "url": "https://res.cloudinary.com/dqtea12yq/image/upload/v1771327777/talas/showcases/Wallpaper%20UPI.png.png",
+                "type": "IMAGE",
+                "position": 1
+            },
+            {
+                "id": "2f6c933d-d190-4e24-ba74-45ca1a883057",
+                "created_at": "2026-02-17T18:29:44.809852+07:00",
+                "updated_at": "2026-02-17T18:29:44.809852+07:00",
+                "deleted_at": null,
+                "showcase_id": "66f310ae-3805-49ef-bf0a-fd7dac0e1df0",
+                "url": "https://res.cloudinary.com/dqtea12yq/image/upload/v1771327782/talas/showcases/night.jpg.jpg",
+                "type": "IMAGE",
+                "position": 2
+            },
+            {
+                "id": "612a210f-8bcc-4b6f-b15b-c2f195f63729",
+                "created_at": "2026-02-17T18:29:44.809852+07:00",
+                "updated_at": "2026-02-17T18:29:44.809852+07:00",
+                "deleted_at": null,
+                "showcase_id": "66f310ae-3805-49ef-bf0a-fd7dac0e1df0",
+                "url": "https://res.cloudinary.com/dqtea12yq/image/upload/v1771327784/talas/showcases/Wallpaper%20logo.png.png",
+                "type": "IMAGE",
+                "position": 3
+            }
         ],
-        likes: 8,
-        comments: 1,
-        isLiked: true,
-        isBookmarked: true,
-        onToggleLike: () => { },
-        onToggleBookmark: () => { },
-        category: { slug: "design", title: "Design" },
-    },
-    {
-        id: "3",
-        title: "Open Source Contribution",
-        username: "alice",
-        userRole: "Contributor",
-        avatarSrc: "https://randomuser.me/api/portraits/women/3.jpg",
-        timestamp: new Date(Date.now() - 86400 * 1000).toISOString(),
-        content: "Contributed to an open source library.",
-        images: [
-            "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80"
-        ],
-        likes: 20,
-        comments: 5,
-        isLiked: false,
-        isBookmarked: false,
-        onToggleLike: () => { },
-        onToggleBookmark: () => { },
-        category: { slug: "oss", title: "Open Source" },
-    },
+        "collaborators": [
+            {
+                "id": "8281b5e5-6d43-4a88-9705-4daece90ffd5",
+                "role": "OWNER",
+                "status": "ACCEPTED",
+                "user": {
+                    "id": "dbd34860-bea1-4421-a3d0-33dd0428fbf1",
+                    "name": "user admin",
+                    "username": "useradmin",
+                    "avatar_url": "https://res.cloudinary.com/dqtea12yq/image/upload/v1770617782/talas/avatars/avatar_1770617781403.jpg"
+                }
+            }
+        ]
+    }
 ];
 
 const HomePage: React.FC<HomePageProps> = () => {
@@ -83,7 +93,7 @@ const HomePage: React.FC<HomePageProps> = () => {
                 {dummyPosts.map((post) => (
                     <div key={post.id} className="border-b border-white/10 p-1">
                         <PostCard
-                            {...post}
+                            showcase={post}
                         />
                     </div>
                 ))}
