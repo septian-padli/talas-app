@@ -25,8 +25,8 @@ import { showcaseService } from "@/services/showcaseService"; // Pastikan servic
 
 // Types
 import { ApiErrorResponse } from "@/types/error";
-import Image from "next/image";
 import MediaUploader from "./MediaUploader";
+import SortableMediaGrid from "./SortableMediaGrid";
 import { Category } from "@/types/showcase";
 import { categoryService } from "@/services/categoryService";
 import { SearchSelect } from "./SearchSelect";
@@ -74,7 +74,6 @@ export default function CreateShowcasePage() {
     const {
         register,
         setValue,
-        watch,
         handleSubmit,
         formState: { errors }
     } = form;
@@ -86,6 +85,10 @@ export default function CreateShowcasePage() {
     };
     const handleRemoveMedia = (index: number) => {
         setMediaFiles((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleReorderMedia = (newFiles: File[]) => {
+        setMediaFiles(newFiles);
     };
 
     // Sync mediaFiles to react-hook-form's media field for validation and submission
@@ -135,14 +138,15 @@ export default function CreateShowcasePage() {
 
             return await showcaseService.createShowcase(formData);
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             setError(null);
             setIsSuccessDelay(true);
             toast.success("Project berhasil dipublish!", { position: "bottom-right" });
             setTimeout(() => {
                 setIsSuccessDelay(false);
-                router.push("/showcases/me");
-            }, 1500);
+                console.log("Create showcase response:", data);
+                router.push(`/showcase/${data.data.slug}`);
+            }, 2000);
         },
         onError: (err: AxiosError<ApiErrorResponse>) => {
             let msg = "Gagal membuat showcase.";
@@ -221,38 +225,18 @@ export default function CreateShowcasePage() {
 
                         {/* Preview List */}
                         {mediaFiles.length > 0 && (
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                {mediaFiles.map((file, index) => {
-                                    const url = URL.createObjectURL(file);
-                                    const isImage = file.type.startsWith("image/");
-                                    return (
-                                        <div key={file.name + index} className="relative aspect-video bg-black/50 rounded-lg overflow-hidden border border-white/10 group">
-                                            {isImage ? (
-                                                <Image src={url} alt="preview" className="w-full h-full object-cover" width={240} height={240} />
-                                            ) : (
-                                                <video src={url} className="w-full h-full object-cover" />
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveMedia(index)}
-                                                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                            </button>
-                                            <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded text-xs text-white">
-                                                urutan: {index + 1}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <SortableMediaGrid
+                                mediaFiles={mediaFiles}
+                                onRemove={handleRemoveMedia}
+                                onReorder={handleReorderMedia}
+                            />
                         )}
 
                         {/* Uploader Component */}
                         <MediaUploader
                             onFileAdd={handleAddMedia}
                         />
-                        {errors.media && (
+                        {errors.media && form.formState.isSubmitted && (
                             <FieldDescription className="text-rose-400">
                                 {errors.media.message}
                             </FieldDescription>
