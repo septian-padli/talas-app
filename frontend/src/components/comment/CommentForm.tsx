@@ -3,23 +3,42 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import React from "react";
+import { getInitials } from "@/lib/utils";
+import { userMinimal } from "@/types/user";
 
 interface CommentFormProps {
     value: string;
     onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
     onReset: () => void;
     onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
-    avatarUrl: string;
+    user: userMinimal | undefined;
+    loadingUser?: boolean;
 }
 
-const CommentForm: React.FC<CommentFormProps> = ({ value, onChange, onReset, onSubmit, avatarUrl }) => {
+const CommentForm: React.FC<CommentFormProps> = ({ value, onChange, onReset, onSubmit, user, loadingUser }) => {
+    if (loadingUser) {
+        return (
+            <div className="animate-pulse">
+                <form>
+                    <FieldGroup className="flex flex-row gap-4">
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-zinc-700" />
+                        <div className="w-full">
+                            <Field>
+                                <div className="w-full h-18 bg-zinc-700 rounded-lg" />
+                            </Field>
+                        </div>
+                    </FieldGroup>
+                </form>
+            </div>
+        );
+    }
     return (
         <div className="">
             <form onSubmit={onSubmit || (() => { })}>
                 <FieldGroup className="flex flex-row gap-4">
                     <Avatar className="w-8 h-8 md:w-10 md:h-10">
-                        <AvatarImage src={avatarUrl} />
-                        <AvatarFallback>CN</AvatarFallback>
+                        <AvatarImage src={user?.avatarUrl || ""} />
+                        <AvatarFallback>{getInitials(user?.name || "CN")}</AvatarFallback>
                     </Avatar>
                     <div className="w-full">
                         <Field>

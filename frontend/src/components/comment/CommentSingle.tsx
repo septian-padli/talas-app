@@ -16,7 +16,7 @@ interface CommentItemProps {
     liked?: boolean;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({
+const CommentSingle: React.FC<CommentItemProps> = ({
     avatarUrl,
     username,
     jobTitle,
@@ -62,4 +62,4 @@ const CommentItem: React.FC<CommentItemProps> = ({
     );
 };
 
-export default CommentItem
+export default CommentSingle
