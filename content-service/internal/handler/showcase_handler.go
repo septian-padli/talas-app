@@ -9,19 +9,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
 	"github.com/septianpadli/talas/content-service/internal/usecase"
+	"github.com/septianpadli/talas/content-service/pkg/media"
 	"github.com/septianpadli/talas/content-service/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
 type ShowcaseHandler struct {
-	usecase usecase.ShowcaseUsecase
-	log     *logrus.Logger
+	usecase       usecase.ShowcaseUsecase
+	mediaUploader media.MediaUploader
+	log           *logrus.Logger
 }
 
-func NewShowcaseHandler(usecase usecase.ShowcaseUsecase, log *logrus.Logger) *ShowcaseHandler {
+func NewShowcaseHandler(usecase usecase.ShowcaseUsecase, mediaUploader media.MediaUploader, log *logrus.Logger) *ShowcaseHandler {
 	return &ShowcaseHandler{
-		usecase: usecase,
-		log:     log,
+		usecase:       usecase,
+		mediaUploader: mediaUploader,
+		log:           log,
 	}
 }
 
@@ -591,4 +594,63 @@ func (h *ShowcaseHandler) SearchShowcases(c *fiber.Ctx) error {
 	}
 
 	return utils.SuccessResponse(c, 200, "Search results retrieved", result)
+}
+
+// UploadMedia handles uploading a single media file to Cloudinary (folder: talas/showcases)
+func (h *ShowcaseHandler) UploadMedia(c *fiber.Ctx) error {
+	reqID, _ := c.Locals("requestid").(string)
+	userIDStr, ok := c.Locals("user_id").(string)
+	if !ok || userIDStr == "" {
+		h.log.WithFields(logrus.Fields{
+			"request_id": reqID,
+		}).Error("UploadMedia: Unauthorized (User ID missing)")
+		return utils.ErrorResponse(c, 401, "Unauthorized: User ID missing", nil)
+	}
+
+	// Get file from form-data (key: file)
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		h.log.WithFields(logrus.Fields{
+			"request_id": reqID,
+			"error":      err.Error(),
+		}).Error("UploadMedia: No file provided")
+		return utils.ErrorResponse(c, 400, "File is required (form key: file)", nil)
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		h.log.WithFields(logrus.Fields{
+			"request_id": reqID,
+			"error":      err.Error(),
+		}).Error("UploadMedia: Failed to open file")
+		return utils.ErrorResponse(c, 400, "Failed to open file", nil)
+	}
+	defer file.Close()
+
+	// Only allow image/video (basic check by MIME)
+	mimeType := fileHeader.Header.Get("Content-Type")
+	var mediaType string
+	if strings.HasPrefix(mimeType, "image/") {
+		mediaType = "image"
+	} else if strings.HasPrefix(mimeType, "video/") {
+		mediaType = "video"
+	} else {
+		return utils.ErrorResponse(c, 400, "Only image or video files are allowed", nil)
+	}
+
+	// Upload to Cloudinary (folder: talas/showcases) via handler field
+	url, err := h.mediaUploader.Upload(c.Context(), file, fileHeader.Filename, "talas/showcases")
+	if err != nil {
+		h.log.WithFields(logrus.Fields{
+			"request_id": reqID,
+			"error":      err.Error(),
+		}).Error("UploadMedia: Failed to upload to Cloudinary")
+		return utils.ErrorResponse(c, 500, "Failed to upload file", nil)
+	}
+
+	// Success response
+	return utils.SuccessResponse(c, 200, "File uploaded successfully", fiber.Map{
+		"url":  url,
+		"type": mediaType,
+	})
 }

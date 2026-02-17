@@ -252,7 +252,7 @@ func setupIntegrationAppWithMock() (*fiber.App, *gorm.DB, *MockEventPublisher) {
 
 	// 6. Handler
 	// hCategory := handler.NewCategoryHandler(ucCategory)
-	hShowcase := handler.NewShowcaseHandler(ucShowcase, log)
+	hShowcase := handler.NewShowcaseHandler(ucShowcase, mockUploader, log)
 	hComment := handler.NewCommentHandler(ucComment, log)
 	hCollab := handler.NewCollabHandler(ucCollab, log)
 

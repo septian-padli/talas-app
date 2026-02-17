@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/entity"
 	"gorm.io/gorm"
@@ -14,7 +12,7 @@ type CategoryRepository interface {
 	GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error)
 	CreateCategory(category *entity.Category) error
 	GetCategoryBySlug(slug string) (*entity.Category, error)
-	SearchCategories(keyword string) ([]entity.Category, error)
+	SearchCategories(keyword string, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error)
 }
 type categoryRepository struct {
 	db *gorm.DB
@@ -28,6 +26,25 @@ func NewCategoryRepository(db *gorm.DB) CategoryRepository {
 func (r *categoryRepository) GetCategories(limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error) {
 	var categories []entity.Category
 	query := r.db.Order("id ASC").Limit(limit)
+	if cursor != uuid.Nil {
+		query = query.Where("id > ?", cursor)
+	}
+	if err := query.Find(&categories).Error; err != nil {
+		return nil, nil, err
+	}
+	var nextCursor *uuid.UUID
+	if len(categories) == limit {
+		next := categories[len(categories)-1].ID
+		nextCursor = &next
+	}
+	return categories, nextCursor, nil
+}
+
+func (r *categoryRepository) SearchCategories(keyword string, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error) {
+	var categories []entity.Category
+	pattern := "%" + keyword + "%"
+	// orderClause := fmt.Sprintf("POSITION(LOWER('%s') IN LOWER(name)) ASC, LENGTH(name) ASC", keyword)
+	query := r.db.Where("LOWER(name) LIKE LOWER(?)", pattern).Order("id ASC").Limit(limit)
 	if cursor != uuid.Nil {
 		query = query.Where("id > ?", cursor)
 	}
@@ -68,21 +85,6 @@ func (r *categoryRepository) GetCategoryBySlug(slug string) (*entity.Category, e
 
 func (r *categoryRepository) CreateCategory(category *entity.Category) error {
 	return r.db.Create(category).Error
-}
-
-func (r *categoryRepository) SearchCategories(keyword string) ([]entity.Category, error) {
-	var categories []entity.Category
-	pattern := "%" + keyword + "%"
-	// Interpolasi keyword ke orderClause
-	orderClause := fmt.Sprintf("POSITION(LOWER('%s') IN LOWER(name)) ASC, LENGTH(name) ASC", keyword)
-	err := r.db.Where("LOWER(name) LIKE LOWER(?)", pattern).
-		Order(orderClause).
-		Limit(20).
-		Find(&categories).Error
-	if err != nil {
-		return nil, err
-	}
-	return categories, nil
 }
 
 func (r *categoryRepository) GetCategoryIDsBySlugs(slugs []string) ([]uuid.UUID, error) {

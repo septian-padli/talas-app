@@ -27,6 +27,7 @@ func NewCategoryHandler(usecase usecase.CategoryUsecase) *CategoryHandler {
 }
 
 // GET /categories?limit=20&cursor=uuid
+
 func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 	limitStr := c.Query("limit", "20")
 	limit, err := strconv.Atoi(limitStr)
@@ -41,11 +42,28 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 			return utils.ErrorResponse(c, 400, "Invalid cursor", nil)
 		}
 	}
-	categories, nextCursor, err := h.usecase.ListCategories(c.Context(), limit, cursor)
-	if err != nil {
-		return utils.ErrorResponse(c, 500, err.Error(), nil)
+
+	q := c.Query("q", "")
+	var categories []entity.Category
+	var nextCursor *uuid.UUID
+	if len(q) >= 2 {
+		// Search mode with pagination
+		cats, nc, err := h.usecase.SearchCategories(c.Context(), q, limit, cursor)
+		if err != nil {
+			return utils.ErrorResponse(c, 500, err.Error(), nil)
+		}
+		categories = cats
+		nextCursor = nc
+	} else {
+		// List mode
+		cats, nc, err := h.usecase.ListCategories(c.Context(), limit, cursor)
+		if err != nil {
+			return utils.ErrorResponse(c, 500, err.Error(), nil)
+		}
+		categories = cats
+		nextCursor = nc
 	}
-	// Mapping ke DTO tanpa deleted_at
+
 	var categoryDTOs []entity.CategoryDTO
 	for _, cat := range categories {
 		categoryDTOs = append(categoryDTOs, entity.CategoryDTO{
@@ -56,6 +74,7 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 			UpdatedAt: cat.UpdatedAt.Format(formatTimeStamp),
 		})
 	}
+
 	hasNext := nextCursor != nil
 	pagination := fiber.Map{
 		"next_cursor": nil,
@@ -64,6 +83,7 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 	if nextCursor != nil {
 		pagination["next_cursor"] = nextCursor.String()
 	}
+
 	data := fiber.Map{
 		"categories": categoryDTOs,
 		"pagination": pagination,
@@ -182,30 +202,4 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 		"updated_at": category.UpdatedAt.Format(formatTimeStamp),
 	}
 	return utils.SuccessResponse(c, 201, "Category created successfully", data)
-}
-
-func (h *CategoryHandler) SearchCategories(c *fiber.Ctx) error {
-	keyword := c.Query("q", "")
-	if keyword == "" {
-		return utils.ErrorResponse(c, 400, "Keyword is required", nil)
-	}
-	categories, err := h.usecase.SearchCategories(c.Context(), keyword)
-	if err != nil {
-		return utils.ErrorResponse(c, 500, err.Error(), nil)
-	}
-	// Mapping ke DTO tanpa deleted_at
-	var categoryDTOs []entity.CategoryDTO
-	for _, cat := range categories {
-		categoryDTOs = append(categoryDTOs, entity.CategoryDTO{
-			ID:        cat.ID.String(),
-			Name:      cat.Name,
-			Slug:      cat.Slug,
-			CreatedAt: cat.CreatedAt.Format(formatTimeStamp),
-			UpdatedAt: cat.UpdatedAt.Format(formatTimeStamp),
-		})
-	}
-	data := fiber.Map{
-		"categories": categoryDTOs,
-	}
-	return utils.SuccessResponse(c, 200, "Categories retrieved successfully", data)
 }

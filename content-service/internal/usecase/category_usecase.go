@@ -16,7 +16,7 @@ type CategoryUsecase interface {
 	ListCategories(ctx context.Context, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error)
 	GetCategoryDetail(ctx context.Context, id uuid.UUID, slug string, withShowcase bool, showcaseCursor uuid.UUID, showcaseLimit int) (*entity.Category, []entity.Showcase, *uuid.UUID, error)
 	CreateCategory(ctx context.Context, name string) (*entity.Category, error)
-	SearchCategories(ctx context.Context, keyword string) ([]entity.Category, error)
+	SearchCategories(ctx context.Context, keyword string, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error)
 }
 
 type categoryUsecase struct {
@@ -30,6 +30,14 @@ func NewCategoryUsecase(repoCategory repository.CategoryRepository, repoShowcase
 
 func (u *categoryUsecase) ListCategories(ctx context.Context, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error) {
 	return u.repoCategory.GetCategories(limit, cursor)
+}
+
+// Mencari kategori berdasarkan keyword. Case-insensitive, hasil diurutkan berdasarkan relevansi. Minimal 2 karakter, maksimal 20 hasil.
+func (u *categoryUsecase) SearchCategories(ctx context.Context, keyword string, limit int, cursor uuid.UUID) ([]entity.Category, *uuid.UUID, error) {
+	if len(keyword) < 2 {
+		return []entity.Category{}, nil, nil
+	}
+	return u.repoCategory.SearchCategories(keyword, limit, cursor)
 }
 
 func (u *categoryUsecase) GetCategoryDetail(ctx context.Context, id uuid.UUID, slug string, withShowcase bool, showcaseCursor uuid.UUID, showcaseLimit int) (*entity.Category, []entity.Showcase, *uuid.UUID, error) {
@@ -88,12 +96,4 @@ func (u *categoryUsecase) CreateCategory(ctx context.Context, name string) (*ent
 		return nil, err
 	}
 	return category, nil
-}
-
-// Mencari kategori berdasarkan keyword. Case-insensitive, hasil diurutkan berdasarkan relevansi. Minimal 2 karakter, maksimal 20 hasil.
-func (u *categoryUsecase) SearchCategories(ctx context.Context, keyword string) ([]entity.Category, error) {
-	if len(keyword) < 2 {
-		return []entity.Category{}, nil
-	}
-	return u.repoCategory.SearchCategories(keyword)
 }

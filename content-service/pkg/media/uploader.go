@@ -31,9 +31,17 @@ func NewCloudinaryUploader(cfg *config.Config, log *logrus.Logger) (*CloudinaryU
 }
 
 func (u *CloudinaryUploader) Upload(ctx context.Context, file multipart.File, filename string, folder string) (string, error) {
-	uploadResult, err := u.cld.Upload.Upload(ctx, file, uploader.UploadParams{
-		Folder: folder,
-	})
+	useFilename := true
+	uniqueFilename := true
+	overwrite := false
+	params := uploader.UploadParams{
+		Folder:         folder,
+		PublicID:       filename,
+		UniqueFilename: &uniqueFilename,
+		UseFilename:    &useFilename,
+		Overwrite:      &overwrite,
+	}
+	uploadResult, err := u.cld.Upload.Upload(ctx, file, params)
 	if err != nil {
 		u.log.Errorf("Failed to upload file %s: %v", filename, err)
 		return "", errors.New("failed to upload image")

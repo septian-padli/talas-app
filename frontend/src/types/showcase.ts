@@ -47,6 +47,23 @@ export interface Category {
 	id: string;
 	name: string;
 	slug: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CategoryPagination {
+	has_next: boolean;
+	next_cursor: string | null;
+}
+
+export interface CategoryListResponse {
+	code: number;
+	success: boolean;
+	message: string;
+	data: {
+		categories: Category[];
+		pagination: CategoryPagination;
+	};
 }
 
 export interface CreateShowcaseRequest {

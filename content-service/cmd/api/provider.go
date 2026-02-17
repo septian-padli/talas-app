@@ -77,10 +77,10 @@ func NewFiberApp(
 	// Category Routes (All Protected)
 	api.Post("/categories", authMiddleware.Protect, handlers.CategoryHandler.CreateCategory)
 	api.Get("/categories", authMiddleware.Protect, handlers.CategoryHandler.GetCategories)
-	api.Get("/categories/search", authMiddleware.Protect, handlers.CategoryHandler.SearchCategories)
 	api.Get("/categories/:id", authMiddleware.Protect, handlers.CategoryHandler.GetCategoryDetail)
 
 	// Showcase & Other Routes
+	api.Post("/showcases/media/upload", authMiddleware.Protect, handlers.ShowcaseHandler.UploadMedia)
 	api.Get("/showcases/me", authMiddleware.Protect, handlers.ShowcaseHandler.GetMyShowcases)
 	api.Get("/showcases/user/:id", authMiddleware.Protect, handlers.ShowcaseHandler.GetShowcasesByUser)
 	api.Get("/search", authMiddleware.Protect, handlers.ShowcaseHandler.SearchShowcases)

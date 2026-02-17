@@ -4530,39 +4530,35 @@
 		"/categories": {
 			"get": {
 				"tags": ["Categories"],
-				"summary": "Get list of categories",
-				"description": "Mendapatkan daftar kategori. Mendukung infinite scroll dengan cursor dan limit. Hanya dapat diakses oleh user yang sudah login (protected).",
-				"operationId": "getCategories",
-				"security": [
-					{
-						"cookieAuth": []
-					}
-				],
+				"summary": "List or search categories",
+				"description": "Mengambil daftar kategori (paginated) atau melakukan pencarian kategori berdasarkan keyword. Jika query param `q` diberikan dan minimal 2 karakter, maka akan mengembalikan hasil pencarian kategori berdasarkan relevansi. Jika tidak ada `q`, maka mengembalikan daftar kategori dengan pagination.",
+				"operationId": "listOrSearchCategories",
 				"parameters": [
+					{
+						"name": "q",
+						"in": "query",
+						"description": "Keyword pencarian kategori (opsional, minimal 2 karakter)",
+						"required": false,
+						"schema": { "type": "string", "minLength": 2 }
+					},
 					{
 						"name": "limit",
 						"in": "query",
-						"description": "Jumlah kategori yang ingin diambil (default 20)",
+						"description": "Jumlah kategori per halaman (default 20)",
 						"required": false,
-						"schema": {
-							"type": "integer",
-							"default": 20
-						}
+						"schema": { "type": "integer", "default": 20 }
 					},
 					{
 						"name": "cursor",
 						"in": "query",
-						"description": "UUID kategori terakhir untuk infinite scroll",
+						"description": "Cursor untuk paginasi kategori",
 						"required": false,
-						"schema": {
-							"type": "string",
-							"format": "uuid"
-						}
+						"schema": { "type": "string", "format": "uuid" }
 					}
 				],
 				"responses": {
 					"200": {
-						"description": "Daftar kategori berhasil diambil",
+						"description": "Daftar kategori atau hasil pencarian kategori",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4590,14 +4586,15 @@
 																"format": "date-time"
 															}
 														}
-													}
+													},
+													"maxItems": 20
 												},
 												"pagination": {
 													"type": "object",
 													"properties": {
-														"has_next": { "type": "boolean", "example": false },
+														"has_next": { "type": "boolean" },
 														"next_cursor": {
-															"type": "string",
+															"type": ["string", "null"],
 															"format": "uuid",
 															"example": null
 														}
@@ -4608,8 +4605,8 @@
 									}
 								},
 								"examples": {
-									"success": {
-										"summary": "Success response",
+									"list": {
+										"summary": "List categories",
 										"value": {
 											"code": 200,
 											"status": true,
@@ -4617,22 +4614,37 @@
 												"categories": [
 													{
 														"id": "b1a2c3d4-e5f6-7890-1234-56789abcdef0",
-														"name": "Web Design",
-														"slug": "web-design",
+														"name": "Web Development",
+														"slug": "web-development",
 														"created_at": "2026-02-10T10:00:00Z",
 														"updated_at": "2026-02-10T10:00:00Z"
-													},
+													}
+												],
+												"pagination": {
+													"has_next": false,
+													"next_cursor": null
+												}
+											}
+										}
+									},
+									"search": {
+										"summary": "Search categories",
+										"value": {
+											"code": 200,
+											"status": true,
+											"data": {
+												"categories": [
 													{
 														"id": "c2b3a4d5-e6f7-8901-2345-67890abcdef1",
-														"name": "Mobile App",
-														"slug": "mobile-app",
+														"name": "Develop UI",
+														"slug": "develop-ui",
 														"created_at": "2026-02-10T10:01:00Z",
 														"updated_at": "2026-02-10T10:01:00Z"
 													}
 												],
 												"pagination": {
-													"next_cursor": null,
-													"has_next": false
+													"has_next": false,
+													"next_cursor": null
 												}
 											}
 										}
@@ -4642,11 +4654,19 @@
 						}
 					},
 					"400": {
-						"description": "Request tidak valid",
+						"description": "Request tidak valid (misal q kurang dari 2 karakter)",
 						"content": {
 							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
+								"schema": { "$ref": "#/components/schemas/ErrorResponse" },
+								"examples": {
+									"invalid": {
+										"summary": "Invalid request",
+										"value": {
+											"code": 400,
+											"status": false,
+											"message": "Query q minimal 2 karakter"
+										}
+									}
 								}
 							}
 						}
@@ -4655,9 +4675,7 @@
 						"description": "Internal server error",
 						"content": {
 							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ErrorResponse"
-								}
+								"schema": { "$ref": "#/components/schemas/ErrorResponse" }
 							}
 						}
 					}
@@ -4793,117 +4811,6 @@
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
 								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/categories/search": {
-			"get": {
-				"tags": ["Categories"],
-				"summary": "Search categories",
-				"description": "Mencari kategori berdasarkan keyword. Case-insensitive, hasil diurutkan berdasarkan relevansi. Minimal 2 karakter, maksimal 20 hasil.",
-				"operationId": "searchCategories",
-				"parameters": [
-					{
-						"name": "q",
-						"in": "query",
-						"description": "Keyword pencarian kategori (minimal 2 karakter)",
-						"required": true,
-						"schema": { "type": "string", "minLength": 2 }
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "Daftar hasil pencarian kategori",
-						"content": {
-							"application/json": {
-								"schema": {
-									"type": "object",
-									"properties": {
-										"code": { "type": "integer", "example": 200 },
-										"status": { "type": "boolean", "example": true },
-										"data": {
-											"type": "object",
-											"properties": {
-												"categories": {
-													"type": "array",
-													"items": {
-														"type": "object",
-														"properties": {
-															"id": { "type": "string", "format": "uuid" },
-															"name": { "type": "string" },
-															"slug": { "type": "string" },
-															"created_at": {
-																"type": "string",
-																"format": "date-time"
-															},
-															"updated_at": {
-																"type": "string",
-																"format": "date-time"
-															}
-														}
-													},
-													"maxItems": 20
-												}
-											}
-										}
-									}
-								},
-								"examples": {
-									"success": {
-										"summary": "Success response",
-										"value": {
-											"code": 200,
-											"status": true,
-											"data": {
-												"categories": [
-													{
-														"id": "b1a2c3d4-e5f6-7890-1234-56789abcdef0",
-														"name": "Web Development",
-														"slug": "web-development",
-														"created_at": "2026-02-10T10:00:00Z",
-														"updated_at": "2026-02-10T10:00:00Z"
-													},
-													{
-														"id": "c2b3a4d5-e6f7-8901-2345-67890abcdef1",
-														"name": "Develop UI",
-														"slug": "develop-ui",
-														"created_at": "2026-02-10T10:01:00Z",
-														"updated_at": "2026-02-10T10:01:00Z"
-													}
-												]
-											}
-										}
-									}
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Request tidak valid (misal q kurang dari 2 karakter)",
-						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/ErrorResponse" },
-								"examples": {
-									"invalid": {
-										"summary": "Invalid request",
-										"value": {
-											"code": 400,
-											"status": false,
-											"message": "Query q minimal 2 karakter"
-										}
-									}
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal server error",
-						"content": {
-							"application/json": {
-								"schema": { "$ref": "#/components/schemas/ErrorResponse" }
 							}
 						}
 					}

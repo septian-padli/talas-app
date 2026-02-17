@@ -47,7 +47,7 @@ func InitializeApp() (*fiber.App, error) {
 	}
 	eventPublisher := rabbitmq.NewRabbitMQPublisher(configConfig, logrusLogger)
 	showcaseUsecase := usecase.NewShowcaseUsecase(showcaseRepository, categoryRepository, searchRepository, userClient, cloudinaryUploader, eventPublisher, client, configConfig, logrusLogger)
-	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase, logrusLogger)
+	showcaseHandler := handler.NewShowcaseHandler(showcaseUsecase, cloudinaryUploader, logrusLogger)
 	internalHandler := handler.NewInternalHandler(showcaseUsecase, userClient, logrusLogger)
 	categoryUsecase := usecase.NewCategoryUsecase(categoryRepository, showcaseRepository)
 	categoryHandler := handler.NewCategoryHandler(categoryUsecase)
