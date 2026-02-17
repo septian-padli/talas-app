@@ -1,5 +1,5 @@
 "use client";
-import { PostCard } from "@/components/feeds/post-card";
+import { PostCard } from "@/components/showcase/post-card";
 import ProfileCard from "@/components/profile/profile-card";
 import { useParams } from "next/navigation";
 import { usePublicProfile } from "@/hooks/useProfile";
@@ -78,7 +78,8 @@ const dummyPosts: ShowcaseDetail[] = [
                     "id": "dbd34860-bea1-4421-a3d0-33dd0428fbf1",
                     "name": "user admin",
                     "username": "useradmin",
-                    "avatar_url": "https://res.cloudinary.com/dqtea12yq/image/upload/v1770617782/talas/avatars/avatar_1770617781403.jpg"
+                    "jobTitle": "Admin",
+                    "avatarUrl": "https://res.cloudinary.com/dqtea12yq/image/upload/v1770617782/talas/avatars/avatar_1770617781403.jpg"
                 }
             }
         ]

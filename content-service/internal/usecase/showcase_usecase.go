@@ -548,6 +548,7 @@ func (u *showcaseUsecase) GetShowcaseBySlug(ctx context.Context, slug string) (*
 							Name:      userData.Name,
 							Username:  userData.Username,
 							AvatarURL: userData.AvatarURL,
+							JobTitle:  userData.JobTitle,
 						},
 					})
 				}

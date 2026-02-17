@@ -1,6 +1,6 @@
 "use client";
-import { PostCard } from "@/components/feeds/post-card";
-import { PostComposer } from "@/components/feeds/post-composer";
+import { PostCard } from "@/components/showcase/post-card";
+import { PostComposer } from "@/components/showcase/post-composer";
 import { ShowcaseDetail } from "@/types/showcase";
 
 interface HomePageProps {
@@ -74,7 +74,8 @@ const dummyPosts: ShowcaseDetail[] = [
                     "id": "dbd34860-bea1-4421-a3d0-33dd0428fbf1",
                     "name": "user admin",
                     "username": "useradmin",
-                    "avatar_url": "https://res.cloudinary.com/dqtea12yq/image/upload/v1770617782/talas/avatars/avatar_1770617781403.jpg"
+                    "jobTitle": "Admin",
+                    "avatarUrl": "https://res.cloudinary.com/dqtea12yq/image/upload/v1770617782/talas/avatars/avatar_1770617781403.jpg"
                 }
             }
         ]

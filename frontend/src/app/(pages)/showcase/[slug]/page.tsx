@@ -1,9 +1,10 @@
 "use client";
-import { PostCard } from "@/components/feeds/post-card"
+import { PostCard } from "@/components/showcase/post-card"
 import { useDetailShowcase } from "@/hooks/useShowcase";
 import { useHeaderStore } from "@/store/useHeaderStore";
 import { useParams } from "next/dist/client/components/navigation";
 import { useEffect } from "react";
+import CommentSection from "./CommentSection";
 
 interface DetilShowcasePageProps {
     prop: string
@@ -33,6 +34,7 @@ const DetilShowcasePage: React.FC<DetilShowcasePageProps> = () => {
                 <PostCard
                     showcase={showcase}
                 />
+                <CommentSection prop={showcase.id} />
             </div>
         </div>
     );

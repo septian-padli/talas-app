@@ -8,10 +8,10 @@ import { useState, useEffect } from "react";
 import { Github, Figma } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from 'date-fns';
-import { PostHeader } from "./post-header";
 import { PostActions } from "./post-actions";
 import { toast } from "sonner";
 import { ShowcaseDetail } from "@/types/showcase";
+import ProfileHeader from "../profile/ProfileHeader";
 
 
 // Accepts a showcase object directly
@@ -25,8 +25,8 @@ export function PostCard({ showcase, displayContext }: PostCardProps) {
   // 1. Only show owner collaborator (safe for undefined)
   const owner = showcase.collaborators?.find((c) => c.role === 'OWNER');
   const username = owner?.user.username || '';
-  const userRole = owner?.role || '';
-  const avatarSrc = owner?.user.avatar_url || '';
+  const jobTitle = owner?.user.jobTitle || '';
+  const avatarSrc = owner?.user.avatarUrl || '';
 
   // 2. Only IMAGE media, sorted by position
   const images = (showcase.media || [])
@@ -87,18 +87,18 @@ export function PostCard({ showcase, displayContext }: PostCardProps) {
   //     return;
   //   }
   //   if (slug) {
-  //     router.push(`/project/${slug}`);
+  //     router.push(`/showcase/${slug}`);
   //   } else {
-  //     router.push(`/project/${id}`);
+  //     router.push(`/showcase/${id}`);
   //   }
   // };
 
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     if (slug) {
-      router.push(`/project/${slug}#comments`);
+      router.push(`/showcase/${slug}#comments`);
     } else {
-      router.push(`/project/${showcase.id}#comments`);
+      router.push(`/showcase/${showcase.id}#comments`);
     }
   };
 
@@ -118,7 +118,7 @@ export function PostCard({ showcase, displayContext }: PostCardProps) {
   const postActionsVariant = displayContext === 'saved-page' ? 'bookmark-only' : 'full';
 
   const handleShare = () => {
-    const projectUrl = `${window.location.origin}/project/${slug || showcase.id}`;
+    const projectUrl = `${window.location.origin}/showcase/${slug || showcase.id}`;
     navigator.clipboard.writeText(projectUrl)
       .then(() => {
         toast.success("Project link copied to clipboard!", { position: "bottom-right" });
@@ -133,18 +133,25 @@ export function PostCard({ showcase, displayContext }: PostCardProps) {
     <div
       className={`p-4 ${isMobile ? 'bg-background' : ''}`}
     >
-      <PostHeader
+      {/* <PostHeader
         username={username}
         userRole={userRole}
         avatarSrc={avatarSrc}
         timestamp={formattedTimestamp}
+      /> */}
+      <ProfileHeader
+        avatarUrl={avatarSrc || ""}
+        username={username}
+        jobTitle={jobTitle}
+        profileUrl={avatarSrc}
+        timestamp={formattedTimestamp}
       />
 
-      <div className="mb-6">
+      <div className="mb-6 mt-2">
         {/* This div acts as a block-level container for the title link */}
         <div>
           <Link
-            href={`/project/${slug || showcase.id}`}
+            href={`/showcase/${slug || showcase.id}`}
             onClick={(e) => e.stopPropagation()}
             data-prevent-card-click="true"
           >

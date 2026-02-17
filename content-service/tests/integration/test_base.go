@@ -13,7 +13,6 @@ import (
 	"github.com/septianpadli/talas/content-service/internal/handler"
 	"github.com/septianpadli/talas/content-service/internal/repository"
 	"github.com/septianpadli/talas/content-service/internal/usecase"
-	"github.com/septianpadli/talas/content-service/pkg/clients"
 	"github.com/septianpadli/talas/content-service/pkg/logger"
 	"github.com/septianpadli/talas/content-service/pkg/middleware"
 	"gorm.io/driver/postgres"
@@ -34,10 +33,10 @@ func (m *MockMediaUploader) Upload(ctx context.Context, file multipart.File, fil
 // MockUserClient avoids hitting User Service
 type MockUserClient struct{}
 
-func (m *MockUserClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]clients.UserDetail, error) {
-	result := make(map[uuid.UUID]clients.UserDetail)
+func (m *MockUserClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]*entity.User, error) {
+	result := make(map[uuid.UUID]*entity.User)
 	for _, id := range userIDs {
-		result[id] = clients.UserDetail{
+		result[id] = &entity.User{
 			ID:        id,
 			Name:      "Test User",
 			Username:  "testuser",
@@ -47,10 +46,10 @@ func (m *MockUserClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]client
 	return result, nil
 }
 
-func (m *MockUserClient) GetUsersByUsernames(usernames []string) (map[string]clients.UserDetail, error) {
-	result := make(map[string]clients.UserDetail)
+func (m *MockUserClient) GetUsersByUsernames(usernames []string) (map[string]*entity.User, error) {
+	result := make(map[string]*entity.User)
 	for _, username := range usernames {
-		result[username] = clients.UserDetail{
+		result[username] = &entity.User{
 			ID:        uuid.New(),
 			Name:      "Test User",
 			Username:  username,

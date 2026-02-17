@@ -9,39 +9,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/septianpadli/talas/content-service/internal/config"
+	"github.com/septianpadli/talas/content-service/internal/entity"
 	"github.com/sirupsen/logrus"
 )
 
 type UserClient interface {
-	GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]UserDetail, error)
-	GetUsersByUsernames(usernames []string) (map[string]UserDetail, error)
+	GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]*entity.User, error)
+	GetUsersByUsernames(usernames []string) (map[string]*entity.User, error)
 }
 
 type userClient struct {
 	cfg        *config.Config
 	httpClient *http.Client
 	log        *logrus.Logger
-}
-
-type UserDetail struct {
-	ID        uuid.UUID `json:"id"` // Added ID field
-	Name      string    `json:"name"`
-	Username  string    `json:"username"`
-	AvatarURL string    `json:"avatarUrl"` // Changed to avatarUrl to match User Service
-}
-
-type bulkUserRequest struct {
-	UserIDs []uuid.UUID `json:"userIds"`
-}
-
-type bulkUsernameRequest struct {
-	Usernames []string `json:"usernames"`
-}
-
-type bulkUserResponse struct {
-	Code    int          `json:"code"`
-	Success bool         `json:"success"`
-	Data    []UserDetail `json:"data"` // Changed to array
 }
 
 func NewUserClient(cfg *config.Config, log *logrus.Logger) UserClient {
@@ -54,10 +34,10 @@ func NewUserClient(cfg *config.Config, log *logrus.Logger) UserClient {
 	}
 }
 
-func (c *userClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]UserDetail, error) {
+func (c *userClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]*entity.User, error) {
 	url := fmt.Sprintf("%s/api/internal/users/bulk", c.cfg.UserServiceURL)
 
-	reqBody := bulkUserRequest{UserIDs: userIDs}
+	reqBody := entity.BulkUserRequest{UserIDs: userIDs}
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -83,7 +63,7 @@ func (c *userClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]UserDetail
 		return nil, fmt.Errorf("user service error: %d", resp.StatusCode)
 	}
 
-	var apiResp bulkUserResponse
+	var apiResp entity.BulkUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
@@ -93,18 +73,22 @@ func (c *userClient) GetUsersBulk(userIDs []uuid.UUID) (map[uuid.UUID]UserDetail
 	}
 
 	// Convert Array to Map for easier lookup
-	result := make(map[uuid.UUID]UserDetail)
-	for _, user := range apiResp.Data {
+	result := make(map[uuid.UUID]*entity.User)
+	// for _, user := range apiResp.Data {
+	// 	result[user.ID] = user
+	// }
+	for i := range apiResp.Data {
+		user := &apiResp.Data[i]
 		result[user.ID] = user
 	}
 
 	return result, nil
 }
 
-func (c *userClient) GetUsersByUsernames(usernames []string) (map[string]UserDetail, error) {
+func (c *userClient) GetUsersByUsernames(usernames []string) (map[string]*entity.User, error) {
 	url := fmt.Sprintf("%s/api/internal/users/lookup", c.cfg.UserServiceURL)
 
-	reqBody := bulkUsernameRequest{Usernames: usernames}
+	reqBody := entity.BulkUsernameRequest{Usernames: usernames}
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -130,7 +114,7 @@ func (c *userClient) GetUsersByUsernames(usernames []string) (map[string]UserDet
 		return nil, fmt.Errorf("user service error: %d", resp.StatusCode)
 	}
 
-	var apiResp bulkUserResponse
+	var apiResp entity.BulkUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
@@ -140,8 +124,12 @@ func (c *userClient) GetUsersByUsernames(usernames []string) (map[string]UserDet
 	}
 
 	// Convert Array to Map (Key: Username)
-	result := make(map[string]UserDetail)
-	for _, user := range apiResp.Data {
+	result := make(map[string]*entity.User)
+	// for _, user := range apiResp.Data {
+	// 	result[user.Username] = user
+	// }
+	for i := range apiResp.Data {
+		user := &apiResp.Data[i]
 		result[user.Username] = user
 	}
 

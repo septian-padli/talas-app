@@ -10,10 +10,10 @@ import (
 // Base contains common columns for all tables.
 // Replaces gorm.Model to support UUID as Primary Key.
 type Base struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid();index:idx_base_id_deletedat,priority:1" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	DeletedAt gorm.DeletedAt `gorm:"index;index:idx_base_id_deletedat,priority:2" json:"deleted_at,omitempty"`
 }
 
 // BeforeCreate hook to generate UUID if not exists (fallback for DBs without gen_random_uuid default)

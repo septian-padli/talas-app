@@ -51,12 +51,6 @@ type EnrichedCollaborator struct {
 }
 
 // User struct (Ghost object from User Service)
-type User struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Username  string    `json:"username"`
-	AvatarURL string    `json:"avatar_url"`
-}
 
 type ShowcaseMedia struct {
 	Base

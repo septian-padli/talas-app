@@ -236,7 +236,7 @@ func (u *commentUsecase) GetShowcaseComments(ctx context.Context, commentID uuid
 	}
 
 	// 3. Bulk Fetch Users
-	usersMap := make(map[uuid.UUID]clients.UserDetail)
+	usersMap := make(map[uuid.UUID]*entity.User)
 	if len(userIDs) > 0 {
 		fetchedUsers, err := u.userClient.GetUsersBulk(userIDs)
 		if err == nil {

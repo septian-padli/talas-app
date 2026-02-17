@@ -26,7 +26,8 @@ export interface userMinimal {
 	id: string;
 	username: string;
 	name: string | null;
-	avatar_url: string | null;
+	jobTitle?: string | null;
+	avatarUrl: string | null;
 }
 
 export interface UserStats {
