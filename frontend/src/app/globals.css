@@ -79,11 +79,11 @@
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
-	--brand-400: #86e586;
-	--brand-500: #77e177;
-	--brand-600: #68de68;
-	--brand-700: #5ec85e;
-	--brand-800: #53b253;
+	--brand-400: rgba(134, 229, 134);
+	--brand-500: rgba(119, 225, 119);
+	--brand-600: rgba(104, 222, 104);
+	--brand-700: rgba(94, 200, 94);
+	--brand-800: rgba(83, 178, 83);
 }
 
 .dark {
@@ -135,6 +135,9 @@
 	}
 	.bg-brand-800 {
 		background-color: var(--brand-800) !important;
+	}
+	.bg-brand-700-75 {
+		background-color: rgba(94, 200, 94, 0.75) !important;
 	}
 	.text-brand-400 {
 		color: var(--brand-400) !important;

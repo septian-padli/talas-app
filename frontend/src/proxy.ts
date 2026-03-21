@@ -17,7 +17,7 @@ export function proxy(request: NextRequest) {
 		pathname.startsWith("/login") || pathname.startsWith("/register");
 
 	// Daftar halaman Public (jika ada halaman landing page yang boleh diakses tanpa login)
-	// const isPublicPage = pathname === '/about' || pathname === '/privacy';
+	const isPublicPage = pathname.startsWith("/about") || pathname === "/privacy";
 
 	// --- LOGIC PENGAMANAN ---
 
@@ -30,9 +30,9 @@ export function proxy(request: NextRequest) {
 	}
 
 	// SKENARIO B: User BELUM Login (Tidak punya Token)
-	// Tapi mencoba masuk ke halaman selain Auth (misal: Dashboard)
+	// Tapi mencoba masuk ke halaman selain Auth dan Public (misal: Dashboard)
 	// Action: Tendang ke halaman Login
-	if (!token && !refreshToken && !isAuthPage) {
+	if (!token && !refreshToken && !isAuthPage && !isPublicPage) {
 		return NextResponse.redirect(new URL("/login", request.url));
 	}
 

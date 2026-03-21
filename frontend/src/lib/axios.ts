@@ -1,5 +1,6 @@
 // src/lib/axios.ts
 import axios from "axios";
+const publicPaths = ["/about", "/login", "/register"];
 
 const api = axios.create({
 	baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -79,12 +80,7 @@ api.interceptors.response.use(
 				// GAGAL: Beritahu semua antrian bahwa refresh gagal
 				processQueue(refreshError, null);
 
-				// Logout Paksa
-				if (typeof window !== "undefined") {
-					// Hapus data user di local storage (bukan token, token di cookie urusan browser)
-					localStorage.removeItem("user_data"); // Sesuaikan key kamu
-					window.location.href = "/login";
-				}
+				// Tidak ada redirect paksa ke login. Biarkan error diproses oleh handler di UI.
 				return Promise.reject(refreshError);
 			} finally {
 				// Reset status agar siap untuk refresh berikutnya di masa depan
